@@ -57,7 +57,7 @@ export default function LiveLeafletMap({ center, zoom = 15, accuracy, routeGeojs
             key={geojsonKey} 
             data={routeGeojson} 
             style={() => ({
-              color: '#059669', // Emerald 600
+              color: '#2563EB', // Primary Electric Blue (#2563EB)
               weight: 5,
               opacity: 0.8,
               lineJoin: 'round',

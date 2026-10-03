@@ -1,4 +1,4 @@
-import { RouteScenarioData, SchematicStep, AccessibilityPreferenceId } from '@/data/routeSimulatorData';
+import { RouteScenarioData, SchematicStep, AccessibilityPreferenceId, DEMO_LOCATIONS } from '@/data/routeSimulatorData';
 
 const ORS_API_KEY = process.env.NEXT_PUBLIC_ORS_API_KEY;
 const ORS_BASE_URL = 'https://api.openrouteservice.org/v2/directions';
@@ -179,8 +179,71 @@ export interface GeocodeResult {
   coordinates: Coordinates;
 }
 
+export async function geocodeNominatim(query: string): Promise<GeocodeResult | null> {
+  if (!query || query.trim().length === 0) return null;
+
+  try {
+    const url = `https://nominatim.openstreetmap.org/search?format=json&q=${encodeURIComponent(query)}&limit=1`;
+    const response = await fetch(url, {
+      headers: {
+        'User-Agent': 'PixelMuse-BarrierFreeNavApp/1.0 (contact@pixelmuse.dev)'
+      }
+    });
+
+    if (!response.ok) return null;
+    const data = await response.json();
+
+    if (data && data.length > 0) {
+      return {
+        name: data[0].display_name.split(',')[0],
+        label: data[0].display_name,
+        coordinates: {
+          lat: parseFloat(data[0].lat),
+          lng: parseFloat(data[0].lon)
+        }
+      };
+    }
+    return null;
+  } catch (error) {
+    console.warn('Nominatim geocoding error:', error);
+    return null;
+  }
+}
+
 export async function searchLocation(query: string): Promise<GeocodeResult[]> {
-  if (!ORS_API_KEY || !query) return [];
+  if (!query || query.trim().length === 0) return [];
+
+  const normalized = query.toLowerCase().trim();
+
+  // Local fuzzy matching against DEMO_LOCATIONS
+  const demoMatches = DEMO_LOCATIONS.filter(l => 
+    l.name.toLowerCase().includes(normalized) || 
+    normalized.includes(l.name.toLowerCase()) ||
+    (l.description && l.description.toLowerCase().includes(normalized)) ||
+    (l.id && l.id.replace(/-/g, ' ').includes(normalized))
+  ).map(l => ({
+    name: l.name,
+    label: `${l.name} — ${l.description}`,
+    coordinates: { lat: l.lat || 19.1118, lng: l.lng || 72.8267 }
+  }));
+
+  if (!ORS_API_KEY) {
+    // Try Nominatim online geocoding if ORS key is not available
+    const nomRes = await geocodeNominatim(query);
+    if (nomRes) {
+      const combined = [...demoMatches];
+      if (!combined.some(c => c.name.toLowerCase() === nomRes.name.toLowerCase())) {
+        combined.unshift(nomRes);
+      }
+      return combined;
+    }
+    if (demoMatches.length > 0) return demoMatches;
+    return [{
+      name: query,
+      label: `${query} (Custom Location)`,
+      coordinates: { lat: 19.1118, lng: 72.8267 }
+    }];
+  }
 
   try {
     const url = `https://api.openrouteservice.org/geocode/search?api_key=${ORS_API_KEY}&text=${encodeURIComponent(query)}&boundary.country=IND`;
@@ -188,7 +251,7 @@ export async function searchLocation(query: string): Promise<GeocodeResult[]> {
     if (!response.ok) throw new Error('Geocoding failed');
     const data = await response.json();
 
-    return data.features.map((feature: any) => ({
+    const remoteResults: GeocodeResult[] = data.features.map((feature: any) => ({
       name: feature.properties.name,
       label: feature.properties.label,
       coordinates: {
@@ -196,8 +259,22 @@ export async function searchLocation(query: string): Promise<GeocodeResult[]> {
         lng: feature.geometry.coordinates[0]
       }
     }));
+
+    const combined = [...demoMatches];
+    for (const r of remoteResults) {
+      if (!combined.some(c => c.name.toLowerCase() === r.name.toLowerCase())) {
+        combined.push(r);
+      }
+    }
+    return combined;
   } catch (error) {
     console.error('Failed to geocode:', error);
-    return [];
+    const nomRes = await geocodeNominatim(query);
+    if (nomRes) return [nomRes, ...demoMatches];
+    return demoMatches.length > 0 ? demoMatches : [{
+      name: query,
+      label: `${query} (Custom Location)`,
+      coordinates: { lat: 19.1118, lng: 72.8267 }
+    }];
   }
 }

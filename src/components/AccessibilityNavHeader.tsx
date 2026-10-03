@@ -3,6 +3,7 @@
 import React from 'react';
 import { useAccessibility } from '@/context/AccessibilityContext';
 import { Sun, Moon, Volume2, VolumeX, Sparkles, Navigation } from 'lucide-react';
+import TalkToAssistantButton from './TalkToAssistantButton';
 
 interface AccessibilityNavHeaderProps {
   currentStep?: number;
@@ -161,6 +162,9 @@ export default function AccessibilityNavHeader({
               <span>Restart Tour</span>
             </button>
           )}
+
+          {/* Talk To Assistant Voice Trigger */}
+          <TalkToAssistantButton variant="inline" />
 
           {/* Voice screen reader audio toggle */}
           <button

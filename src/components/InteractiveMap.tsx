@@ -6,12 +6,12 @@ import { useAccessibility } from '@/context/AccessibilityContext';
 import Last50mCard from './Last50mCard';
 import { entrances } from '@/data/entrances';
 import { selectEntrance } from '@/lib/entranceSelector';
+import { useLocationPlannerState } from '@/hooks/useLocationPlannerState';
+import LocationInputConnector from './ui/LocationInputConnector';
+import Badge from './ui/Badge';
 import {
   MapPin,
   Navigation,
-  ArrowUpDown,
-  Search,
-  Mic,
   ZoomIn,
   ZoomOut,
   Layers,
@@ -40,20 +40,15 @@ export default function InteractiveMap({
   onSimulateClick,
 }: InteractiveMapProps) {
   const { persona, simulatedObstacle, speakText } = useAccessibility();
+  const { source, destination, setSource, setDestination, swapLocations } = useLocationPlannerState({
+    initialSource,
+    initialDestination,
+  });
 
-  const [source, setSource] = useState(initialSource);
-  const [destination, setDestination] = useState(initialDestination);
   const [zoomLevel, setZoomLevel] = useState(16);
   const [activeLayer, setActiveLayer] = useState<'all' | 'tactile' | 'elevators' | 'ramps' | 'entrances'>('all');
   const [selectedWaypoint, setSelectedWaypoint] = useState<number | null>(null);
   const [mapStyle, setMapStyle] = useState<'standard' | 'satellite' | 'accessibility'>('accessibility');
-
-  const swapSourceAndDestination = () => {
-    const temp = source;
-    setSource(destination);
-    setDestination(temp);
-    speakText("Swapped origin and destination");
-  };
 
   const userLocationMock = { lat: 40.7126, lng: -74.0055 };
   const entranceSelection = selectEntrance(entrances, persona, userLocationMock);
@@ -90,10 +85,10 @@ export default function InteractiveMap({
 
   return (
     <div className="relative w-full h-[calc(100vh-2rem)] rounded-3xl overflow-hidden border border-outline-variant/40 shadow-xl bg-surface-container-high flex flex-col lg:flex-row">
-      
+
       {/* Floating Left Search & Route Control Panel (Google Maps Style) */}
       <div className="w-full lg:w-[420px] bg-surface-container-lowest/95 backdrop-blur-xl border-r border-outline-variant/30 p-5 flex flex-col gap-4 z-20 shadow-2xl overflow-y-auto max-h-full">
-        
+
         {/* Source & Destination Routing Box */}
         <div className="p-4 rounded-2xl bg-surface-container-low border border-outline-variant/40 shadow-sm flex flex-col gap-3">
           <div className="flex items-center justify-between border-b border-outline-variant/20 pb-2">
@@ -101,68 +96,18 @@ export default function InteractiveMap({
               <Navigation className="w-3.5 h-3.5 fill-primary" />
               GPS Route Engine
             </span>
-            <span className="text-[11px] font-extrabold text-secondary px-2 py-0.5 rounded-full bg-secondary-container">
+            <Badge variant="secondary">
               WCAG AAA Active
-            </span>
+            </Badge>
           </div>
 
-          <div className="flex items-center gap-3">
-            {/* Dots connection column */}
-            <div className="flex flex-col items-center gap-1.5 py-1">
-              <div className="w-3.5 h-3.5 rounded-full border-2 border-primary bg-white shadow-xs" />
-              <div className="w-0.5 h-8 bg-outline-variant/50 border-dashed" />
-              <div className="w-3.5 h-3.5 rounded-full bg-secondary shadow-xs flex items-center justify-center">
-                <div className="w-1.5 h-1.5 rounded-full bg-white" />
-              </div>
-            </div>
-
-            {/* Input Fields */}
-            <div className="flex-1 flex flex-col gap-2">
-              <div className="relative flex items-center">
-                <input
-                  type="text"
-                  value={source}
-                  onChange={(e) => setSource(e.target.value)}
-                  placeholder="Choose source / starting location..."
-                  className="w-full h-11 pl-3 pr-8 rounded-xl bg-surface-container-lowest border border-outline-variant/40 text-xs font-bold text-on-surface focus:outline-none focus:ring-2 focus:ring-primary"
-                />
-                <button
-                  type="button"
-                  onClick={() => speakText("Voice input active for origin")}
-                  className="absolute right-2 text-on-surface-variant hover:text-primary"
-                >
-                  <Mic className="w-4 h-4" />
-                </button>
-              </div>
-
-              <div className="relative flex items-center">
-                <input
-                  type="text"
-                  value={destination}
-                  onChange={(e) => setDestination(e.target.value)}
-                  placeholder="Choose destination venue..."
-                  className="w-full h-11 pl-3 pr-8 rounded-xl bg-surface-container-lowest border border-outline-variant/40 text-xs font-bold text-on-surface focus:outline-none focus:ring-2 focus:ring-primary"
-                />
-                <button
-                  type="button"
-                  onClick={() => speakText("Voice input active for destination")}
-                  className="absolute right-2 text-on-surface-variant hover:text-primary"
-                >
-                  <Mic className="w-4 h-4" />
-                </button>
-              </div>
-            </div>
-
-            {/* Swap Button */}
-            <button
-              type="button"
-              onClick={swapSourceAndDestination}
-              className="w-10 h-10 rounded-xl bg-surface-container hover:bg-surface-container-high border border-outline-variant/40 flex items-center justify-center text-primary font-bold shadow-xs transition-transform active:scale-95 flex-shrink-0"
-              title="Swap Source & Destination"
-            >
-              <ArrowUpDown className="w-5 h-5" />
-            </button>
-          </div>
+          <LocationInputConnector
+            source={source}
+            destination={destination}
+            onSourceChange={setSource}
+            onDestinationChange={setDestination}
+            onSwap={swapLocations}
+          />
 
           {/* Persona Filter Strip */}
           <div className="flex items-center justify-between text-xs font-bold text-on-surface-variant pt-1 border-t border-outline-variant/20">
@@ -271,7 +216,7 @@ export default function InteractiveMap({
 
       {/* Main Google Maps-Style Interactive Canvas */}
       <div className="flex-1 relative bg-[#e5eef9] overflow-hidden min-h-[400px]">
-        
+
         {/* Vector Map Canvas Grid Background */}
         <div
           className="absolute inset-0 opacity-40"
@@ -343,11 +288,10 @@ export default function InteractiveMap({
             }}
             className="absolute -translate-x-1/2 -translate-y-1/2 cursor-pointer group z-10"
           >
-            <div className={`relative flex items-center justify-center w-10 h-10 rounded-full shadow-xl transition-transform group-hover:scale-125 ${
-              wp.type === 'destination'
+            <div className={`relative flex items-center justify-center w-10 h-10 rounded-full shadow-xl transition-transform group-hover:scale-125 ${wp.type === 'destination'
                 ? 'bg-secondary text-white ring-4 ring-secondary/30'
                 : 'bg-primary text-white ring-4 ring-primary/30'
-            }`}>
+              }`}>
               <MapPin className="w-6 h-6 fill-current" />
               <span className="absolute -top-2 -right-2 w-5 h-5 rounded-full bg-white text-on-surface text-[10px] font-black flex items-center justify-center border border-outline-variant">
                 {wp.id}
@@ -365,17 +309,17 @@ export default function InteractiveMap({
         {/* Entrance Markers on Canvas */}
         {(activeLayer === 'all' || activeLayer === 'entrances') && entrances.map((ent) => {
           // Mock coordinates for demo since map is an SVG illustration
-          const coords: Record<string, {x: string, y: string}> = {
-            'ent-1': {x: '40%', y: '40%'},
-            'ent-2': {x: '25%', y: '65%'},
-            'ent-3': {x: '55%', y: '50%'},
-            'ent-4': {x: '65%', y: '45%'}
+          const coords: Record<string, { x: string, y: string }> = {
+            'ent-1': { x: '40%', y: '40%' },
+            'ent-2': { x: '25%', y: '65%' },
+            'ent-3': { x: '55%', y: '50%' },
+            'ent-4': { x: '65%', y: '45%' }
           };
-          const pos = coords[ent.id] || {x: '50%', y: '50%'};
-          
+          const pos = coords[ent.id] || { x: '50%', y: '50%' };
+
           let markerColor = 'bg-surface-container-highest text-on-surface ring-outline-variant/30';
           let markerStatus = 'Not Recommended';
-          
+
           if (entranceSelection.recommended?.id === ent.id) {
             markerColor = 'bg-primary text-white ring-primary/30';
             markerStatus = 'Recommended';
@@ -410,14 +354,13 @@ export default function InteractiveMap({
 
         {/* Map Control Buttons (Top Right) */}
         <div className="absolute top-4 right-4 flex flex-col gap-2 z-20">
-          
+
           {/* Layer Selector */}
           <div className="bg-white/90 backdrop-blur-md rounded-2xl p-1 shadow-lg border border-outline-variant/30 flex flex-col gap-1">
             <button
               onClick={() => setActiveLayer('all')}
-              className={`p-2 rounded-xl text-xs font-bold transition-all flex items-center gap-1.5 ${
-                activeLayer === 'all' ? 'bg-primary text-white shadow-xs' : 'text-on-surface hover:bg-surface-container'
-              }`}
+              className={`p-2 rounded-xl text-xs font-bold transition-all flex items-center gap-1.5 ${activeLayer === 'all' ? 'bg-primary text-white shadow-xs' : 'text-on-surface hover:bg-surface-container'
+                }`}
               title="Show All Layers"
             >
               <Layers className="w-4 h-4" />
@@ -426,9 +369,8 @@ export default function InteractiveMap({
 
             <button
               onClick={() => setActiveLayer('tactile')}
-              className={`p-2 rounded-xl text-xs font-bold transition-all flex items-center gap-1.5 ${
-                activeLayer === 'tactile' ? 'bg-secondary text-white shadow-xs' : 'text-on-surface hover:bg-surface-container'
-              }`}
+              className={`p-2 rounded-xl text-xs font-bold transition-all flex items-center gap-1.5 ${activeLayer === 'tactile' ? 'bg-secondary text-white shadow-xs' : 'text-on-surface hover:bg-surface-container'
+                }`}
               title="Tactile Paving Strips"
             >
               <CheckCircle2 className="w-4 h-4" />
@@ -437,9 +379,8 @@ export default function InteractiveMap({
 
             <button
               onClick={() => setActiveLayer('entrances')}
-              className={`p-2 rounded-xl text-xs font-bold transition-all flex items-center gap-1.5 ${
-                activeLayer === 'entrances' ? 'bg-primary text-white shadow-xs' : 'text-on-surface hover:bg-surface-container'
-              }`}
+              className={`p-2 rounded-xl text-xs font-bold transition-all flex items-center gap-1.5 ${activeLayer === 'entrances' ? 'bg-primary text-white shadow-xs' : 'text-on-surface hover:bg-surface-container'
+                }`}
               title="Accessible Entrances"
             >
               <Building className="w-4 h-4" />

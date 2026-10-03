@@ -121,21 +121,6 @@ export default function LoginPage() {
             </div>
           </div>
 
-          {/* Quick Demo Credentials Hint */}
-          <div className="p-3 rounded-2xl bg-surface-container-low border border-outline-variant/30 text-[11px] text-on-surface-variant font-medium flex items-center justify-between">
-            <span>Demo: <strong>alex.rivera@community.org</strong> / <strong>password123</strong></span>
-            <button
-              type="button"
-              onClick={() => {
-                setEmail('alex.rivera@community.org');
-                setPassword('password123');
-              }}
-              className="text-primary font-bold hover:underline cursor-pointer"
-            >
-              Fill Demo
-            </button>
-          </div>
-
           <button
             type="submit"
             disabled={isSubmitting}

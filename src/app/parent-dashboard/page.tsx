@@ -760,17 +760,6 @@ export default function ParentDashboardPage() {
                 />
               </div>
 
-              <div className="p-3 rounded-2xl bg-surface-container-low border border-outline-variant/30 text-[11px] text-on-surface-variant font-medium flex items-center justify-between">
-                <span>Demo Code: <strong>849-201</strong> (Alex Rivera)</span>
-                <button
-                  type="button"
-                  onClick={() => setInputPairingCode('849-201')}
-                  className="text-primary font-bold hover:underline cursor-pointer"
-                >
-                  Use Demo
-                </button>
-              </div>
-
               <button
                 type="submit"
                 disabled={isLinking}

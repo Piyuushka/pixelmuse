@@ -15,7 +15,7 @@ import {
   getRouteComparison,
   RouteScenarioData
 } from '@/data/routeSimulatorData';
-import { getLiveRouteScenario } from '@/lib/orsClient';
+import { getLiveRouteScenario, geocodeNominatim } from '@/lib/orsClient';
 import LocationSearchInput from '@/components/LocationSearchInput';
 import {
   MapPin,
@@ -165,13 +165,26 @@ export default function UnifiedRoutePlanner({ initialMode = 'gps' }: UnifiedRout
   const handleCompare = async () => {
     setIsComparing(true);
     
-    const mockData = getRouteComparison(effectiveStartName, destName, preference);
+    let targetDestCoords = destLocation?.coords;
+    let targetDestName = destName;
+
+    // 1. Geocode searchDestination text via OpenStreetMap Nominatim if coordinates are missing
+    if (!targetDestCoords && destName) {
+      const nomResult = await geocodeNominatim(destName);
+      if (nomResult) {
+        targetDestCoords = nomResult.coordinates;
+        targetDestName = nomResult.name;
+        setDestLocation({ name: nomResult.name, coords: nomResult.coordinates });
+      }
+    }
+
+    const mockData = getRouteComparison(effectiveStartName, targetDestName, preference);
     
     const sCoords = locationMode === 'gps' && coordinates ? coordinates : startLocation?.coords;
-    const dCoords = destLocation?.coords;
 
-    if (sCoords && dCoords) {
-      const liveData = await getLiveRouteScenario(sCoords, dCoords, preference);
+    // 2. Fetch Dynamic Route via OpenRouteService (with Nominatim geocoded coordinates)
+    if (sCoords && targetDestCoords) {
+      const liveData = await getLiveRouteScenario(sCoords, targetDestCoords, preference);
       if (liveData) {
         setScenarioData(liveData);
       } else {
@@ -181,7 +194,7 @@ export default function UnifiedRoutePlanner({ initialMode = 'gps' }: UnifiedRout
       setScenarioData(mockData);
     }
 
-    speakText(`Calculating route from ${effectiveStartName} to ${destName} for ${preference} preference. ${stairsAvoided} stairs avoided, ${barriersAvoided} barriers avoided.`);
+    speakText(`Calculating barrier-free route from ${effectiveStartName} to ${targetDestName} for ${preference} profile.`);
     
     setIsComparing(false);
     setHasCompared(true);
@@ -300,17 +313,8 @@ export default function UnifiedRoutePlanner({ initialMode = 'gps' }: UnifiedRout
             </div>
           </div>
 
-          {/* Quick Audio & Demo Header CTAs */}
+          {/* Quick Audio Header CTA */}
           <div className="flex items-center gap-2 flex-wrap">
-            <button
-              type="button"
-              onClick={handleTryDemoRoute}
-              className="px-4 py-2.5 rounded-2xl bg-primary text-white font-black text-xs flex items-center gap-2 shadow-sm hover:opacity-90 transition-opacity"
-            >
-              <Sparkles className="w-4 h-4" />
-              <span>Run Unified Demo Flow</span>
-            </button>
-
             <button
               type="button"
               onClick={() => speakText(`Unified Accessible Route Planner active. Location is ${effectiveStartName} with GPS accuracy ±${gpsAccuracyMeters}m. Destination is ${destName} for ${selectedPrefObj.label}.`)}
@@ -506,27 +510,6 @@ export default function UnifiedRoutePlanner({ initialMode = 'gps' }: UnifiedRout
                 </p>
               </div>
             </div>
-
-            {/* Quick Demo Scenario Buttons */}
-            <div className="flex items-center gap-2 flex-wrap">
-              <button
-                type="button"
-                onClick={handleTryDemoRoute}
-                className="px-3 py-1.5 rounded-xl bg-primary-container text-white font-bold text-xs flex items-center gap-1.5 shadow-2xs hover:opacity-95 transition-all"
-              >
-                <Sparkles className="w-3.5 h-3.5" />
-                <span>Try Demo (Dadar → Shivaji Park)</span>
-              </button>
-
-              <button
-                type="button"
-                onClick={handleTryAnotherScenario}
-                className="px-3 py-1.5 rounded-xl bg-surface-container hover:bg-surface-container-high text-on-surface font-bold text-xs flex items-center gap-1.5 transition-colors border border-outline-variant/30"
-              >
-                <Shuffle className="w-3.5 h-3.5 text-primary" />
-                <span>Try Another Scenario</span>
-              </button>
-            </div>
           </div>
 
           {/* Mode Selector Tabs (Mode A: GPS vs Mode B: Manual) */}
@@ -719,7 +702,6 @@ export default function UnifiedRoutePlanner({ initialMode = 'gps' }: UnifiedRout
               </div>
 
             </div>
-
           </div>
         </section>
 

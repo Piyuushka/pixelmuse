@@ -1,6 +1,7 @@
 'use client';
 
 import React, { useEffect, useRef, useImperativeHandle, forwardRef } from 'react';
+// @ts-ignore
 import * as maplibregl from 'maplibre-gl';
 import 'maplibre-gl/dist/maplibre-gl.css';
 import { Entrance } from '@/data/entrances';
@@ -91,7 +92,7 @@ const RealMap = forwardRef<MapController, RealMapProps>(({
           'line-cap': 'round'
         },
         paint: {
-          'line-color': '#059669', // Emerald 600
+          'line-color': '#2563EB', // Primary Electric Blue (#2563EB)
           'line-width': 6,
           'line-dasharray': [1, 2]
         }
@@ -124,7 +125,7 @@ const RealMap = forwardRef<MapController, RealMapProps>(({
       });
 
       // Interactivity
-      map.on('click', 'entrances-circle', (e) => {
+      map.on('click', 'entrances-circle', (e: any) => {
         if (!e.features || e.features.length === 0) return;
         const feature = e.features[0];
         const entId = feature.properties.id;
@@ -139,7 +140,7 @@ const RealMap = forwardRef<MapController, RealMapProps>(({
         map.getCanvas().style.cursor = '';
       });
 
-      map.on('click', 'waypoints-circle', (e) => {
+      map.on('click', 'waypoints-circle', (e: any) => {
         if (!e.features || e.features.length === 0) return;
         const feature = e.features[0];
         onWaypointClick(feature.properties.id);
@@ -178,7 +179,7 @@ const RealMap = forwardRef<MapController, RealMapProps>(({
           const features = entrances.map(ent => {
             let color = '#475569'; // grey (other)
             if (recommendedEntranceId === ent.id) {
-              color = '#059669'; // green
+              color = '#2563EB'; // Primary Electric Blue (#2563EB)
             } else if (avoidedEntranceIds.includes(ent.id)) {
               color = '#dc2626'; // red
             }
@@ -198,7 +199,7 @@ const RealMap = forwardRef<MapController, RealMapProps>(({
       const waypointsSource = map.getSource('waypoints') as maplibregl.GeoJSONSource;
       if (waypointsSource) {
         const features = waypoints.map(wp => {
-          const color = wp.type === 'destination' ? '#7c3aed' : '#2563eb';
+          const color = wp.type === 'destination' ? '#FACC15' : '#1D4ED8';
           // using fallback coords if lat/lng missing
           const lng = wp.lng || 72.8885;
           const lat = wp.lat || 19.0460;

@@ -55,6 +55,9 @@ export interface CommunityReport {
 // 1. Demo Locations
 export const DEMO_LOCATIONS: LocationOption[] = [
   // Mumbai Locations (Primary)
+  { id: 'iskcon-juhu', name: 'ISKCON Temple Juhu', region: 'Mumbai', description: 'Major Hare Krishna spiritual complex and landmark in Juhu', lat: 19.1118, lng: 72.8267 },
+  { id: 'juhu-beach', name: 'Juhu Beach Promenade', region: 'Mumbai', description: 'Popular coastal promenade and beach concourse in Western Mumbai', lat: 19.0988, lng: 72.8264 },
+  { id: 'prithvi-theatre', name: 'Prithvi Theatre Juhu', region: 'Mumbai', description: 'Iconic arts centre & cafe with accessible courtyard entrance', lat: 19.1064, lng: 72.8256 },
   { id: 'dadar-station', name: 'Dadar Railway Station', region: 'Mumbai', description: 'Central suburban transit hub with multi-level pedestrian footbridges', lat: 19.0178, lng: 72.8430 },
   { id: 'matunga-station', name: 'Matunga Railway Station', region: 'Mumbai', description: 'Heritage suburban station connecting King\'s Circle commercial strip', lat: 19.0272, lng: 72.8499 },
   { id: 'shivaji-park', name: 'Shivaji Park', region: 'Mumbai', description: 'Large public civic grounds, sports tracks & wide perimeter walkways', lat: 19.0267, lng: 72.8375 },
@@ -86,6 +89,82 @@ export const DEMO_LOCATIONS: LocationOption[] = [
 
 // 3. Predefined Benchmark Scenarios
 export const BENCHMARK_SCENARIOS: Record<string, RouteScenarioData> = {
+  'Dadar Railway Station → ISKCON Temple Juhu': {
+    normal: {
+      distance: 8.4,
+      time: 62,
+      stairs: 4,
+      maxSlope: 11,
+      barriers: 7,
+      unsafeCrossings: 4
+    },
+    accessible: {
+      distance: 8.9,
+      time: 68,
+      stairs: 0,
+      maxSlope: 4,
+      barriers: 1,
+      unsafeCrossings: 1
+    },
+    normalSteps: [
+      { id: 'n1', title: 'Dadar Station Footbridge', type: 'stair', detail: '38 steep stairs without ramp access' },
+      { id: 'n2', title: 'Senapati Bapat Marg Junction', type: 'unsafe_crossing', detail: 'Unsignalized multi-lane traffic crossing' },
+      { id: 'n3', title: 'Juhu Tara Road Sidewalk', type: 'barrier', detail: 'Narrow broken pavement with open drain pits' },
+      { id: 'n4', title: 'ISKCON Temple East Gate', type: 'stair', detail: '3 marble steps without wheelchair ramp' }
+    ],
+    accessibleSteps: [
+      { id: 'a1', title: 'Dadar Station Elevator Concourse', type: 'ramp', detail: 'Step-free elevator to ground exit' },
+      { id: 'a2', title: 'Gokhale Road Pelican Crossing', type: 'accessible_crossing', detail: 'Audible signalized crossing with dropped curbs' },
+      { id: 'a3', title: 'Hare Krishna Land Paved Promenade', type: 'smooth_footpath', detail: 'Continuous wide asphalt walkway with tactile paving' },
+      { id: 'a4', title: 'ISKCON Temple Main Step-Free Portal', type: 'ramp', detail: 'Graded ramp entrance with stainless steel handrails' }
+    ],
+    whyChanged: [
+      'Avoided 4 stair flights across footbridges and temple entry',
+      'Reduced maximum slope from 11% → 4%',
+      'Bypassed 6 broken sidewalk obstacles on Juhu Tara Road',
+      'Reduced unsafe crossings from 4 → 1 using signalized Pelican crossings',
+      'Added 500 m for continuous barrier-free travel'
+    ],
+    summaryText: 'Step-free route prioritizing accessible pavement along Juhu Tara Road directly to ISKCON Main Gate.'
+  },
+  'Live Position → ISKCON Temple Juhu': {
+    normal: {
+      distance: 4.5,
+      time: 40,
+      stairs: 3,
+      maxSlope: 10,
+      barriers: 5,
+      unsafeCrossings: 3
+    },
+    accessible: {
+      distance: 4.9,
+      time: 45,
+      stairs: 0,
+      maxSlope: 4,
+      barriers: 1,
+      unsafeCrossings: 1
+    },
+    normalSteps: [
+      { id: 'n1', title: 'Live Position Footpath', type: 'stair', detail: 'Elevated steps without ramp' },
+      { id: 'n2', title: 'Juhu Arterial Crossing', type: 'unsafe_crossing', detail: 'Multi-lane traffic with no pedestrian signals' },
+      { id: 'n3', title: 'Juhu Tara Walkway', type: 'barrier', detail: 'Broken pavement slabs and utility pole obstruction' },
+      { id: 'n4', title: 'ISKCON Courtyard Gate', type: 'stair', detail: 'Barricaded entrance steps' }
+    ],
+    accessibleSteps: [
+      { id: 'a1', title: 'Live Position Step-Free Portal', type: 'ramp', detail: 'Graded ramp with 4.5% incline' },
+      { id: 'a2', title: 'Protected Signalized Crossing', type: 'accessible_crossing', detail: 'Audible pelican crossing with dropped curbs' },
+      { id: 'a3', title: 'Smooth Paved Bypass', type: 'smooth_footpath', detail: 'Continuous wide concrete walkway with zero obstacles' },
+      { id: 'a4', title: 'ISKCON Accessible Main Gate', type: 'ramp', detail: 'Level automatic sliding door with tactile guide' }
+    ],
+    whyChanged: [
+      'Avoided 3 stair sections along the route',
+      'Reduced maximum slope from 10% → 4%',
+      'Bypassed 4 pedestrian obstacles on Juhu Tara Road',
+      'Reduced unsafe crossings from 3 → 1',
+      'Added 400 m to ensure a smooth, certified barrier-free path'
+    ],
+    summaryText: 'Direct step-free route from Live Position to ISKCON Temple Juhu.'
+  },
   'Dadar Railway Station → Shivaji Park': {
     normal: {
       distance: 2.8,
@@ -477,6 +556,20 @@ export function getRouteComparison(
   }
   if (BENCHMARK_SCENARIOS[reverseKey]) {
     return adjustForPreference(BENCHMARK_SCENARIOS[reverseKey], prefId);
+  }
+
+  // Case-insensitive & substring matching for scenarios
+  const normDirect = directKey.toLowerCase().trim();
+  const normReverse = reverseKey.toLowerCase().trim();
+  const matchedKey = Object.keys(BENCHMARK_SCENARIOS).find(k => {
+    const kNorm = k.toLowerCase().trim();
+    return kNorm === normDirect || kNorm === normReverse || 
+      (normDirect.includes('iskcon') && kNorm.includes('iskcon')) ||
+      (normDirect.includes('juhu') && kNorm.includes('juhu'));
+  });
+
+  if (matchedKey) {
+    return adjustForPreference(BENCHMARK_SCENARIOS[matchedKey], prefId);
   }
 
   // Generate realistic, consistent pseudo-data for any selected locations

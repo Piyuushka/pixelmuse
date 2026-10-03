@@ -168,5 +168,48 @@
     "trips": [],
     "createdAt": "2026-09-22T14:31:30.785Z",
     "updatedAt": "2026-09-22T14:31:44.758Z"
+  },
+  {
+    "id": "usr_1791020634593_ntnzq",
+    "name": "pranju",
+    "email": "pranjal.devmane@gmail.com",
+    "passwordHash": "da2e5b59fd9fa31384f91e15a6463fc925b06bad168c54e64e33fd0ec7307013",
+    "role": "user",
+    "pairingCode": "927-545",
+    "linkedParentEmail": null,
+    "linkedChildrenEmails": [],
+    "hasCompletedProfile": true,
+    "accessibilityPreferences": {
+      "primaryPersona": "wheelchair",
+      "mobilityType": "manual-wheelchair",
+      "requireStepFree": true,
+      "maxSlopePercent": 4,
+      "preferLowerSlopes": false,
+      "preferReducedDistance": true,
+      "preferSaferCrossings": true,
+      "avoidStairs": true,
+      "needTactilePaving": false,
+      "needAudioPrompts": true,
+      "maxWalkingDistanceMeters": 1000
+    },
+    "emergencyContacts": [],
+    "privacyConsent": {
+      "allowRealtimeLocation": true,
+      "allowTripHistory": true,
+      "allowAlerts": true
+    },
+    "privacySettings": {
+      "allowRealtimeLocation": true,
+      "allowTripHistory": true,
+      "allowAlerts": true,
+      "shareAccessibilityPreferences": true
+    },
+    "activeTrip": null,
+    "tripHistory": [],
+    "parentAlerts": [],
+    "guardianLinks": [],
+    "trips": [],
+    "createdAt": "2026-10-03T09:43:54.593Z",
+    "updatedAt": "2026-10-03T09:50:47.644Z"
   }
 ]

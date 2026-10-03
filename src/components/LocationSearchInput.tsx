@@ -1,5 +1,6 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { searchLocation, GeocodeResult, Coordinates } from '@/lib/orsClient';
+import { DEMO_LOCATIONS } from '@/data/routeSimulatorData';
 import { Search, MapPin, Loader2, X } from 'lucide-react';
 
 interface LocationSearchInputProps {
@@ -40,13 +41,32 @@ export default function LocationSearchInput({
 
   useEffect(() => {
     // Auto sync if initialValue changes externally
-    if (initialValue && initialValue !== query) {
+    if (initialValue !== undefined && initialValue !== query) {
       setQuery(initialValue);
     }
   }, [initialValue]);
 
+  const commitLocation = (text: string, preferredCoords?: Coordinates) => {
+    if (!text.trim()) return;
+    
+    // Check demo locations for matching name
+    const norm = text.toLowerCase().trim();
+    const demo = DEMO_LOCATIONS.find(l => 
+      l.name.toLowerCase() === norm || 
+      norm.includes(l.name.toLowerCase()) || 
+      l.name.toLowerCase().includes(norm)
+    );
+
+    const coords = preferredCoords || (demo?.lat && demo?.lng ? { lat: demo.lat, lng: demo.lng } : { lat: 19.1118, lng: 72.8267 });
+
+    onLocationSelect({
+      name: demo ? demo.name : text,
+      coords
+    });
+  };
+
   const fetchSuggestions = async (text: string) => {
-    if (!text || text.length < 3) {
+    if (!text || text.trim().length < 2) {
       setResults([]);
       return;
     }
@@ -55,24 +75,45 @@ export default function LocationSearchInput({
     const data = await searchLocation(text);
     setResults(data);
     setIsLoading(false);
-    setIsOpen(true);
+    setIsOpen(data.length > 0);
   };
 
   const handleInputChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const text = e.target.value;
     setQuery(text);
     
+    // Crucial fix: Immediately propagate typed text to parent state
+    commitLocation(text);
+    
     if (debounceRef.current) clearTimeout(debounceRef.current);
     
     debounceRef.current = setTimeout(() => {
       fetchSuggestions(text);
-    }, 500);
+    }, 250);
   };
 
   const handleSelect = (result: GeocodeResult) => {
     setQuery(result.name);
     setIsOpen(false);
     onLocationSelect({ name: result.name, coords: result.coordinates });
+  };
+
+  const handleKeyDown = (e: React.KeyboardEvent<HTMLInputElement>) => {
+    if (e.key === 'Enter') {
+      e.preventDefault();
+      if (results.length > 0) {
+        handleSelect(results[0]);
+      } else {
+        commitLocation(query);
+        setIsOpen(false);
+      }
+    }
+  };
+
+  const handleBlur = () => {
+    if (query) {
+      commitLocation(query);
+    }
   };
 
   return (
@@ -87,7 +128,13 @@ export default function LocationSearchInput({
           type="text"
           value={query}
           onChange={handleInputChange}
-          onFocus={() => { if (results.length > 0) setIsOpen(true); }}
+          onKeyDown={handleKeyDown}
+          onBlur={handleBlur}
+          onFocus={() => { 
+            if (query && query.length >= 2) {
+              fetchSuggestions(query);
+            }
+          }}
           placeholder={placeholder}
           disabled={disabled}
           className="w-full h-12 px-3.5 pr-10 rounded-2xl bg-surface-container-low border border-outline-variant/40 text-on-surface font-bold text-sm focus:outline-hidden focus:ring-2 focus:ring-primary disabled:opacity-50"
@@ -99,7 +146,11 @@ export default function LocationSearchInput({
           ) : query ? (
             <button 
               type="button" 
-              onClick={() => { setQuery(''); setResults([]); }}
+              onClick={() => { 
+                setQuery(''); 
+                setResults([]); 
+                onLocationSelect({ name: '', coords: { lat: 19.0178, lng: 72.8478 } });
+              }}
               className="p-1 hover:text-on-surface"
             >
               <X className="w-4 h-4" />
@@ -116,8 +167,11 @@ export default function LocationSearchInput({
             <button
               key={idx}
               type="button"
-              onClick={() => handleSelect(result)}
-              className="w-full px-4 py-3 text-left hover:bg-surface-container-low border-b border-outline-variant/20 last:border-0 flex items-start gap-3 transition-colors"
+              onMouseDown={(e) => {
+                e.preventDefault(); // Prevent input blur before click registers
+                handleSelect(result);
+              }}
+              className="w-full px-4 py-3 text-left hover:bg-surface-container-low border-b border-outline-variant/20 last:border-0 flex items-start gap-3 transition-colors cursor-pointer"
             >
               <MapPin className="w-4 h-4 text-primary shrink-0 mt-0.5" />
               <div className="flex flex-col">
