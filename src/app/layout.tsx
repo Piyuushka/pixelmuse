@@ -4,6 +4,7 @@ import './globals.css';
 import { AccessibilityProvider } from '@/context/AccessibilityContext';
 import Sidebar from '@/components/Sidebar';
 import TalkToAssistantButton from '@/components/TalkToAssistantButton';
+import CapacitorInit from '@/components/CapacitorInit';
 
 const inter = Inter({
   subsets: ['latin'],
@@ -32,6 +33,8 @@ export default function RootLayout({
     <html lang="en" className={`${inter.variable} ${atkinson.variable} h-full antialiased`}>
       <body className="min-h-full flex bg-surface text-on-surface overflow-x-hidden">
         <AccessibilityProvider>
+          {/* Bootstraps all Capacitor native plugins — no-op on web */}
+          <CapacitorInit />
           <div className="flex w-full min-h-screen">
             <Sidebar />
             <main className="flex-1 min-w-0 overflow-y-auto min-h-screen">

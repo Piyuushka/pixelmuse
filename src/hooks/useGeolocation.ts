@@ -1,11 +1,23 @@
-import { useState, useEffect } from 'react';
+/**
+ * useGeolocation — Capacitor-aware GPS hook
+ * Uses native Capacitor Geolocation on iOS/Android,
+ * falls back to Web Geolocation API on browsers.
+ * Drop-in replacement for the previous web-only hook.
+ */
+import { useState, useEffect, useRef } from 'react';
+import {
+  getCurrentPosition,
+  watchPosition,
+  clearWatch,
+  requestGeoPermissions,
+} from '@/utils/capacitor-geolocation';
+import { isNativePlatform } from '@/utils/capacitor-platform';
 
 interface GeolocationState {
-  coordinates: {
-    lat: number;
-    lng: number;
-  } | null;
+  coordinates: { lat: number; lng: number } | null;
   accuracy: number | null;
+  speed: number | null;
+  heading: number | null;
   error: string | null;
   isLoading: boolean;
 }
@@ -14,56 +26,95 @@ export function useGeolocation() {
   const [state, setState] = useState<GeolocationState>({
     coordinates: null,
     accuracy: null,
+    speed: null,
+    heading: null,
     error: null,
     isLoading: true,
   });
 
+  const watchIdRef = useRef<string | null>(null);
+
   useEffect(() => {
-    if (!navigator.geolocation) {
-      setState((prev) => ({
-        ...prev,
-        error: 'Geolocation is not supported by your browser',
-        isLoading: false,
-      }));
-      return;
+    let mounted = true;
+
+    async function init() {
+      // Request permissions first on native platforms
+      if (isNativePlatform()) {
+        try {
+          const perm = await requestGeoPermissions();
+          if (perm.location === 'denied') {
+            if (mounted) {
+              setState(prev => ({
+                ...prev,
+                error: 'Location permission denied. Please enable it in Settings.',
+                isLoading: false,
+              }));
+            }
+            return;
+          }
+        } catch {
+          // Proceed — permission request may fail in some contexts, still try
+        }
+      }
+
+      // Get initial position quickly
+      try {
+        const pos = await getCurrentPosition();
+        if (mounted) {
+          setState({
+            coordinates: { lat: pos.lat, lng: pos.lng },
+            accuracy: pos.accuracy,
+            speed: pos.speed,
+            heading: pos.heading,
+            error: null,
+            isLoading: false,
+          });
+        }
+      } catch (err: unknown) {
+        if (mounted) {
+          setState(prev => ({
+            ...prev,
+            error: err instanceof Error ? err.message : 'Could not get location',
+            isLoading: false,
+          }));
+        }
+      }
+
+      // Start continuous watch for live navigation
+      try {
+        const watchId = await watchPosition(
+          (pos) => {
+            if (mounted) {
+              setState({
+                coordinates: { lat: pos.lat, lng: pos.lng },
+                accuracy: pos.accuracy,
+                speed: pos.speed,
+                heading: pos.heading,
+                error: null,
+                isLoading: false,
+              });
+            }
+          },
+          (err) => {
+            if (mounted) {
+              setState(prev => ({ ...prev, error: err.message }));
+            }
+          }
+        );
+        watchIdRef.current = watchId;
+      } catch {
+        // watchPosition failure is non-fatal; initial position already obtained
+      }
     }
 
-    const handleSuccess = (position: GeolocationPosition) => {
-      setState({
-        coordinates: {
-          lat: position.coords.latitude,
-          lng: position.coords.longitude,
-        },
-        accuracy: position.coords.accuracy,
-        error: null,
-        isLoading: false,
-      });
-    };
-
-    const handleError = (error: GeolocationPositionError) => {
-      setState((prev) => ({
-        ...prev,
-        error: error.message,
-        isLoading: false,
-      }));
-    };
-
-    // Get initial position quickly
-    navigator.geolocation.getCurrentPosition(handleSuccess, handleError, {
-      enableHighAccuracy: true,
-      timeout: 5000,
-      maximumAge: 0,
-    });
-
-    // Watch for updates
-    const watcherId = navigator.geolocation.watchPosition(handleSuccess, handleError, {
-      enableHighAccuracy: true,
-      timeout: 10000,
-      maximumAge: 0,
-    });
+    init();
 
     return () => {
-      navigator.geolocation.clearWatch(watcherId);
+      mounted = false;
+      if (watchIdRef.current !== null) {
+        clearWatch(watchIdRef.current);
+        watchIdRef.current = null;
+      }
     };
   }, []);
 

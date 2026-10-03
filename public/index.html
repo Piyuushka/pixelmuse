@@ -1,0 +1,60 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
+    <title>PathFinder Access</title>
+    <meta name="description" content="Accessible GPS navigation for wheelchair users, visually impaired, and reduced mobility individuals." />
+    <style>
+      * { margin: 0; padding: 0; box-sizing: border-box; }
+      body {
+        font-family: 'Inter', system-ui, -apple-system, sans-serif;
+        background: #1D4ED8;
+        color: #ffffff;
+        min-height: 100vh;
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        justify-content: center;
+        gap: 16px;
+        text-align: center;
+        padding: 24px;
+      }
+      .logo {
+        width: 72px; height: 72px;
+        background: rgba(255,255,255,0.15);
+        border-radius: 24px;
+        display: flex; align-items: center; justify-content: center;
+        font-size: 36px;
+        margin-bottom: 8px;
+      }
+      h1 { font-size: 28px; font-weight: 900; letter-spacing: -0.5px; }
+      p { font-size: 15px; opacity: 0.8; max-width: 280px; line-height: 1.5; }
+      .loading {
+        width: 40px; height: 40px;
+        border: 3px solid rgba(255,255,255,0.3);
+        border-top-color: #fff;
+        border-radius: 50%;
+        animation: spin 0.8s linear infinite;
+        margin-top: 8px;
+      }
+      @keyframes spin { to { transform: rotate(360deg); } }
+    </style>
+  </head>
+  <body>
+    <div class="logo">🧭</div>
+    <h1>PathFinder Access</h1>
+    <p>Accessible GPS navigation for everyone.</p>
+    <div class="loading" role="status" aria-label="Loading application"></div>
+
+    <script>
+      // This file is the Capacitor webDir placeholder.
+      // In production, capacitor.config.ts points `server.url` to your
+      // deployed Next.js app — this file is never actually shown to users.
+      //
+      // For local dev: set server.url to http://<YOUR_LAN_IP>:3000
+      // and run `npx cap sync` then open in Android Studio / Xcode.
+      console.log('[PathFinder] Capacitor shell loaded. Configure server.url in capacitor.config.ts.');
+    </script>
+  </body>
+</html>
