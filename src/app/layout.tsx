@@ -5,6 +5,7 @@ import { AccessibilityProvider } from '@/context/AccessibilityContext';
 import Sidebar from '@/components/Sidebar';
 import TalkToAssistantButton from '@/components/TalkToAssistantButton';
 import CapacitorInit from '@/components/CapacitorInit';
+import ConversationalVoiceOnboarding from '@/components/ConversationalVoiceOnboarding';
 
 const inter = Inter({
   subsets: ['latin'],
@@ -42,6 +43,7 @@ export default function RootLayout({
         <AccessibilityProvider>
           {/* Bootstraps all Capacitor native plugins — no-op on web */}
           <CapacitorInit />
+          <ConversationalVoiceOnboarding />
           <div className="flex w-full min-h-screen">
             <Sidebar />
             <main className="flex-1 min-w-0 overflow-y-auto min-h-screen">

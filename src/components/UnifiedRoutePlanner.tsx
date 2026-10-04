@@ -61,11 +61,13 @@ export default function UnifiedRoutePlanner({ initialMode = 'gps' }: UnifiedRout
   const urlDest = searchParams?.get('dest');
   const urlPersona = searchParams?.get('persona') as PersonaType | null;
   const urlMode = searchParams?.get('mode') as 'gps' | 'manual' | null;
+  const urlAutonav = searchParams?.get('autonav') === '1' || searchParams?.get('autonav') === 'true';
 
   // Resolve initial destination from query param if provided
-  const initialDest = DEMO_LOCATIONS.find(
-    l => l.id === urlDest || l.name.toLowerCase() === urlDest?.toLowerCase()
-  )?.name || 'Shivaji Park';
+  const matchedDest = DEMO_LOCATIONS.find(
+    l => l.id === urlDest || l.name.toLowerCase() === urlDest?.toLowerCase() || (urlDest && l.name.toLowerCase().includes(urlDest.toLowerCase()))
+  );
+  const initialDest = matchedDest?.name || urlDest || 'Shivaji Park';
 
   const { coordinates, accuracy, error, isLoading } = useGeolocation();
 
@@ -82,13 +84,15 @@ export default function UnifiedRoutePlanner({ initialMode = 'gps' }: UnifiedRout
 
   // Route Setup state
   const defaultStart = DEMO_LOCATIONS.find(l => l.name === 'Dadar Railway Station');
-  const defaultDest = DEMO_LOCATIONS.find(l => l.name === initialDest) || DEMO_LOCATIONS.find(l => l.name === 'Shivaji Park');
+  const defaultDest = matchedDest
+    ? { name: matchedDest.name, coords: { lat: matchedDest.lat!, lng: matchedDest.lng! } }
+    : { name: initialDest, coords: { lat: 19.0222, lng: 72.8365 } };
   
   const [startLocation, setStartLocation] = useState<{name: string, coords: any} | null>(
     defaultStart ? { name: defaultStart.name, coords: { lat: defaultStart.lat!, lng: defaultStart.lng! } } : null
   );
   const [destLocation, setDestLocation] = useState<{name: string, coords: any} | null>(
-    defaultDest ? { name: defaultDest.name, coords: { lat: defaultDest.lat!, lng: defaultDest.lng! } } : null
+    defaultDest
   );
   const [preference, setPreference] = useState<PersonaType>(
     urlPersona && PERSONAS.some(p => p.id === urlPersona) ? urlPersona : (persona || 'wheelchair')
@@ -203,19 +207,43 @@ export default function UnifiedRoutePlanner({ initialMode = 'gps' }: UnifiedRout
     comparisonRef.current?.scrollIntoView({ behavior: 'smooth' });
   };
 
+  // Automatically start voice navigation if requested by Voice Assistant via URL (?autonav=1)
+  useEffect(() => {
+    if (urlAutonav && urlDest) {
+      const timer = setTimeout(() => {
+        setIsNavigating(true);
+        setCurrentStepIndex(0);
+        const firstStep =
+          accessibleSteps?.[0]?.detail ||
+          accessibleSteps?.[0]?.title ||
+          'Walk straight for 20 steps. You will feel a textured pavement crossing. Turn right.';
+        speakText(`Live voice navigation active to ${initialDest}. Step 1: ${firstStep}`);
+        window.scrollTo({ top: 0, behavior: 'smooth' });
+      }, 700);
+      return () => clearTimeout(timer);
+    }
+  }, [urlAutonav, urlDest, initialDest]);
+
   const handleStartNavigation = () => {
     setIsNavigating(true);
     setCurrentStepIndex(0);
-    speakText("Navigation started. Follow the arrows on the map.");
+    const firstStep =
+      accessibleSteps?.[0]?.detail ||
+      accessibleSteps?.[0]?.title ||
+      'Follow the arrows on the map.';
+    speakText(`Voice navigation started to ${destName}. Step 1: ${firstStep}`);
     window.scrollTo({ top: 0, behavior: 'smooth' });
   };
 
   const handleSimulateWalk = () => {
     if (accessibleSteps && currentStepIndex < accessibleSteps.length - 1) {
-      setCurrentStepIndex(prev => prev + 1);
-      speakText(accessibleSteps[currentStepIndex + 1].title || accessibleSteps[currentStepIndex + 1].detail);
+      const nextIdx = currentStepIndex + 1;
+      setCurrentStepIndex(nextIdx);
+      const step = accessibleSteps[nextIdx];
+      const stepText = step.detail || step.title;
+      speakText(`Step ${nextIdx + 1}: ${stepText}`);
     } else {
-      speakText("You have arrived at your destination.");
+      speakText("You have arrived safely at your destination.");
       setIsNavigating(false);
     }
   };

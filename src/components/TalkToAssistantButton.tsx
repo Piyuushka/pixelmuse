@@ -17,9 +17,23 @@ export default function TalkToAssistantButton({
   onRouteCalculated,
 }: TalkToAssistantButtonProps) {
   const [isOpen, setIsOpen] = useState(false);
+  const [initialPrompt, setInitialPrompt] = useState<string | undefined>(undefined);
+
+  React.useEffect(() => {
+    const handleOpenEvent = (e: any) => {
+      if (e?.detail?.prompt) {
+        setInitialPrompt(e.detail.prompt);
+      }
+      setIsOpen(true);
+    };
+
+    window.addEventListener('pathfinder:open-voice-assistant', handleOpenEvent);
+    return () => window.removeEventListener('pathfinder:open-voice-assistant', handleOpenEvent);
+  }, []);
 
   const handleOpen = () => {
     triggerHapticCue('confirm');
+    setInitialPrompt(undefined);
     setIsOpen(true);
   };
 
@@ -41,6 +55,7 @@ export default function TalkToAssistantButton({
           isOpen={isOpen}
           onClose={() => setIsOpen(false)}
           onRouteCalculated={onRouteCalculated}
+          initialPrompt={initialPrompt}
         />
       </>
     );
@@ -63,6 +78,7 @@ export default function TalkToAssistantButton({
           isOpen={isOpen}
           onClose={() => setIsOpen(false)}
           onRouteCalculated={onRouteCalculated}
+          initialPrompt={initialPrompt}
         />
       </>
     );
@@ -87,6 +103,7 @@ export default function TalkToAssistantButton({
         isOpen={isOpen}
         onClose={() => setIsOpen(false)}
         onRouteCalculated={onRouteCalculated}
+        initialPrompt={initialPrompt}
       />
     </>
   );

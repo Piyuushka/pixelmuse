@@ -111,7 +111,7 @@ interface AccessibilityContextType {
   setFontScale: (scale: FontScale) => void;
   isVoicePromptActive: boolean;
   toggleVoicePrompt: () => void;
-  speakText: (text: string) => void;
+  speakText: (text: string, force?: boolean, onEnd?: () => void) => void;
   persona: PersonaType;
   setPersona: (p: PersonaType) => void;
   user: UserProfile;
@@ -465,11 +465,24 @@ export function AccessibilityProvider({ children }: { children: React.ReactNode 
     });
   };
 
-  const speakText = useCallback((text: string) => {
-    if (isVoicePromptActive && typeof window !== 'undefined' && 'speechSynthesis' in window) {
-      window.speechSynthesis.cancel();
-      const msg = new SpeechSynthesisUtterance(text);
-      window.speechSynthesis.speak(msg);
+  const speakText = useCallback((text: string, force = false, onEnd?: () => void) => {
+    if ((isVoicePromptActive || force) && typeof window !== 'undefined' && 'speechSynthesis' in window) {
+      try {
+        window.speechSynthesis.cancel();
+        const msg = new SpeechSynthesisUtterance(text);
+        msg.rate = 1.0;
+        msg.pitch = 1.0;
+        if (onEnd) {
+          msg.onend = () => onEnd();
+          msg.onerror = () => onEnd();
+        }
+        window.speechSynthesis.speak(msg);
+      } catch (e) {
+        console.warn('Speech synthesis error:', e);
+        if (onEnd) onEnd();
+      }
+    } else {
+      if (onEnd) onEnd();
     }
   }, [isVoicePromptActive]);
 
