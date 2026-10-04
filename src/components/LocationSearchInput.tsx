@@ -57,7 +57,7 @@ export default function LocationSearchInput({
       l.name.toLowerCase().includes(norm)
     );
 
-    const coords = preferredCoords || (demo?.lat && demo?.lng ? { lat: demo.lat, lng: demo.lng } : { lat: 19.1118, lng: 72.8267 });
+    const coords = preferredCoords || (demo?.lat && demo?.lng ? { lat: demo.lat, lng: demo.lng } : undefined);
 
     onLocationSelect({
       name: demo ? demo.name : text,
@@ -82,8 +82,7 @@ export default function LocationSearchInput({
     const text = e.target.value;
     setQuery(text);
     
-    // Crucial fix: Immediately propagate typed text to parent state
-    commitLocation(text);
+    // REMOVED commitLocation(text) here so it doesn't aggressively overwrite while typing.
     
     if (debounceRef.current) clearTimeout(debounceRef.current);
     

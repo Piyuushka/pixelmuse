@@ -2,6 +2,7 @@ import dynamic from 'next/dynamic';
 
 interface LiveMapWrapperProps {
   center: { lat: number; lng: number };
+  destination?: { lat: number; lng: number };
   accuracy?: number;
   zoom?: number;
   routeGeojson?: any;

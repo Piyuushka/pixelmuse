@@ -15,7 +15,7 @@ import {
   getRouteComparison,
   RouteScenarioData
 } from '@/data/routeSimulatorData';
-import { getLiveRouteScenario, geocodeNominatim } from '@/lib/orsClient';
+import { getLiveRouteScenario, searchLocation } from '@/lib/orsClient';
 import LocationSearchInput from '@/components/LocationSearchInput';
 import {
   MapPin,
@@ -78,8 +78,18 @@ export default function UnifiedRoutePlanner({ initialMode = 'gps' }: UnifiedRout
   const [simulatedAccuracy, setSimulatedAccuracy] = useState<number | null>(null);
   const [isRefreshingGps, setIsRefreshingGps] = useState<boolean>(false);
   
-  const detectedLocationName = error ? 'Location Unavailable' : (coordinates ? 'Live Position' : 'Acquiring GPS...');
-  const detectedCoordinates = coordinates || { lat: 19.0178, lng: 72.8478 }; // Fallback to Dadar
+  const [resolvedGpsName, setResolvedGpsName] = useState<string>('Live Position');
+  
+  useEffect(() => {
+    if (coordinates) {
+      // simple reverse lookup simulation for demo, or actual call
+      const isDombivli = Math.abs(coordinates.lat - 19.217) < 0.01;
+      setResolvedGpsName(isDombivli ? 'Sarvoday Swaroop, Dombivli' : 'Live GPS Location');
+    }
+  }, [coordinates]);
+
+  const detectedLocationName = error ? 'Location Unavailable' : (coordinates ? resolvedGpsName : 'Acquiring GPS...');
+  const detectedCoordinates = coordinates || { lat: 19.2185528, lng: 73.0770473 }; // Fallback to Sarvoday Swaroop, Dombivli
   const gpsAccuracyMeters = simulatedAccuracy !== null ? simulatedAccuracy : (accuracy ? Math.round(accuracy) : 0.5);
 
   // Route Setup state
@@ -118,6 +128,7 @@ export default function UnifiedRoutePlanner({ initialMode = 'gps' }: UnifiedRout
   // Section references for smooth scrolling
   const routeSetupRef = useRef<HTMLDivElement>(null);
   const comparisonRef = useRef<HTMLDivElement>(null);
+  const mapSectionRef = useRef<HTMLElement>(null);
 
   // Effective starting location based on mode
   const effectiveStartName = locationMode === 'gps' ? detectedLocationName : (startLocation?.name || 'Origin');
@@ -172,10 +183,11 @@ export default function UnifiedRoutePlanner({ initialMode = 'gps' }: UnifiedRout
     let targetDestCoords = destLocation?.coords;
     let targetDestName = destName;
 
-    // 1. Geocode searchDestination text via OpenStreetMap Nominatim if coordinates are missing
+    // 1. Geocode searchDestination text via searchLocation if coordinates are missing
     if (!targetDestCoords && destName) {
-      const nomResult = await geocodeNominatim(destName);
-      if (nomResult) {
+      const results = await searchLocation(destName);
+      if (results && results.length > 0) {
+        const nomResult = results[0];
         targetDestCoords = nomResult.coordinates;
         targetDestName = nomResult.name;
         setDestLocation({ name: nomResult.name, coords: nomResult.coordinates });
@@ -184,7 +196,7 @@ export default function UnifiedRoutePlanner({ initialMode = 'gps' }: UnifiedRout
 
     const mockData = getRouteComparison(effectiveStartName, targetDestName, preference);
     
-    const sCoords = locationMode === 'gps' && coordinates ? coordinates : startLocation?.coords;
+    const sCoords = locationMode === 'gps' ? detectedCoordinates : startLocation?.coords;
 
     // 2. Fetch Dynamic Route via OpenRouteService (with Nominatim geocoded coordinates)
     if (sCoords && targetDestCoords) {
@@ -218,7 +230,7 @@ export default function UnifiedRoutePlanner({ initialMode = 'gps' }: UnifiedRout
           accessibleSteps?.[0]?.title ||
           'Walk straight for 20 steps. You will feel a textured pavement crossing. Turn right.';
         speakText(`Live voice navigation active to ${initialDest}. Step 1: ${firstStep}`);
-        window.scrollTo({ top: 0, behavior: 'smooth' });
+        mapSectionRef.current?.scrollIntoView({ behavior: 'smooth', block: 'start' });
       }, 700);
       return () => clearTimeout(timer);
     }
@@ -232,7 +244,7 @@ export default function UnifiedRoutePlanner({ initialMode = 'gps' }: UnifiedRout
       accessibleSteps?.[0]?.title ||
       'Follow the arrows on the map.';
     speakText(`Voice navigation started to ${destName}. Step 1: ${firstStep}`);
-    window.scrollTo({ top: 0, behavior: 'smooth' });
+    mapSectionRef.current?.scrollIntoView({ behavior: 'smooth', block: 'start' });
   };
 
   const handleSimulateWalk = () => {
@@ -371,7 +383,7 @@ export default function UnifiedRoutePlanner({ initialMode = 'gps' }: UnifiedRout
         {/* ========================================================================= */}
         {/* SECTION 1: "YOUR LOCATION" (ALL GPS PRECISION FUNCTIONALITY)              */}
         {/* ========================================================================= */}
-        <section aria-labelledby="section-gps-location" className="flex flex-col gap-6">
+        <section ref={mapSectionRef} aria-labelledby="section-gps-location" className="flex flex-col gap-6">
           <div className="flex items-center justify-between">
             <div className="flex items-center gap-3">
               <div className="w-9 h-9 rounded-xl bg-primary/10 text-primary flex items-center justify-center font-black text-sm">
@@ -478,43 +490,88 @@ export default function UnifiedRoutePlanner({ initialMode = 'gps' }: UnifiedRout
           <div className="relative rounded-3xl overflow-hidden border border-outline-variant/40 shadow-md h-[450px]">
             <LiveMapWrapper
               center={detectedCoordinates}
+              destination={destLocation?.coords}
               accuracy={gpsAccuracyMeters}
               zoom={14}
               routeGeojson={preference === 'none' ? geojsonNormal : (geojsonAccessible || geojsonNormal)}
               navigationStep={isNavigating && accessibleSteps ? accessibleSteps[currentStepIndex] : undefined}
             />
-            {isNavigating && accessibleSteps && currentStepIndex < accessibleSteps.length && (
-              <div className="absolute top-4 left-1/2 -translate-x-1/2 z-[1000] bg-surface-container-lowest/95 backdrop-blur-md px-6 py-4 rounded-2xl shadow-xl border border-outline-variant/30 flex items-center gap-4 w-11/12 max-w-md">
-                <div className="w-12 h-12 bg-primary text-white rounded-xl flex items-center justify-center font-bold text-xl shadow-inner">
-                  {/* Pseudo turn icon based on instruction text */}
-                  {accessibleSteps[currentStepIndex].title.toLowerCase().includes('left') ? '⬅️' : 
-                   accessibleSteps[currentStepIndex].title.toLowerCase().includes('right') ? '➡️' : '⬆️'}
+            {isNavigating && accessibleSteps && (
+              <div className="absolute top-0 right-0 h-full w-full sm:w-80 md:w-96 bg-surface text-on-surface z-[1000] shadow-xl border-l border-outline-variant/30 flex flex-col overflow-hidden animate-in slide-in-from-right-4 duration-300">
+                <div className="p-4 bg-primary text-on-primary font-black flex items-center justify-between shrink-0 shadow-sm">
+                  <div className="flex items-center gap-2">
+                    <Navigation className="w-5 h-5" />
+                    <span>Turn-by-Turn Navigation</span>
+                  </div>
+                  <button onClick={() => setIsNavigating(false)} className="px-3 py-1 bg-white/20 hover:bg-white/30 rounded-lg text-xs transition-colors">
+                    End
+                  </button>
                 </div>
-                <div className="flex flex-col flex-1">
-                  <span className="text-xs font-black text-primary uppercase tracking-wide">
-                    {accessibleSteps[currentStepIndex].distance ? `In ${accessibleSteps[currentStepIndex].distance}m` : 'Next Turn'}
-                  </span>
-                  <span className="text-base font-extrabold text-on-surface leading-tight">
-                    {accessibleSteps[currentStepIndex].title}
-                  </span>
+                
+                <div className="flex-1 overflow-y-auto">
+                  {accessibleSteps.map((step, idx) => {
+                    const isPast = idx < currentStepIndex;
+                    const isCurrent = idx === currentStepIndex;
+                    return (
+                      <div key={step.id} className={`p-4 border-b border-outline-variant/30 flex gap-4 transition-colors ${
+                        isPast ? 'opacity-50 bg-surface-container' : 
+                        isCurrent ? 'bg-primary/5 border-l-4 border-primary' : 'bg-surface'
+                      }`}>
+                        <div className="w-8 flex flex-col items-center gap-2 shrink-0">
+                          <div className={`w-8 h-8 rounded-full flex items-center justify-center font-bold shadow-xs ${isCurrent ? 'bg-primary text-white' : 'bg-surface-container-high text-on-surface-variant'}`}>
+                            {step.title.toLowerCase().includes('left') ? '↰' : 
+                             step.title.toLowerCase().includes('right') ? '↱' : '↑'}
+                          </div>
+                          {idx < accessibleSteps.length - 1 && (
+                            <div className="w-1 flex-1 bg-outline-variant/40 rounded-full min-h-[20px]" />
+                          )}
+                        </div>
+                        <div className="flex flex-col py-1">
+                           <span className="font-extrabold text-sm text-on-surface">{step.title}</span>
+                           <span className="text-xs font-medium text-on-surface-variant mt-1">{step.detail}</span>
+                           <span className="text-[11px] font-black text-secondary mt-1.5 flex items-center gap-1">
+                             <Footprints className="w-3 h-3" />
+                             {step.distance && step.distance > 0 ? `${Math.max(1, Math.round(step.distance / 0.75))} steps ahead (${Math.round(step.distance)}m)` : 'Destination ahead'}
+                           </span>
+                        </div>
+                      </div>
+                    );
+                  })}
+                  
+                  {/* Last 50 Meters Context (Core USP) */}
+                  <div className={`p-5 flex gap-4 ${currentStepIndex >= accessibleSteps.length ? 'bg-emerald-50/50 border-l-4 border-emerald-500' : 'bg-surface-container-lowest'}`}>
+                     <div className="w-8 flex flex-col items-center shrink-0">
+                        <div className="w-8 h-8 rounded-full bg-emerald-600 text-white flex items-center justify-center shadow-md">
+                          <MapPin className="w-4 h-4" />
+                        </div>
+                     </div>
+                     <div className="flex flex-col py-0.5">
+                         <span className="text-[10px] font-black uppercase text-emerald-700 tracking-wider mb-1">
+                           Last 50 Meters Precision
+                         </span>
+                         <span className="font-extrabold text-sm text-on-surface leading-tight">
+                           Arrive at {destName} - North Wing Wheelchair Ramp Entrance
+                         </span>
+                         <div className="mt-2 p-3 bg-emerald-100/50 border border-emerald-200 rounded-xl">
+                           <span className="text-xs font-bold text-emerald-900 block flex items-start gap-1.5">
+                             <Volume2 className="w-4 h-4 flex-shrink-0 mt-0.5" />
+                             "You are at the North Entrance. The elevators are 10 meters ahead on your left."
+                           </span>
+                         </div>
+                     </div>
+                  </div>
                 </div>
-              </div>
-            )}
-            
-            {isNavigating && (
-              <div className="absolute bottom-4 left-1/2 -translate-x-1/2 z-[1000] flex gap-2">
-                <button
-                  onClick={handleSimulateWalk}
-                  className="px-4 py-2 bg-secondary text-white rounded-xl shadow-lg font-bold text-sm"
-                >
-                  Simulate Walk
-                </button>
-                <button
-                  onClick={() => setIsNavigating(false)}
-                  className="px-4 py-2 bg-error text-white rounded-xl shadow-lg font-bold text-sm"
-                >
-                  End Navigation
-                </button>
+
+                {/* Simulate Next Step CTA */}
+                <div className="p-4 bg-surface-container border-t border-outline-variant/30 shrink-0">
+                  <button
+                    onClick={handleSimulateWalk}
+                    disabled={currentStepIndex > accessibleSteps.length}
+                    className="w-full py-3 bg-secondary hover:bg-secondary-container text-white hover:text-on-secondary-container rounded-xl shadow-sm font-black text-sm transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+                  >
+                    {currentStepIndex >= accessibleSteps.length ? 'Arrived' : 'Simulate Next Turn'}
+                  </button>
+                </div>
               </div>
             )}
           </div>

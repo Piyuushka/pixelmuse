@@ -35,7 +35,7 @@ interface ORSResponse {
   }>;
 }
 
-function mapORSInstructionToStep(instruction: string, type: number, index: number, isAccessible: boolean, coords: number[]): SchematicStep {
+function mapORSInstructionToStep(instruction: string, type: number, index: number, isAccessible: boolean, coords: number[], distance: number): SchematicStep {
   // ORS Types (Simplified):
   // 0: Left, 1: Right, 2: Sharp left, 3: Sharp right, 4: Slight left, 5: Slight right, 
   // 6: Straight, 7: Enter roundabout, 8: Exit roundabout, 9: U-turn, 10: Goal, 11: Depart, 12: Keep left, 13: Keep right
@@ -72,7 +72,8 @@ function mapORSInstructionToStep(instruction: string, type: number, index: numbe
     type: stepType,
     detail: detail || instruction,
     avoidedOrResolved: isAccessible && stepType !== 'unsafe_crossing' && stepType !== 'barrier' && stepType !== 'stair',
-    location: coords ? { lng: coords[0], lat: coords[1] } : undefined
+    location: coords ? { lng: coords[0], lat: coords[1] } : undefined,
+    distance
   };
 }
 
@@ -124,11 +125,11 @@ export async function getLiveRouteScenario(
 
   const normalSteps: SchematicStep[] = normalStepsRaw.map((step, i) => {
     const coords = normalFeature.geometry.coordinates[step.way_points[0]];
-    return mapORSInstructionToStep(step.instruction, step.type, i, false, coords);
+    return mapORSInstructionToStep(step.instruction, step.type, i, false, coords, step.distance);
   });
   const accessibleSteps: SchematicStep[] = accStepsRaw.map((step, i) => {
     const coords = accFeature.geometry.coordinates[step.way_points[0]];
-    return mapORSInstructionToStep(step.instruction, step.type, i, true, coords);
+    return mapORSInstructionToStep(step.instruction, step.type, i, true, coords, step.distance);
   });
 
   // Count artificial metrics for UI based on string matching since ORS doesn't provide exact barrier counts easily
@@ -179,34 +180,62 @@ export interface GeocodeResult {
   coordinates: Coordinates;
 }
 
-export async function geocodeNominatim(query: string): Promise<GeocodeResult | null> {
-  if (!query || query.trim().length === 0) return null;
+export async function geocodeGoogle(query: string): Promise<GeocodeResult[]> {
+  if (!query || query.trim().length === 0) return [];
+  const apiKey = process.env.NEXT_PUBLIC_GOOGLE_MAPS_API_KEY;
+  if (!apiKey) return [];
 
   try {
-    const url = `https://nominatim.openstreetmap.org/search?format=json&q=${encodeURIComponent(query)}&limit=1`;
+    const url = `https://maps.googleapis.com/maps/api/geocode/json?address=${encodeURIComponent(query)}&key=${apiKey}`;
+    const response = await fetch(url);
+    if (!response.ok) return [];
+    const data = await response.json();
+    if (data.results && data.results.length > 0) {
+      return data.results.map((d: any) => ({
+        name: d.address_components[0].long_name,
+        label: d.formatted_address,
+        coordinates: {
+          lat: d.geometry.location.lat,
+          lng: d.geometry.location.lng
+        }
+      }));
+    }
+    return [];
+  } catch (error) {
+    console.warn('Google geocoding error:', error);
+    return [];
+  }
+}
+
+export async function geocodeNominatim(query: string): Promise<GeocodeResult[]> {
+  if (!query || query.trim().length === 0) return [];
+
+  try {
+    // Prioritize results in India and specifically around the Mumbai/Thane/Dombivli region using a viewbox
+    const url = `https://nominatim.openstreetmap.org/search?format=json&q=${encodeURIComponent(query)}&limit=5&countrycodes=in&viewbox=72.75,19.35,73.20,18.85`;
     const response = await fetch(url, {
       headers: {
         'User-Agent': 'PixelMuse-BarrierFreeNavApp/1.0 (contact@pixelmuse.dev)'
       }
     });
 
-    if (!response.ok) return null;
+    if (!response.ok) return [];
     const data = await response.json();
 
     if (data && data.length > 0) {
-      return {
-        name: data[0].display_name.split(',')[0],
-        label: data[0].display_name,
+      return data.map((d: any) => ({
+        name: d.display_name.split(',')[0],
+        label: d.display_name,
         coordinates: {
-          lat: parseFloat(data[0].lat),
-          lng: parseFloat(data[0].lon)
+          lat: parseFloat(d.lat),
+          lng: parseFloat(d.lon)
         }
-      };
+      }));
     }
-    return null;
+    return [];
   } catch (error) {
     console.warn('Nominatim geocoding error:', error);
-    return null;
+    return [];
   }
 }
 
@@ -215,7 +244,7 @@ export async function searchLocation(query: string): Promise<GeocodeResult[]> {
 
   const normalized = query.toLowerCase().trim();
 
-  // Local fuzzy matching against DEMO_LOCATIONS
+  // 1. Local fuzzy matching against DEMO_LOCATIONS
   const demoMatches = DEMO_LOCATIONS.filter(l => 
     l.name.toLowerCase().includes(normalized) || 
     normalized.includes(l.name.toLowerCase()) ||
@@ -227,54 +256,32 @@ export async function searchLocation(query: string): Promise<GeocodeResult[]> {
     coordinates: { lat: l.lat || 19.1118, lng: l.lng || 72.8267 }
   }));
 
-  if (!ORS_API_KEY) {
-    // Try Nominatim online geocoding if ORS key is not available
-    const nomRes = await geocodeNominatim(query);
-    if (nomRes) {
-      const combined = [...demoMatches];
-      if (!combined.some(c => c.name.toLowerCase() === nomRes.name.toLowerCase())) {
-        combined.unshift(nomRes);
-      }
-      return combined;
-    }
-    if (demoMatches.length > 0) return demoMatches;
-    return [{
-      name: query,
-      label: `${query} (Custom Location)`,
-      coordinates: { lat: 19.1118, lng: 72.8267 }
-    }];
+  let remoteResults: GeocodeResult[] = [];
+
+  // Run both Google Geocoding and Nominatim in parallel for best results
+  const tasks = [];
+  if (process.env.NEXT_PUBLIC_GOOGLE_MAPS_API_KEY) {
+    tasks.push(geocodeGoogle(query));
+  }
+  tasks.push(geocodeNominatim(query));
+  
+  const resultsArray = await Promise.all(tasks);
+  
+  // Flatten results
+  for (const res of resultsArray) {
+    remoteResults = remoteResults.concat(res);
   }
 
-  try {
-    const url = `https://api.openrouteservice.org/geocode/search?api_key=${ORS_API_KEY}&text=${encodeURIComponent(query)}&boundary.country=IND`;
-    const response = await fetch(url);
-    if (!response.ok) throw new Error('Geocoding failed');
-    const data = await response.json();
-
-    const remoteResults: GeocodeResult[] = data.features.map((feature: any) => ({
-      name: feature.properties.name,
-      label: feature.properties.label,
-      coordinates: {
-        lat: feature.geometry.coordinates[1],
-        lng: feature.geometry.coordinates[0]
-      }
-    }));
-
-    const combined = [...demoMatches];
-    for (const r of remoteResults) {
-      if (!combined.some(c => c.name.toLowerCase() === r.name.toLowerCase())) {
-        combined.push(r);
-      }
+  // Combine results: prioritize demo locations, then remote API results
+  const combined = [...demoMatches];
+  
+  for (const r of remoteResults) {
+    // Avoid exact duplicates
+    if (!combined.some(c => c.name.toLowerCase() === r.name.toLowerCase() || c.label.toLowerCase() === r.label.toLowerCase())) {
+      combined.push(r);
     }
-    return combined;
-  } catch (error) {
-    console.error('Failed to geocode:', error);
-    const nomRes = await geocodeNominatim(query);
-    if (nomRes) return [nomRes, ...demoMatches];
-    return demoMatches.length > 0 ? demoMatches : [{
-      name: query,
-      label: `${query} (Custom Location)`,
-      coordinates: { lat: 19.1118, lng: 72.8267 }
-    }];
   }
+  
+  return combined;
 }
+
