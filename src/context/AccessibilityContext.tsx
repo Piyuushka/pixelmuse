@@ -100,6 +100,11 @@ export interface AccessibilityPreferences {
 export interface BarrierReport extends IndianBarrierReport {}
 
 interface AccessibilityContextType {
+  isDarkMode: boolean;
+  toggleDarkMode: () => void;
+  setDarkMode: (val: boolean | ((prev: boolean) => boolean)) => void;
+  isNightMode: boolean;
+  toggleNightMode: () => void;
   isHighContrast: boolean;
   toggleHighContrast: () => void;
   fontScale: FontScale;
@@ -204,10 +209,62 @@ export function AccessibilityProvider({ children }: { children: React.ReactNode 
   const [accessibilityPreferences, setAccessibilityPreferences] = useState<AccessibilityPreferences>(DEFAULT_PREFERENCES);
   const [isOnboardingOpen, setIsOnboardingOpen] = useState(false);
 
+  const [isDarkMode, setIsDarkMode] = useState<boolean>(false);
   const [isHighContrast, setIsHighContrast] = useState(false);
   const [fontScale, setFontScale] = useState<FontScale>('md');
   const [isVoicePromptActive, setIsVoicePromptActive] = useState(false);
   const [persona, setPersona] = useState<PersonaType>('wheelchair');
+
+  // Load theme preference from localStorage or system on mount
+  useEffect(() => {
+    if (typeof window === 'undefined') return;
+    try {
+      const savedTheme = localStorage.getItem('pathfinder_theme') || localStorage.getItem('theme');
+      if (savedTheme) {
+        setIsDarkMode(savedTheme === 'dark');
+      } else {
+        const prefersDark = window.matchMedia && window.matchMedia('(prefers-color-scheme: dark)').matches;
+        if (prefersDark) {
+          setIsDarkMode(true);
+        }
+      }
+    } catch (e) {
+      console.error('Failed to load theme preference:', e);
+    }
+  }, []);
+
+  // Synchronize document <html>, <body> classes, attributes, color-scheme, and localStorage
+  useEffect(() => {
+    if (typeof window === 'undefined') return;
+    const root = document.documentElement;
+    const body = document.body;
+
+    if (isDarkMode) {
+      root.classList.add('dark', 'dark-mode');
+      root.setAttribute('data-theme', 'dark');
+      root.style.colorScheme = 'dark';
+      body.classList.add('dark', 'dark-mode');
+      body.setAttribute('data-theme', 'dark');
+      try {
+        localStorage.setItem('pathfinder_theme', 'dark');
+        localStorage.setItem('theme', 'dark');
+      } catch (e) {}
+    } else {
+      root.classList.remove('dark', 'dark-mode');
+      root.setAttribute('data-theme', 'light');
+      root.style.colorScheme = 'light';
+      body.classList.remove('dark', 'dark-mode');
+      body.setAttribute('data-theme', 'light');
+      try {
+        localStorage.setItem('pathfinder_theme', 'light');
+        localStorage.setItem('theme', 'light');
+      } catch (e) {}
+    }
+  }, [isDarkMode]);
+
+  const toggleDarkMode = useCallback(() => {
+    setIsDarkMode(prev => !prev);
+  }, []);
 
   // Load state from localStorage & fetch fresh DB profile on initial mount
   useEffect(() => {
@@ -652,6 +709,11 @@ export function AccessibilityProvider({ children }: { children: React.ReactNode 
   return (
     <AccessibilityContext.Provider
       value={{
+        isDarkMode,
+        toggleDarkMode,
+        setDarkMode: setIsDarkMode,
+        isNightMode: isDarkMode,
+        toggleNightMode: toggleDarkMode,
         isHighContrast,
         toggleHighContrast,
         fontScale,
@@ -685,7 +747,8 @@ export function AccessibilityProvider({ children }: { children: React.ReactNode 
       }}
     >
       <div
-        className={`${isHighContrast ? 'high-contrast' : ''} font-scale-${fontScale} min-h-screen transition-all`}
+        className={`${isHighContrast ? 'high-contrast' : ''} ${isDarkMode ? 'dark dark-mode' : ''} font-scale-${fontScale} min-h-screen transition-all`}
+        data-theme={isDarkMode ? 'dark' : 'light'}
       >
         {children}
       </div>

@@ -30,8 +30,15 @@ export default function RootLayout({
   children: React.ReactNode;
 }) {
   return (
-    <html lang="en" className={`${inter.variable} ${atkinson.variable} h-full antialiased`}>
-      <body className="min-h-full flex bg-surface text-on-surface overflow-x-hidden">
+    <html lang="en" suppressHydrationWarning className={`${inter.variable} ${atkinson.variable} h-full antialiased`}>
+      <head>
+        <script
+          dangerouslySetInnerHTML={{
+            __html: `(function(){try{var t=localStorage.getItem('pathfinder_theme')||localStorage.getItem('theme');var dark=t==='dark'||(!t&&window.matchMedia&&window.matchMedia('(prefers-color-scheme: dark)').matches);if(dark){document.documentElement.classList.add('dark','dark-mode');document.documentElement.setAttribute('data-theme','dark');document.documentElement.style.colorScheme='dark';}else{document.documentElement.classList.remove('dark','dark-mode');document.documentElement.setAttribute('data-theme','light');document.documentElement.style.colorScheme='light';}}catch(e){}})();`,
+          }}
+        />
+      </head>
+      <body className="min-h-full flex bg-surface text-on-surface overflow-x-hidden transition-colors duration-200">
         <AccessibilityProvider>
           {/* Bootstraps all Capacitor native plugins — no-op on web */}
           <CapacitorInit />

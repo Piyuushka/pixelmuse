@@ -17,6 +17,8 @@ export default function AccessibilityNavHeader({
   onStartTour,
 }: AccessibilityNavHeaderProps) {
   const {
+    isDarkMode,
+    toggleDarkMode,
     isHighContrast,
     toggleHighContrast,
     fontScale,
@@ -31,7 +33,7 @@ export default function AccessibilityNavHeader({
       id="top-nav-bar"
       role="banner"
       aria-label="Accessibility Navigation Header"
-      className="sticky top-0 z-40 w-full backdrop-blur-md bg-white/95 dark:bg-slate-900/95 border-b border-slate-200 dark:border-slate-800 shadow-sm transition-colors duration-200"
+      className="sticky top-0 z-40 w-full backdrop-blur-md bg-surface/95 border-b border-outline-variant/30 shadow-sm transition-colors duration-200"
     >
       <div className="max-w-6xl mx-auto px-4 sm:px-6 py-3 flex items-center justify-between gap-3 flex-wrap">
         
@@ -39,19 +41,19 @@ export default function AccessibilityNavHeader({
         <div className="flex items-center gap-3">
           <button
             onClick={onResetToForm}
-            className="flex items-center gap-2.5 group text-left focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-purple-600 rounded-lg p-1"
+            className="flex items-center gap-2.5 group text-left focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary rounded-lg p-1"
             title="pathFinder Home / Route Planner"
             aria-label="pathFinder logo, return to route planner form"
           >
-            <div className="w-10 h-10 rounded-xl bg-purple-700 text-white flex items-center justify-center shadow-md shadow-purple-700/20 group-hover:scale-105 transition-transform">
+            <div className="w-10 h-10 rounded-xl bg-primary text-white flex items-center justify-center shadow-md shadow-primary/20 group-hover:scale-105 transition-transform">
               <Navigation className="w-5 h-5 fill-current" />
             </div>
             <div>
-              <span className="text-xl font-black tracking-tight text-slate-900 dark:text-white flex items-center gap-1.5">
+              <span className="text-xl font-black tracking-tight text-on-surface flex items-center gap-1.5">
                 pathFinder
-                <span className="inline-block w-2.5 h-2.5 rounded-full bg-purple-600 animate-pulse" />
+                <span className="inline-block w-2.5 h-2.5 rounded-full bg-secondary animate-pulse" />
               </span>
-              <span className="hidden sm:block text-[11px] font-bold text-slate-500 dark:text-slate-400 -mt-1 tracking-wide">
+              <span className="hidden sm:block text-[11px] font-bold text-on-surface-variant -mt-1 tracking-wide">
                 WCAG AAA ACCESSIBLE
               </span>
             </div>
@@ -61,30 +63,30 @@ export default function AccessibilityNavHeader({
           <button
             type="button"
             onClick={() => {
-              toggleHighContrast();
+              toggleDarkMode();
               speakText(
-                isHighContrast
-                  ? "Standard contrast theme enabled"
-                  : "High contrast theme enabled"
+                !isDarkMode
+                  ? "Night mode enabled"
+                  : "Day mode restored"
               );
             }}
-            aria-label={`Toggle Theme Mode. Current: ${isHighContrast ? 'High Contrast' : 'Standard'}`}
-            aria-pressed={isHighContrast}
-            className={`px-3.5 py-2 rounded-full flex items-center gap-2 text-xs font-bold transition-all focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-purple-600 ${
-              isHighContrast
-                ? 'bg-slate-900 text-white border border-slate-700 shadow-md ring-2 ring-purple-500'
-                : 'bg-slate-100 hover:bg-slate-200 text-slate-800 border border-slate-300 dark:bg-slate-800 dark:text-slate-200 dark:border-slate-700'
+            aria-label={`Toggle Theme Mode. Current: ${isDarkMode ? 'Night Mode' : 'Day Mode'}`}
+            aria-pressed={isDarkMode}
+            className={`px-3.5 py-2 rounded-full flex items-center gap-2 text-xs font-bold transition-all focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary cursor-pointer ${
+              isDarkMode
+                ? 'bg-primary text-white border border-primary/40 shadow-md ring-2 ring-primary/40'
+                : 'bg-surface-container-low hover:bg-surface-container text-on-surface border border-outline-variant/40'
             }`}
           >
-            {isHighContrast ? (
+            {isDarkMode ? (
               <>
-                <Moon className="w-4 h-4 text-purple-400" aria-hidden="true" />
-                <span>High Contrast: ON</span>
+                <Moon className="w-4 h-4 text-white" aria-hidden="true" />
+                <span>Night Mode</span>
               </>
             ) : (
               <>
                 <Sun className="w-4 h-4 text-amber-500" aria-hidden="true" />
-                <span>Theme Mode</span>
+                <span>Day Mode</span>
               </>
             )}
           </button>

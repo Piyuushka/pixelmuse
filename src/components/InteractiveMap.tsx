@@ -269,7 +269,7 @@ export default function InteractiveMap({
         </svg>
 
         {/* Building & Venue Cards Overlay on Map */}
-        <div className="absolute top-8 right-24 bg-white/90 backdrop-blur-md p-3 rounded-2xl border border-outline-variant/30 shadow-md flex items-center gap-2">
+        <div className="absolute top-8 right-24 bg-surface-container-lowest/95 backdrop-blur-md p-3 rounded-2xl border border-outline-variant/40 shadow-md flex items-center gap-2">
           <Building className="w-5 h-5 text-primary" />
           <div className="flex flex-col">
             <span className="text-xs font-black text-on-surface">Cardiology Pavilion (Bldg B)</span>
@@ -293,7 +293,7 @@ export default function InteractiveMap({
                 : 'bg-primary text-white ring-4 ring-primary/30'
               }`}>
               <MapPin className="w-6 h-6 fill-current" />
-              <span className="absolute -top-2 -right-2 w-5 h-5 rounded-full bg-white text-on-surface text-[10px] font-black flex items-center justify-center border border-outline-variant">
+              <span className="absolute -top-2 -right-2 w-5 h-5 rounded-full bg-surface-container-lowest text-on-surface text-[10px] font-black flex items-center justify-center border border-outline-variant shadow-xs">
                 {wp.id}
               </span>
             </div>
@@ -356,7 +356,7 @@ export default function InteractiveMap({
         <div className="absolute top-4 right-4 flex flex-col gap-2 z-20">
 
           {/* Layer Selector */}
-          <div className="bg-white/90 backdrop-blur-md rounded-2xl p-1 shadow-lg border border-outline-variant/30 flex flex-col gap-1">
+          <div className="bg-surface-container-lowest/95 backdrop-blur-md rounded-2xl p-1 shadow-lg border border-outline-variant/30 flex flex-col gap-1">
             <button
               onClick={() => setActiveLayer('all')}
               className={`p-2 rounded-xl text-xs font-bold transition-all flex items-center gap-1.5 ${activeLayer === 'all' ? 'bg-primary text-white shadow-xs' : 'text-on-surface hover:bg-surface-container'
@@ -389,7 +389,7 @@ export default function InteractiveMap({
           </div>
 
           {/* Zoom & Recenter Controls */}
-          <div className="bg-white/90 backdrop-blur-md rounded-2xl p-1 shadow-lg border border-outline-variant/30 flex flex-col gap-1">
+          <div className="bg-surface-container-lowest/95 backdrop-blur-md rounded-2xl p-1 shadow-lg border border-outline-variant/30 flex flex-col gap-1">
             <button
               onClick={() => setZoomLevel(prev => Math.min(prev + 2, 24))}
               className="p-2.5 hover:bg-surface-container rounded-xl text-on-surface font-extrabold focus:outline-none"
@@ -418,7 +418,7 @@ export default function InteractiveMap({
         </div>
 
         {/* Bottom Scale Indicator */}
-        <div className="absolute bottom-4 right-4 bg-white/80 backdrop-blur-md px-3 py-1 rounded-full text-[11px] font-extrabold text-on-surface border border-outline-variant/30 shadow-xs z-20">
+        <div className="absolute bottom-4 right-4 bg-surface-container-lowest/90 backdrop-blur-md px-3 py-1 rounded-full text-[11px] font-extrabold text-on-surface border border-outline-variant/30 shadow-xs z-20">
           Scale: 1 : 500 • GPS Precision ±0.5m
         </div>
 

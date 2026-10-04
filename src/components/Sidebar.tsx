@@ -26,6 +26,8 @@ import {
   LogOut,
   LogIn,
   Sliders,
+  Sun,
+  Moon,
 } from 'lucide-react';
 
 const navItems = [
@@ -38,6 +40,8 @@ const navItems = [
 export default function Sidebar() {
   const pathname = usePathname();
   const {
+    isDarkMode,
+    toggleDarkMode,
     isHighContrast,
     toggleHighContrast,
     fontScale,
@@ -180,32 +184,51 @@ export default function Sidebar() {
           <span className="text-[10px] text-secondary font-bold">WCAG AAA</span>
         </div>
 
-        {/* Contrast & Voice Row */}
-        <div className="grid grid-cols-2 gap-2">
+        {/* Night Mode, Contrast & Voice Row */}
+        <div className="grid grid-cols-3 gap-1.5">
           <button
             type="button"
-            onClick={toggleHighContrast}
-            className={`h-10 px-3 rounded-xl flex items-center justify-center gap-1.5 text-xs font-bold transition-all ${
-              isHighContrast
-                ? 'bg-primary text-on-primary shadow-sm'
+            onClick={() => {
+              toggleDarkMode();
+              speakText(!isDarkMode ? "Night mode enabled" : "Day mode restored");
+            }}
+            id="sidebar-night-mode-toggle"
+            aria-label={`Toggle Theme Mode. Currently ${isDarkMode ? 'Night Mode' : 'Day Mode'}`}
+            aria-pressed={isDarkMode}
+            className={`h-10 px-1.5 rounded-xl flex items-center justify-center gap-1 text-xs font-bold transition-all cursor-pointer ${
+              isDarkMode
+                ? 'bg-primary text-white shadow-sm ring-1 ring-primary/40'
                 : 'bg-surface-container-lowest hover:bg-surface-container-high text-on-surface border border-outline-variant/30'
             }`}
           >
-            <Contrast className="w-4 h-4" />
-            <span>Contrast</span>
+            {isDarkMode ? <Moon className="w-3.5 h-3.5 text-white" /> : <Sun className="w-3.5 h-3.5 text-amber-500" />}
+            <span className="text-[11px]">{isDarkMode ? 'Night' : 'Day'}</span>
+          </button>
+
+          <button
+            type="button"
+            onClick={toggleHighContrast}
+            className={`h-10 px-1.5 rounded-xl flex items-center justify-center gap-1 text-xs font-bold transition-all cursor-pointer ${
+              isHighContrast
+                ? 'bg-secondary text-on-secondary shadow-sm'
+                : 'bg-surface-container-lowest hover:bg-surface-container-high text-on-surface border border-outline-variant/30'
+            }`}
+          >
+            <Contrast className="w-3.5 h-3.5" />
+            <span className="text-[11px]">Contrast</span>
           </button>
 
           <button
             type="button"
             onClick={toggleVoicePrompt}
-            className={`h-10 px-3 rounded-xl flex items-center justify-center gap-1.5 text-xs font-bold transition-all ${
+            className={`h-10 px-1.5 rounded-xl flex items-center justify-center gap-1 text-xs font-bold transition-all cursor-pointer ${
               isVoicePromptActive
                 ? 'bg-secondary text-on-secondary shadow-sm'
                 : 'bg-surface-container-lowest hover:bg-surface-container-high text-on-surface border border-outline-variant/30'
             }`}
           >
-            {isVoicePromptActive ? <Volume2 className="w-4 h-4 animate-pulse" /> : <VolumeX className="w-4 h-4" />}
-            <span>Voice</span>
+            {isVoicePromptActive ? <Volume2 className="w-3.5 h-3.5 animate-pulse" /> : <VolumeX className="w-3.5 h-3.5" />}
+            <span className="text-[11px]">Voice</span>
           </button>
         </div>
 

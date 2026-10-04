@@ -336,8 +336,8 @@ function SafetyLegend() {
 // ─────────────────────────────────────────────────────────────────────────────
 
 export default function SafetyRoutingPage() {
-  const { persona, speakText } = useAccessibility();
-  const [nightMode, setNightMode] = useState(false);
+  const { persona, speakText, isDarkMode, toggleDarkMode } = useAccessibility();
+  const nightMode = isDarkMode;
   const [expandedRoute, setExpandedRoute] = useState<string | null>('route-a');
 
   const rankedRoutes = useMemo(
@@ -349,14 +349,11 @@ export default function SafetyRoutingPage() {
   const bestScore = nightMode ? best.nightSafetyScore : best.compositeSafetyScore;
 
   const toggleNight = () => {
-    setNightMode(p => {
-      const next = !p;
-      speakText(next
-        ? 'Night mode active. Lighting weighted at 40 percent. Recommended route updated.'
-        : 'Day mode restored. Standard scoring active.'
-      );
-      return next;
-    });
+    toggleDarkMode();
+    speakText(!isDarkMode
+      ? 'Night mode active. Lighting weighted at 40 percent. Recommended route updated.'
+      : 'Day mode restored. Standard scoring active.'
+    );
   };
 
   return (
@@ -384,22 +381,23 @@ export default function SafetyRoutingPage() {
             type="button"
             onClick={toggleNight}
             id="night-mode-toggle"
+            aria-label={`Toggle Night Mode. Currently ${nightMode ? 'Night Mode Active' : 'Day Mode Active'}`}
             aria-pressed={nightMode}
-            className={`h-12 px-5 rounded-xl font-bold text-sm flex items-center gap-2 shadow-xs transition-all focus:outline-none focus:ring-2 focus:ring-primary flex-shrink-0 ${
+            className={`h-12 px-5 rounded-xl font-bold text-sm flex items-center gap-2 shadow-sm transition-all focus:outline-none focus:ring-2 focus:ring-primary flex-shrink-0 cursor-pointer ${
               nightMode
-                ? 'bg-on-surface text-surface shadow-md'
+                ? 'bg-primary text-white shadow-md ring-2 ring-primary/40'
                 : 'bg-surface-container-lowest hover:bg-surface-container-high border border-outline-variant/40 text-on-surface'
             }`}
           >
-            {nightMode ? <Moon className="w-4 h-4" /> : <Sun className="w-4 h-4" />}
+            {nightMode ? <Moon className="w-4 h-4 text-white" /> : <Sun className="w-4 h-4 text-amber-500" />}
             <span>{nightMode ? 'Night Mode' : 'Day Mode'}</span>
           </button>
         </div>
 
         {/* ── Night mode info banner ──────────────────────────────────────── */}
         {nightMode && (
-          <div className="p-4 rounded-2xl bg-on-surface/5 border border-on-surface/20 flex items-start gap-3">
-            <Moon className="w-5 h-5 text-on-surface flex-shrink-0 mt-0.5" />
+          <div className="p-4 rounded-2xl bg-surface-container-low dark:bg-slate-800/80 border border-secondary/30 dark:border-secondary/50 flex items-start gap-3 shadow-xs">
+            <Moon className="w-5 h-5 text-secondary dark:text-emerald-400 flex-shrink-0 mt-0.5" />
             <div>
               <span className="font-extrabold text-sm text-on-surface">Night Mode Active</span>
               <p className="text-xs text-on-surface-variant font-medium mt-0.5">
