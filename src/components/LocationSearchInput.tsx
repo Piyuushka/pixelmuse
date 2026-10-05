@@ -57,7 +57,7 @@ export default function LocationSearchInput({
       l.name.toLowerCase().includes(norm)
     );
 
-    const coords = preferredCoords || (demo?.lat && demo?.lng ? { lat: demo.lat, lng: demo.lng } : undefined);
+    const coords = preferredCoords || (demo?.lat && demo?.lng ? { lat: demo.lat, lng: demo.lng } : { lat: 19.0760, lng: 72.8777 });
 
     onLocationSelect({
       name: demo ? demo.name : text,

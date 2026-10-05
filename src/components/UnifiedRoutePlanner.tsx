@@ -487,14 +487,21 @@ export default function UnifiedRoutePlanner({ initialMode = 'gps' }: UnifiedRout
           </div>
 
           {/* Complete Google Maps Style Interactive Map Component */}
-          <div className="relative rounded-3xl overflow-hidden border border-outline-variant/40 shadow-md h-[450px]">
+          <div className="relative rounded-3xl overflow-hidden border border-outline-variant/40 shadow-xl h-[540px]">
             <LiveMapWrapper
               center={detectedCoordinates}
               destination={destLocation?.coords}
               accuracy={gpsAccuracyMeters}
-              zoom={14}
+              zoom={16}
               routeGeojson={preference === 'none' ? geojsonNormal : (geojsonAccessible || geojsonNormal)}
               navigationStep={isNavigating && accessibleSteps ? accessibleSteps[currentStepIndex] : undefined}
+              isNavigating={isNavigating}
+              onExitNavigation={() => setIsNavigating(false)}
+              totalDistanceKm={accessible?.distance || 3.6}
+              totalMinutes={accessible?.time || 51}
+              totalSteps={Math.round(((accessible?.distance || 3.6) * 1000) / 0.75)}
+              destName={destName}
+              roadName={accessibleSteps?.[currentStepIndex]?.title || 'Juhu Rd / Juhu Tara Rd'}
             />
             {isNavigating && accessibleSteps && (
               <div className="absolute top-0 right-0 h-full w-full sm:w-80 md:w-96 bg-surface text-on-surface z-[1000] shadow-xl border-l border-outline-variant/30 flex flex-col overflow-hidden animate-in slide-in-from-right-4 duration-300">

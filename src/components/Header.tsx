@@ -21,7 +21,7 @@ import {
 const navItems = [
   { href: '/gps-precision', label: 'GPS Precision Map', icon: Map },
   { href: '/micro-navigation', label: 'Micro-Navigation', icon: Compass },
-  { href: '/safety-routing', label: 'Safety Routing', icon: ShieldCheck },
+  { href: '/safety-routing', label: 'Parental Control & Safety', icon: ShieldCheck },
   { href: '/live-adaptation-alert', label: 'Live Alert', icon: AlertTriangle },
   { href: '/community-confidence', label: 'Community Confidence', icon: Users },
 ];

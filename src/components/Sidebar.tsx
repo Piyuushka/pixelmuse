@@ -32,7 +32,7 @@ import {
 
 const navItems = [
   { href: '/gps-precision', label: 'GPS Precision Map', icon: MapPin, badge: 'HIGH ACCURACY' },
-  { href: '/safety-routing', label: 'Safety Routing', icon: ShieldAlert, badge: 'NEW' },
+  { href: '/safety-routing', label: 'Parental Control & Safety', icon: ShieldAlert, badge: 'LIVE API' },
   { href: '/live-adaptation-alert', label: 'Live Alert', icon: AlertTriangle, alert: true },
   { href: '/community-confidence', label: 'Community Confidence', icon: Users },
 ];

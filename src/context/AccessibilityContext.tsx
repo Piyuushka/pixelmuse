@@ -81,6 +81,7 @@ export interface UserProfile {
   email: string;
   isLoggedIn: boolean;
   hasCompletedProfile: boolean;
+  role?: string;
 }
 
 export interface AccessibilityPreferences {
@@ -327,6 +328,7 @@ export function AccessibilityProvider({ children }: { children: React.ReactNode 
       email: data.user.email,
       isLoggedIn: true,
       hasCompletedProfile: data.user.hasCompletedProfile,
+      role: data.user.role || 'user',
     };
 
     setUser(dbUser);

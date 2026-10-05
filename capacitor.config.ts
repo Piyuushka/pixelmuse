@@ -26,18 +26,19 @@ const config: CapacitorConfig = {
   // Capacitor requires it to exist even in server-URL mode.
   webDir: 'public',
 
-  // ── PRODUCTION: point to your deployed Next.js URL ─────────────────
-  // Uncomment and replace with your actual deployment URL:
+  // ── LOCAL DEV: live reload from Next.js dev server ──────────────────
+  // Android device/emulator loads directly from your local Next.js server.
+  // Make sure `npm run dev` is running before opening Android Studio.
+  server: {
+    url: 'http://10.0.2.2:3000',
+    cleartext: true,
+  },
+
+  // ── PRODUCTION: point to your deployed Next.js URL ───────────────────
+  // When ready to deploy, comment out the server block above and use this:
   // server: {
   //   url: 'https://your-app.vercel.app',
   //   cleartext: false,
-  // },
-
-  // ── LOCAL DEV: live reload from Next.js dev server ──────────────────
-  // Uncomment and replace with your LAN IP address:
-  // server: {
-  //   url: 'http://192.168.1.100:3000',
-  //   cleartext: true,
   // },
 
   plugins: {

@@ -1,8 +1,0 @@
-<?xml version="1.0" encoding="utf-8"?>
-<resources>
-    <!-- PathFinder Access — Electric Blue primary brand color -->
-    <color name="ic_launcher_background">#1D4ED8</color>
-    <color name="colorPrimary">#2563EB</color>
-    <color name="colorPrimaryDark">#1D4ED8</color>
-    <color name="colorAccent">#059669</color>
-</resources>

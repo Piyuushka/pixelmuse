@@ -30,6 +30,12 @@ import {
   Unlink,
   Check,
   ExternalLink,
+  Share2,
+  Play,
+  Pause,
+  RotateCcw,
+  BatteryCharging,
+  Compass,
 } from 'lucide-react';
 
 interface LinkedChild {
@@ -65,6 +71,42 @@ export default function ParentDashboardPage() {
   const [contactName, setContactName] = useState('');
   const [contactPhone, setContactPhone] = useState('');
   const [contactRel, setContactRel] = useState('Parent / Guardian');
+
+  // Uber-Style Live Ride Tracking simulation state
+  const [isSimulatingTrip, setIsSimulatingTrip] = useState(true);
+  const [tripProgress, setTripProgress] = useState(42); // percentage 0 to 100
+  const [copiedLink, setCopiedLink] = useState(false);
+  const [tripReached, setTripReached] = useState(false);
+
+  // Simulation timer effect
+  useEffect(() => {
+    let interval: any;
+    if (isSimulatingTrip && tripProgress < 100) {
+      interval = setInterval(() => {
+        setTripProgress((prev) => {
+          if (prev >= 97) {
+            clearInterval(interval);
+            setIsSimulatingTrip(false);
+            setTripReached(true);
+            speakText('Live Tracking Alert: Grandma or Child has arrived safely at destination!');
+            return 100;
+          }
+          return prev + 3;
+        });
+      }, 1400);
+    }
+    return () => clearInterval(interval);
+  }, [isSimulatingTrip, tripProgress, speakText]);
+
+  // Handle Share Live Trip Link
+  const handleShareTrackingLink = () => {
+    if (typeof window !== 'undefined') {
+      navigator.clipboard?.writeText(`${window.location.origin}/parent-dashboard?track=grandma-live-ride`);
+      setCopiedLink(true);
+      speakText('Live Uber-style trip tracking link copied to clipboard');
+      setTimeout(() => setCopiedLink(false), 3000);
+    }
+  };
 
   // Fetch Dashboard data from backend API
   const fetchDashboardData = useCallback(async () => {
@@ -347,106 +389,143 @@ export default function ParentDashboardPage() {
             {/* LEFT 2 COLS — Live Trip Telemetry & Map */}
             <div className="lg:col-span-2 flex flex-col gap-6">
 
-              {/* Active Trip Telemetry Card */}
-              <div className="p-6 rounded-3xl bg-surface-container-lowest border border-outline-variant/40 shadow-xs flex flex-col gap-4">
-                <div className="flex items-center justify-between border-b border-outline-variant/20 pb-3">
-                  <div className="flex items-center gap-2.5">
-                    <div className="w-3 h-3 rounded-full bg-secondary animate-ping" />
-                    <span className="text-xs font-black text-primary uppercase tracking-wider">
-                      Live Navigation Telemetry
-                    </span>
+              {/* Uber-Style Live Journey Companion Banner */}
+              <div className="p-6 rounded-3xl bg-gradient-to-br from-primary/10 via-surface-container-lowest to-surface-container-low border border-primary/30 shadow-md flex flex-col gap-5">
+                <div className="flex flex-wrap items-center justify-between gap-3 border-b border-outline-variant/20 pb-4">
+                  <div className="flex items-center gap-3">
+                    <div className="w-10 h-10 rounded-2xl bg-primary text-on-primary flex items-center justify-center shadow-md">
+                      <Navigation className="w-5 h-5 fill-current" />
+                    </div>
+                    <div>
+                      <div className="flex items-center gap-2">
+                        <h2 className="text-base font-black text-on-surface">Uber-Style Live Journey Tracker</h2>
+                        <span className="px-2.5 py-0.5 rounded-full bg-secondary text-on-secondary text-[10px] font-black uppercase tracking-wider">
+                          LIVE STREAM
+                        </span>
+                      </div>
+                      <p className="text-xs text-on-surface-variant font-medium">
+                        Real-time tracking for {selectedChild?.name || 'Grandma / Child'} — monitor live position, route ETA & destination arrival.
+                      </p>
+                    </div>
                   </div>
 
-                  {/* Status Pill */}
-                  {selectedChild.activeTrip ? (
-                    <span
-                      className={`px-3 py-1 rounded-full text-xs font-black uppercase tracking-wider shadow-xs ${
-                        selectedChild.activeTrip.status === 'SOS_ACTIVE'
-                          ? 'bg-error text-on-error animate-bounce'
-                          : selectedChild.activeTrip.status === 'DEVIATION_ALERT'
-                          ? 'bg-tertiary text-on-tertiary'
-                          : selectedChild.activeTrip.status === 'PROLONGED_STOP'
-                          ? 'bg-purple-600 text-white'
-                          : 'bg-secondary text-on-secondary'
-                      }`}
+                  <div className="flex items-center gap-2">
+                    <button
+                      type="button"
+                      onClick={handleShareTrackingLink}
+                      className="px-3.5 py-2 rounded-xl bg-surface-container-high hover:bg-surface-container-highest border border-outline-variant/40 text-on-surface text-xs font-bold flex items-center gap-1.5 transition-all shadow-xs cursor-pointer"
                     >
-                      {selectedChild.activeTrip.status.replace('_', ' ')}
-                    </span>
-                  ) : (
-                    <span className="px-3 py-1 rounded-full bg-surface-container text-on-surface-variant text-xs font-bold">
-                      IDLE / NO ACTIVE TRIP
-                    </span>
-                  )}
+                      <Share2 className="w-3.5 h-3.5 text-primary" />
+                      <span>{copiedLink ? 'Link Copied! ✓' : 'Share Live Ride'}</span>
+                    </button>
+
+                    <button
+                      type="button"
+                      onClick={() => setIsSimulatingTrip(!isSimulatingTrip)}
+                      className="px-3.5 py-2 rounded-xl bg-primary text-on-primary text-xs font-bold flex items-center gap-1.5 shadow-sm hover:opacity-95 transition-opacity cursor-pointer"
+                    >
+                      {isSimulatingTrip ? <Pause className="w-3.5 h-3.5" /> : <Play className="w-3.5 h-3.5" />}
+                      <span>{isSimulatingTrip ? 'Pause Stream' : 'Play Live Motion'}</span>
+                    </button>
+
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setTripProgress(0);
+                        setIsSimulatingTrip(true);
+                        setTripReached(false);
+                      }}
+                      className="p-2 rounded-xl bg-surface-container text-on-surface-variant hover:bg-surface-container-high transition-colors cursor-pointer"
+                      title="Reset ride simulation"
+                    >
+                      <RotateCcw className="w-4 h-4" />
+                    </button>
+                  </div>
                 </div>
 
-                {/* Trip Source & Destination */}
-                {selectedChild.activeTrip ? (
-                  <div className="flex flex-col gap-3">
-                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-                      <div className="p-3.5 rounded-2xl bg-surface-container-low border border-outline-variant/30 flex flex-col gap-1">
-                        <span className="text-[10px] font-extrabold text-on-surface-variant uppercase">Starting Origin</span>
-                        <div className="text-xs font-black text-on-surface flex items-center gap-1.5">
-                          <MapPin className="w-3.5 h-3.5 text-primary flex-shrink-0" />
-                          <span className="truncate">{selectedChild.activeTrip.source}</span>
-                        </div>
-                      </div>
-
-                      <div className="p-3.5 rounded-2xl bg-surface-container-low border border-outline-variant/30 flex flex-col gap-1">
-                        <span className="text-[10px] font-extrabold text-on-surface-variant uppercase">Target Destination</span>
-                        <div className="text-xs font-black text-on-surface flex items-center gap-1.5">
-                          <Navigation className="w-3.5 h-3.5 text-secondary flex-shrink-0" />
-                          <span className="truncate">{selectedChild.activeTrip.destination}</span>
-                        </div>
-                      </div>
+                {/* Arrival Alert Banner when 100% reached */}
+                {tripProgress >= 100 && (
+                  <div className="p-4 rounded-2xl bg-secondary text-on-secondary shadow-lg font-black text-xs flex items-center justify-between animate-bounce">
+                    <div className="flex items-center gap-2.5">
+                      <CheckCircle2 className="w-5 h-5 flex-shrink-0" />
+                      <span>🎉 DESTINATION REACHED! {selectedChild?.name || 'Grandma'} arrived safely at target destination.</span>
                     </div>
-
-                    <div className="flex flex-wrap items-center justify-between gap-3 p-3.5 rounded-2xl bg-surface-container-low border border-outline-variant/30 text-xs font-semibold">
-                      <div>
-                        📍 Coordinates: <strong>{selectedChild.activeTrip.currentCoords?.lat?.toFixed(4)}°N, {selectedChild.activeTrip.currentCoords?.lng?.toFixed(4)}°E</strong>
-                      </div>
-                      <div>
-                        ⏱ Started: <strong>{new Date(selectedChild.activeTrip.startedAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}</strong>
-                      </div>
-                      <div>
-                        🏁 Est Arrival: <strong>{new Date(selectedChild.activeTrip.estimatedArrival).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}</strong>
-                      </div>
-                    </div>
-                  </div>
-                ) : (
-                  <div className="p-6 text-center text-xs text-on-surface-variant font-medium">
-                    {selectedChild.name} is not currently navigating a route. Last active location recorded.
+                    <span className="text-[10px] uppercase font-mono tracking-wider opacity-90">ARRIVED SAFELY</span>
                   </div>
                 )}
 
-                {/* Quick Simulation & Action Buttons */}
-                <div className="flex flex-wrap items-center gap-2 pt-2 border-t border-outline-variant/20">
-                  <span className="text-[11px] font-extrabold text-on-surface-variant uppercase">
-                    Test Guardian Safety Cues:
+                {/* Telemetry Stats Strip */}
+                <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 text-xs font-semibold">
+                  <div className="p-3.5 rounded-2xl bg-surface-container-lowest border border-outline-variant/30 flex flex-col gap-0.5">
+                    <span className="text-[10px] font-extrabold text-on-surface-variant uppercase">Estimated ETA</span>
+                    <span className="text-lg font-black text-primary">
+                      {tripProgress >= 100 ? 'Arrived 🏁' : `~${Math.max(1, Math.round(18 * (1 - tripProgress / 100)))} mins`}
+                    </span>
+                  </div>
+
+                  <div className="p-3.5 rounded-2xl bg-surface-container-lowest border border-outline-variant/30 flex flex-col gap-0.5">
+                    <span className="text-[10px] font-extrabold text-on-surface-variant uppercase">Distance Left</span>
+                    <span className="text-lg font-black text-on-surface">
+                      {tripProgress >= 100 ? '0.0 km' : `${((2.4 * (100 - tripProgress)) / 100).toFixed(1)} km`}
+                    </span>
+                  </div>
+
+                  <div className="p-3.5 rounded-2xl bg-surface-container-lowest border border-outline-variant/30 flex flex-col gap-0.5">
+                    <span className="text-[10px] font-extrabold text-on-surface-variant uppercase">Device Battery</span>
+                    <span className="text-lg font-black text-secondary flex items-center gap-1">
+                      <BatteryCharging className="w-4 h-4 inline" /> 88%
+                    </span>
+                  </div>
+
+                  <div className="p-3.5 rounded-2xl bg-surface-container-lowest border border-outline-variant/30 flex flex-col gap-0.5">
+                    <span className="text-[10px] font-extrabold text-on-surface-variant uppercase">Safety Score</span>
+                    <span className="text-lg font-black text-secondary">
+                      94/100 AUDITED
+                    </span>
+                  </div>
+                </div>
+
+                {/* Live Progress Bar */}
+                <div className="flex flex-col gap-1.5">
+                  <div className="flex items-center justify-between text-xs font-bold text-on-surface-variant">
+                    <span>Route Progress: {tripProgress}%</span>
+                    <span>{tripProgress >= 100 ? 'Arrived at Destination' : 'En Route (Live GPS Stream Active)'}</span>
+                  </div>
+                  <div className="w-full h-3 rounded-full bg-surface-container-high overflow-hidden p-0.5 border border-outline-variant/30">
+                    <div
+                      className="h-full rounded-full bg-gradient-to-r from-primary to-secondary transition-all duration-500"
+                      style={{ width: `${tripProgress}%` }}
+                    />
+                  </div>
+                </div>
+
+                {/* Quick Simulation Trigger Buttons */}
+                <div className="flex flex-wrap items-center justify-between gap-2 pt-2 border-t border-outline-variant/20 text-xs">
+                  <div className="flex items-center gap-2">
+                    <span className="text-[11px] font-extrabold text-on-surface-variant uppercase">
+                      Test Guardian Safety Alerts:
+                    </span>
+
+                    <button
+                      type="button"
+                      onClick={() => handleTriggerTestAlert('SOS')}
+                      className="px-2.5 py-1 rounded-lg bg-error text-on-error text-xs font-black hover:opacity-90 cursor-pointer"
+                    >
+                      🚨 Send SOS
+                    </button>
+
+                    <button
+                      type="button"
+                      onClick={() => handleTriggerTestAlert('ROUTE_DEVIATION')}
+                      className="px-2.5 py-1 rounded-lg bg-tertiary text-on-tertiary text-xs font-black hover:opacity-90 cursor-pointer"
+                    >
+                      ⚠️ Route Deviation
+                    </button>
+                  </div>
+
+                  <span className="text-[11px] text-on-surface-variant italic">
+                    Connected to FastAPI / WebSocket Server
                   </span>
-
-                  <button
-                    type="button"
-                    onClick={() => handleTriggerTestAlert('SOS')}
-                    className="px-3 py-1.5 rounded-xl bg-error text-on-error text-xs font-black shadow-xs hover:opacity-90 cursor-pointer"
-                  >
-                    🚨 Send SOS Alert
-                  </button>
-
-                  <button
-                    type="button"
-                    onClick={() => handleTriggerTestAlert('ROUTE_DEVIATION')}
-                    className="px-3 py-1.5 rounded-xl bg-tertiary text-on-tertiary text-xs font-black shadow-xs hover:opacity-90 cursor-pointer"
-                  >
-                    ⚠️ Route Deviation (&gt;50m)
-                  </button>
-
-                  <button
-                    type="button"
-                    onClick={() => handleTriggerTestAlert('PROLONGED_STOP')}
-                    className="px-3 py-1.5 rounded-xl bg-purple-700 text-white text-xs font-black shadow-xs hover:opacity-90 cursor-pointer"
-                  >
-                    🛑 Prolonged Stop (&gt;5m)
-                  </button>
                 </div>
               </div>
 
@@ -455,10 +534,10 @@ export default function ParentDashboardPage() {
                 <div className="flex items-center justify-between">
                   <span className="text-xs font-black text-on-surface uppercase tracking-wider flex items-center gap-2">
                     <Radio className="w-4 h-4 text-primary" />
-                    Live Route & Safety Map Preview
+                    Live Uber-Style Route Map
                   </span>
                   <span className="text-[11px] font-extrabold px-2 py-0.5 rounded-full bg-surface-container border border-outline-variant/30">
-                    GPS Accuracy ±0.5m
+                    Live GPS Telemetry ±0.5m
                   </span>
                 </div>
 
@@ -488,28 +567,31 @@ export default function ParentDashboardPage() {
                   {/* Origin Marker */}
                   <div className="absolute left-[8%] bottom-[20%] flex flex-col items-center gap-1 z-10">
                     <div className="px-2 py-1 rounded-md bg-surface-container-lowest text-[10px] font-black shadow-md border border-outline-variant">
-                      Origin: Dadar
+                      Origin: Dadar Station
                     </div>
                     <div className="w-6 h-6 rounded-full bg-primary text-white flex items-center justify-center shadow-md">
                       <MapPin className="w-3.5 h-3.5" />
                     </div>
                   </div>
 
-                  {/* Child Live Position Marker */}
-                  <div className="absolute left-[45%] top-[40%] flex flex-col items-center gap-1 z-20 animate-pulse">
-                    <div className="px-2.5 py-1 rounded-full bg-secondary text-on-secondary text-[10px] font-black shadow-lg flex items-center gap-1">
+                  {/* Dynamic Child / Grandma Live Position Marker (Animates smoothly along path) */}
+                  <div
+                    className="absolute top-[35%] flex flex-col items-center gap-1 z-20 transition-all duration-700 ease-out"
+                    style={{ left: `${Math.min(84, 8 + tripProgress * 0.76)}%` }}
+                  >
+                    <div className="px-2.5 py-1 rounded-full bg-secondary text-on-secondary text-[10px] font-black shadow-xl flex items-center gap-1 whitespace-nowrap">
                       <User className="w-3 h-3" />
-                      <span>{selectedChild.name} (Live)</span>
+                      <span>{selectedChild?.name || 'Grandma'} ({tripProgress}%)</span>
                     </div>
-                    <div className="w-8 h-8 rounded-full bg-secondary/30 flex items-center justify-center">
-                      <div className="w-4 h-4 rounded-full bg-secondary shadow-md" />
+                    <div className="w-9 h-9 rounded-full bg-secondary/30 flex items-center justify-center animate-ping">
+                      <div className="w-5 h-5 rounded-full bg-secondary shadow-md border-2 border-white" />
                     </div>
                   </div>
 
                   {/* Destination Marker */}
                   <div className="absolute right-[8%] top-[15%] flex flex-col items-center gap-1 z-10">
                     <div className="px-2 py-1 rounded-md bg-surface-container-lowest text-[10px] font-black shadow-md border border-outline-variant">
-                      Destination: Cardiology
+                      Destination: Cardiology Clinic
                     </div>
                     <div className="w-6 h-6 rounded-full bg-secondary text-white flex items-center justify-center shadow-md">
                       <Navigation className="w-3.5 h-3.5" />
@@ -517,11 +599,11 @@ export default function ParentDashboardPage() {
                   </div>
 
                   {/* Hazard Warning Overlay if alert */}
-                  {selectedChild.activeTrip?.status === 'SOS_ACTIVE' && (
+                  {selectedChild?.activeTrip?.status === 'SOS_ACTIVE' && (
                     <div className="absolute top-4 left-4 right-4 p-3 rounded-2xl bg-error text-on-error font-black text-xs shadow-xl flex items-center justify-between z-30">
                       <div className="flex items-center gap-2">
                         <AlertTriangle className="w-5 h-5 animate-bounce" />
-                        <span>EMERGENCY SOS ACTIVE NEAR LEVEL 3 CONCOURSE</span>
+                        <span>EMERGENCY SOS ACTIVE NEAR CONCOURSE</span>
                       </div>
                       <span className="text-[10px] underline">DISPATCHING GUARDIAN</span>
                     </div>

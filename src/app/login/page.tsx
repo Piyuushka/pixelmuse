@@ -9,16 +9,19 @@ import {
   Mail,
   Lock,
   ArrowRight,
-  Sparkles,
+  ShieldCheck,
   AlertCircle,
   User,
+  Users,
   CheckCircle2,
+  Heart,
 } from 'lucide-react';
 
 export default function LoginPage() {
   const router = useRouter();
   const { loginUser, speakText } = useAccessibility();
 
+  const [role, setRole] = useState<'navigator' | 'parent'>('parent');
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [isSubmitting, setIsSubmitting] = useState(false);
@@ -35,11 +38,13 @@ export default function LoginPage() {
 
     try {
       const loggedUser = await loginUser(email, password);
-      speakText(`Welcome back ${loggedUser.name || 'Navigator'}. Loading your saved accessibility profile.`);
+      speakText(`Welcome back ${loggedUser.name || 'User'}.`);
 
-      // If user profile is already complete, go to Dashboard; else go to Profile Setup
-      if (loggedUser.hasCompletedProfile) {
-        router.push('/');
+      // Redirect based on selected role
+      if (role === 'parent' || loggedUser.role === 'parent') {
+        router.push('/parent-dashboard');
+      } else if (loggedUser.hasCompletedProfile) {
+        router.push('/safety-routing');
       } else {
         router.push('/signup');
       }
@@ -47,6 +52,18 @@ export default function LoginPage() {
       setErrorMessage(err.message || 'Invalid email address or password.');
     } finally {
       setIsSubmitting(false);
+    }
+  };
+
+  const handleQuickLogin = (targetRole: 'parent' | 'navigator') => {
+    if (targetRole === 'parent') {
+      setEmail('parent@community.org');
+      setPassword('password123');
+      setRole('parent');
+    } else {
+      setEmail('alex.rivera@community.org');
+      setPassword('password123');
+      setRole('navigator');
     }
   };
 
@@ -59,10 +76,10 @@ export default function LoginPage() {
         </div>
         <div className="flex flex-col">
           <span className="text-2xl font-black text-on-surface tracking-tight">
-            PathFinder Access
+            Pixel Muse Safety
           </span>
           <span className="text-[11px] text-on-surface-variant font-extrabold uppercase tracking-wider">
-            Barrier-Free Navigation Core
+            Barrier-Free & Parent Monitoring Portal
           </span>
         </div>
       </Link>
@@ -71,11 +88,46 @@ export default function LoginPage() {
       <div className="w-full max-w-md bg-surface-container-lowest rounded-3xl border border-outline-variant/40 shadow-xl p-8 flex flex-col gap-6">
         <div className="flex flex-col gap-1.5">
           <h1 className="text-2xl font-black text-on-surface tracking-tight">
-            Log In to Your Account
+            Log In to Pixel Muse
           </h1>
           <p className="text-xs text-on-surface-variant font-medium">
-            Access your saved accessibility profile, route parameters, and community barrier reports.
+            Select your account role to access your personalized dashboard.
           </p>
+        </div>
+
+        {/* ROLE SELECTION TABS */}
+        <div className="p-1.5 rounded-2xl bg-surface-container-low border border-outline-variant/30 flex gap-2">
+          <button
+            type="button"
+            onClick={() => {
+              setRole('parent');
+              speakText('Selected Parent and Caregiver account role');
+            }}
+            className={`flex-1 py-3 px-3 rounded-xl font-bold text-xs flex items-center justify-center gap-2 transition-all cursor-pointer ${
+              role === 'parent'
+                ? 'bg-primary text-on-primary shadow-sm'
+                : 'bg-transparent text-on-surface-variant hover:text-on-surface'
+            }`}
+          >
+            <ShieldCheck className="w-4 h-4" />
+            <span>Parent / Caregiver</span>
+          </button>
+
+          <button
+            type="button"
+            onClick={() => {
+              setRole('navigator');
+              speakText('Selected Navigator account role');
+            }}
+            className={`flex-1 py-3 px-3 rounded-xl font-bold text-xs flex items-center justify-center gap-2 transition-all cursor-pointer ${
+              role === 'navigator'
+                ? 'bg-primary text-on-primary shadow-sm'
+                : 'bg-transparent text-on-surface-variant hover:text-on-surface'
+            }`}
+          >
+            <User className="w-4 h-4" />
+            <span>Navigator (PWD / Child)</span>
+          </button>
         </div>
 
         {/* Form */}
@@ -96,7 +148,7 @@ export default function LoginPage() {
               <input
                 id="login-email"
                 type="email"
-                placeholder="e.g. alex.rivera@community.org"
+                placeholder={role === 'parent' ? 'parent@community.org' : 'alex.rivera@community.org'}
                 value={email}
                 onChange={e => setEmail(e.target.value)}
                 className="w-full h-12 pl-10 pr-4 rounded-2xl bg-surface-container-low border border-outline-variant/40 text-xs font-semibold text-on-surface focus:outline-none focus:ring-2 focus:ring-primary"
@@ -126,10 +178,35 @@ export default function LoginPage() {
             disabled={isSubmitting}
             className="w-full h-13 rounded-2xl bg-primary text-on-primary font-black text-sm flex items-center justify-center gap-2 shadow-md hover:opacity-95 transition-opacity cursor-pointer disabled:opacity-50 mt-2"
           >
-            <span>{isSubmitting ? 'Authenticating...' : 'Log In & Open Dashboard'}</span>
+            <span>{isSubmitting ? 'Authenticating...' : role === 'parent' ? 'Log In to Guardian Dashboard' : 'Log In to Navigator Portal'}</span>
             <ArrowRight className="w-4 h-4" />
           </button>
         </form>
+
+        {/* Quick Demo Login Preset Buttons */}
+        <div className="flex flex-col gap-2 pt-3 border-t border-outline-variant/20">
+          <span className="text-[11px] font-extrabold text-on-surface-variant uppercase text-center">
+            One-Click Demo Accounts:
+          </span>
+          <div className="grid grid-cols-2 gap-2">
+            <button
+              type="button"
+              onClick={() => handleQuickLogin('parent')}
+              className="p-2.5 rounded-xl bg-surface-container-high hover:bg-surface-container-highest border border-outline-variant/40 text-[11px] font-bold text-on-surface flex items-center justify-center gap-1 cursor-pointer"
+            >
+              <ShieldCheck className="w-3.5 h-3.5 text-primary" />
+              <span>Parent / Caregiver</span>
+            </button>
+            <button
+              type="button"
+              onClick={() => handleQuickLogin('navigator')}
+              className="p-2.5 rounded-xl bg-surface-container-high hover:bg-surface-container-highest border border-outline-variant/40 text-[11px] font-bold text-on-surface flex items-center justify-center gap-1 cursor-pointer"
+            >
+              <User className="w-3.5 h-3.5 text-secondary" />
+              <span>Navigator (PWD)</span>
+            </button>
+          </div>
+        </div>
 
         <div className="text-center pt-2 border-t border-outline-variant/20 text-xs text-on-surface-variant font-medium">
           Don&apos;t have an account yet?{' '}
@@ -141,3 +218,4 @@ export default function LoginPage() {
     </div>
   );
 }
+
