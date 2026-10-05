@@ -19,9 +19,9 @@
       "maxWalkingDistanceMeters": 1000
     },
     "createdAt": "2026-09-21T09:58:29.805Z",
-    "updatedAt": "2026-10-05T09:29:29.816Z",
-    "pairingCode": "849-201",
-    "linkedParentEmail": "akankshaingale@gmail.com",
+    "updatedAt": "2026-09-21T09:58:29.805Z",
+    "pairingCode": "494-849",
+    "linkedParentEmail": null,
     "linkedChildrenEmails": [],
     "emergencyContacts": [],
     "privacyConsent": {
@@ -37,21 +37,7 @@
     },
     "activeTrip": null,
     "tripHistory": [],
-    "parentAlerts": [
-      {
-        "id": "alt_1791119728188_p5lq",
-        "childEmail": "alex.rivera@community.org",
-        "childName": "Alex Rivera",
-        "type": "emergency_sos",
-        "message": "Safety alert triggered.",
-        "timestamp": "2026-10-04T13:15:28.188Z",
-        "read": false,
-        "locationCoords": {
-          "lat": 19.076,
-          "lng": 72.8777
-        }
-      }
-    ],
+    "parentAlerts": [],
     "guardianLinks": [],
     "trips": []
   },
@@ -224,23 +210,21 @@
     "guardianLinks": [],
     "trips": [],
     "createdAt": "2026-10-03T09:43:54.593Z",
-    "updatedAt": "2026-10-04T14:15:34.220Z"
+    "updatedAt": "2026-10-03T09:50:47.644Z"
   },
   {
-    "id": "usr_1791185422120_0dtfq",
-    "name": "pranjal",
+    "id": "usr_1791091946036_g1fxv",
+    "name": "Akanksha ",
     "email": "akankshaingale@gmail.com",
-    "passwordHash": "b9c950640e1b3740e98acb93e669c65766f6670dd1609ba91ff41052ba48c6f3",
-    "role": "parent",
-    "pairingCode": "807-087",
+    "passwordHash": "8d969eef6ecad3c29a3a629280e686cf0c3f5d5a86aff3ca12020c923adc6c92",
+    "role": "user",
+    "pairingCode": "491-500",
     "linkedParentEmail": null,
-    "linkedChildrenEmails": [
-      "alex.rivera@community.org"
-    ],
-    "hasCompletedProfile": false,
+    "linkedChildrenEmails": [],
+    "hasCompletedProfile": true,
     "accessibilityPreferences": {
-      "primaryPersona": "wheelchair",
-      "mobilityType": "electric-wheelchair",
+      "primaryPersona": "older-adult",
+      "mobilityType": "visually-impaired",
       "requireStepFree": true,
       "maxSlopePercent": 5,
       "preferLowerSlopes": true,
@@ -268,7 +252,7 @@
     "parentAlerts": [],
     "guardianLinks": [],
     "trips": [],
-    "createdAt": "2026-10-05T07:30:22.120Z",
-    "updatedAt": "2026-10-05T09:29:29.816Z"
+    "createdAt": "2026-10-04T05:32:26.036Z",
+    "updatedAt": "2026-10-04T05:32:41.424Z"
   }
 ]

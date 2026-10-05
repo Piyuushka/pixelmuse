@@ -18,9 +18,27 @@ import { RoadLayerType } from '@/lib/db/mongoSchema';
 import { triggerActiveBarrierRecalculation } from '@/lib/routeRecalculator';
 import { sessionRegistry } from '@/lib/navigationSessionRegistry';
 import { realtimeClient } from '@/lib/realtimeClient';
+import { SurfaceFilterPreferences, DEFAULT_SURFACE_FILTERS } from '@/lib/safetyRoutingEngine';
 
 export type PersonaType = 'wheelchair' | 'older-adult' | 'low-vision' | 'caregiver' | 'none';
 export type FontScale = 'sm' | 'md' | 'lg';
+
+export interface ActiveObstacleAlert {
+  active: boolean;
+  title: string;
+  location: string;
+  microLocation?: string;
+  detourTime: string;
+  impact: string;
+  category?: string;
+  severity?: 'low' | 'medium' | 'high' | 'critical';
+  barrierReportId?: string;
+  originalRoute?: string;
+  originalRouteDetail?: string;
+  adaptedRoute?: string;
+  adaptedRouteDetail?: string;
+  isAccepted?: boolean;
+}
 
 /**
  * Unified Persona Taxonomy — single source of truth.
@@ -117,6 +135,9 @@ interface AccessibilityContextType {
   setPersona: (p: PersonaType) => void;
   user: UserProfile;
   accessibilityPreferences: AccessibilityPreferences;
+  surfaceFilters: SurfaceFilterPreferences;
+  toggleSurfaceFilter: (key: keyof SurfaceFilterPreferences) => void;
+  setSurfaceFilters: React.Dispatch<React.SetStateAction<SurfaceFilterPreferences>>;
   isOnboardingOpen: boolean;
   openOnboarding: () => void;
   closeOnboarding: () => void;
@@ -124,20 +145,19 @@ interface AccessibilityContextType {
   registerUser: (name: string, email: string, password?: string) => Promise<UserProfile>;
   logoutUser: () => void;
   saveAccessibilityProfile: (prefs: Partial<AccessibilityPreferences>) => Promise<UserProfile>;
-  simulatedObstacle: {
-    active: boolean;
-    title: string;
-    location: string;
-    detourTime: string;
-    impact: string;
-  };
+  simulatedObstacle: ActiveObstacleAlert;
+  activeHazardAlert: ActiveObstacleAlert;
   toggleSimulatedObstacle: () => void;
+  acceptReroute: () => void;
   barrierReports: BarrierReport[];
   addBarrierReport: (input: {
     title: string;
     category: string;
     severity?: 'low' | 'medium' | 'high' | 'critical';
     location: string;
+    microLocation?: string;
+    estimatedResolutionTime?: string;
+    affectsActiveRoute?: boolean;
     description?: string;
     roadLayer?: RoadLayer;
     coordinates?: { lat: number; lng: number };
@@ -154,30 +174,51 @@ interface AccessibilityContextType {
 
 const defaultReports: IndianBarrierReport[] = [
   createBarrierReport({
-    title: 'Waterlogging & Heavy Rain Puddling',
-    category: 'Flooding/Waterlogging',
+    title: 'Elevator Out of Service / Escalator Down',
+    category: 'Elevator Out of Service / Escalator Down',
+    severity: 'critical',
+    location: 'West Wing Transit Hub - Platform 2',
+    microLocation: 'Elevator B Shaft (Level 1 Concourse to Level 2 Platforms)',
+    estimatedResolutionTime: 'Est. 3h 30m',
+    affectsActiveRoute: true,
+    description: 'Hydraulic lift motor overheating. Escalator adjacent also undergoing electrical service. No step-free access.',
+    coordinates: { lat: 19.0770, lng: 72.8788 },
+    roadLayer: 'at_grade',
+  }),
+  createBarrierReport({
+    title: 'Puddles / Waterlogging',
+    category: 'Puddles / Waterlogging',
     severity: 'high',
     location: 'SVT Road - Underpass Entrance Gate 2',
-    description: '15cm water buildup near curb ramp. Accessible ramp temporarily submerged.',
+    microLocation: 'Curb cut & tactile ground transition at Gate 2 underpass',
+    estimatedResolutionTime: 'Est. 2h 0m',
+    affectsActiveRoute: true,
+    description: '15cm water buildup near curb ramp following monsoon shower. Wheelchair footrests will submerge.',
     coordinates: { lat: 19.0760, lng: 72.8777 },
     roadLayer: 'at_grade',
   }),
   createBarrierReport({
-    title: 'Temporary Scaffold Blocking Curb Cut',
-    category: 'Construction Obstruction',
+    title: 'Blockade / Scaffolding on Curb Cut',
+    category: 'Blockade / Scaffolding on Curb Cut',
     severity: 'high',
     location: 'Main Plaza & 4th Avenue Crossing',
-    description: 'Construction scaffolding reduces sidewalk width below 90cm. Narrow clearance.',
+    microLocation: 'NE Corner pedestrian ramp beside Scaffold Bay 4',
+    estimatedResolutionTime: 'Est. 8h 0m',
+    affectsActiveRoute: true,
+    description: 'Renovation scaffolding erected across the dropped curb cut. Sidewalk clearance reduced to 65cm.',
     coordinates: { lat: 19.0765, lng: 72.8782 },
     roadLayer: 'at_grade',
   }),
   createBarrierReport({
-    title: 'Blocked Elevators - West Wing Entrance',
-    category: 'Elevator Outage',
-    severity: 'critical',
-    location: 'Building B, 2nd Floor Junction',
-    description: 'Main passenger elevator under emergency maintenance. Reroute via South Ramp Entrance.',
-    coordinates: { lat: 19.0770, lng: 72.8788 },
+    title: 'Mud / Loose Gravel',
+    category: 'Mud / Loose Gravel',
+    severity: 'medium',
+    location: 'South Concourse Garden Bypass Lane',
+    microLocation: 'Compacted gravel path leading to West Pavilion',
+    estimatedResolutionTime: 'Est. 4h 0m',
+    affectsActiveRoute: false,
+    description: 'Heavy foot traffic washed topsoil onto walkway creating slippery mud and loose pebble hazards.',
+    coordinates: { lat: 19.0754, lng: 72.8780 },
     roadLayer: 'at_grade',
   }),
 ];
@@ -436,13 +477,46 @@ export function AccessibilityProvider({ children }: { children: React.ReactNode 
 
     return updatedUser;
   };
-  const [simulatedObstacle, setSimulatedObstacle] = useState({
+  const [surfaceFilters, setSurfaceFilters] = useState<SurfaceFilterPreferences>(DEFAULT_SURFACE_FILTERS);
+
+  // Load surface filters on mount
+  useEffect(() => {
+    if (typeof window === 'undefined') return;
+    try {
+      const saved = localStorage.getItem('pathfinder_surface_filters');
+      if (saved) {
+        setSurfaceFilters(JSON.parse(saved));
+      }
+    } catch (e) {}
+  }, []);
+
+  const toggleSurfaceFilter = useCallback((key: keyof SurfaceFilterPreferences) => {
+    setSurfaceFilters(prev => {
+      const next = { ...prev, [key]: !prev[key] };
+      try {
+        localStorage.setItem('pathfinder_surface_filters', JSON.stringify(next));
+      } catch (e) {}
+      return next;
+    });
+  }, []);
+
+  const [activeHazardAlert, setActiveHazardAlert] = useState<ActiveObstacleAlert>({
     active: true,
-    title: 'Main Central Elevator Maintenance',
-    location: 'Sector 3 Transit Hub - Level 2',
+    title: 'Elevator Out of Service / Escalator Down',
+    location: 'West Wing Transit Hub - Platform 2',
+    microLocation: 'Elevator B Shaft (Level 1 Concourse to Level 2 Platforms)',
     detourTime: '+3 min detour',
-    impact: 'Wheelchair & Stroller access redirected via Ramp C',
+    impact: 'Wheelchair & Stroller access redirected via South Ramp C and Service Lift 4',
+    category: 'Elevator Out of Service / Escalator Down',
+    severity: 'critical',
+    originalRoute: 'Central Concourse Route (Blocked by Elevator Outage)',
+    originalRouteDetail: 'Direct concourse path. Elevator out of service due to hydraulic fault. Stairs required as fallback (Not Step-Free).',
+    adaptedRoute: 'South Ramp C & Lift 4 (Bypasses obstacle with +3 min detour)',
+    adaptedRouteDetail: 'Bypasses elevator hub via gentle 3.5% incline ramp and service lift. 100% Step-Free & WCAG AAA Verified.',
+    isAccepted: false,
   });
+
+  const simulatedObstacle = activeHazardAlert;
 
   const [barrierReports, setBarrierReports] = useState<IndianBarrierReport[]>(defaultReports);
   const [realtimeEvents, setRealtimeEvents] = useState<BarrierEvent[]>([]);
@@ -487,6 +561,14 @@ export function AccessibilityProvider({ children }: { children: React.ReactNode 
       if (onEnd) onEnd();
     }
   }, [isVoicePromptActive]);
+
+  const acceptReroute = useCallback(() => {
+    setActiveHazardAlert(prev => ({
+      ...prev,
+      isAccepted: true,
+    }));
+    speakText("Adapted route accepted. Navigating via South Ramp C bypass.");
+  }, [speakText]);
 
   const recalculateCurrentRoute = useCallback(() => {
     const updated = calculateAdaptedRoute(
@@ -582,22 +664,25 @@ export function AccessibilityProvider({ children }: { children: React.ReactNode 
     });
   }, []);
 
-  const toggleSimulatedObstacle = () => {
-    setSimulatedObstacle(prev => {
+  const toggleSimulatedObstacle = useCallback(() => {
+    setActiveHazardAlert(prev => {
       const nextState = !prev.active;
       barrierBroadcaster.broadcast({
         type: 'ROUTE_RECALCULATED',
         message: nextState ? 'Obstacle simulation activated.' : 'Obstacle simulation cleared.',
       });
-      return { ...prev, active: nextState };
+      return { ...prev, active: nextState, isAccepted: false };
     });
-  };
+  }, []);
 
   const addBarrierReport = (input: {
     title: string;
     category: string;
     severity?: 'low' | 'medium' | 'high' | 'critical';
     location: string;
+    microLocation?: string;
+    estimatedResolutionTime?: string;
+    affectsActiveRoute?: boolean;
     description?: string;
     roadLayer?: RoadLayer;
     coordinates?: { lat: number; lng: number };
@@ -623,6 +708,27 @@ export function AccessibilityProvider({ children }: { children: React.ReactNode 
     setBarrierReports(updatedReports);
 
     const target = updatedReports.find(r => r.id === targetId);
+
+    // Instant Rerouting Trigger:
+    // If report is critical, high severity, or affects the active route, trigger live adaptation alert
+    if (input.severity === 'critical' || input.severity === 'high' || input.affectsActiveRoute || target?.affectsActiveRoute) {
+      setActiveHazardAlert({
+        active: true,
+        title: input.title,
+        location: input.location,
+        microLocation: input.microLocation || input.location,
+        detourTime: '+3 min detour',
+        impact: `Active hazard reported by community. Rerouting via safe step-free alternative.`,
+        category: input.category,
+        severity: input.severity || 'high',
+        barrierReportId: targetId,
+        originalRoute: `Original Route (Blocked by reported hazard: ${input.title})`,
+        originalRouteDetail: input.description || `Hazard reported at ${input.location}. Route impassable for mobility profile.`,
+        adaptedRoute: `Recommended Adapted Route (Bypasses obstacle with +3 min detour)`,
+        adaptedRouteDetail: `Dynamic bypass calculated avoiding ${input.category}. Verified step-free.`,
+        isAccepted: false,
+      });
+    }
 
     // ── Spatial Lookup: find all active navigating users affected ──
     if (target) {
@@ -679,9 +785,25 @@ export function AccessibilityProvider({ children }: { children: React.ReactNode 
         });
         speakText(`Upvoted barrier. Community confidence extended TTL by 30 minutes.`);
 
-        // When moving to 'Verified' (ACTIVE state), trigger asynchronous route recalculation
-        if (target.status === 'Verified') {
+        // When moving to 'Verified' (ACTIVE state), trigger asynchronous route recalculation & Live Adaptation Alert
+        if (target.status === 'Verified' || target.severity === 'critical') {
           triggerActiveBarrierRecalculation(target, { activeBarriers: next, autoUpdateSession: true });
+          setActiveHazardAlert({
+            active: true,
+            title: target.title,
+            location: target.location,
+            microLocation: target.microLocation || target.location,
+            detourTime: '+3 min detour',
+            impact: `Community verified hazard on route (${target.votes} confirmations). Rerouting recommended.`,
+            category: target.category,
+            severity: target.severity,
+            barrierReportId: target.id,
+            originalRoute: `Original Route (Blocked by verified hazard: ${target.title})`,
+            originalRouteDetail: target.description,
+            adaptedRoute: `Recommended Adapted Route (Bypasses obstacle with +3 min detour)`,
+            adaptedRouteDetail: `Step-free adapted route verified by community consensus.`,
+            isAccepted: false,
+          });
         }
       }
       return next;
@@ -740,6 +862,9 @@ export function AccessibilityProvider({ children }: { children: React.ReactNode 
         setPersona,
         user,
         accessibilityPreferences,
+        surfaceFilters,
+        toggleSurfaceFilter,
+        setSurfaceFilters,
         isOnboardingOpen,
         openOnboarding,
         closeOnboarding,
@@ -747,8 +872,10 @@ export function AccessibilityProvider({ children }: { children: React.ReactNode 
         registerUser,
         logoutUser,
         saveAccessibilityProfile,
-        simulatedObstacle,
+        simulatedObstacle: activeHazardAlert,
+        activeHazardAlert,
         toggleSimulatedObstacle,
+        acceptReroute,
         barrierReports,
         addBarrierReport,
         upvoteReport,

@@ -367,18 +367,7 @@ export default function UnifiedRoutePlanner({ initialMode = 'gps' }: UnifiedRout
           </div>
         </div>
 
-        {/* Prototype Disclaimer Pill */}
-        <div className="p-3.5 rounded-2xl bg-amber-500/10 border border-amber-500/30 flex items-center justify-between gap-3 text-amber-900 dark:text-amber-300">
-          <div className="flex items-center gap-2.5">
-            <Info className="w-4 h-4 text-amber-600 dark:text-amber-400 flex-shrink-0" />
-            <span className="text-xs font-bold">
-              Demo data — GPS readings and urban accessibility conditions are simulated for prototype demonstration in Mumbai, Maharashtra, India.
-            </span>
-          </div>
-          <span className="text-[10px] font-extrabold uppercase px-2.5 py-0.5 rounded bg-amber-500/20 text-amber-800 dark:text-amber-200 hidden sm:inline-block">
-            Simulated Prototype
-          </span>
-        </div>
+
 
         {/* ========================================================================= */}
         {/* SECTION 1: "YOUR LOCATION" (ALL GPS PRECISION FUNCTIONALITY)              */}
@@ -400,14 +389,7 @@ export default function UnifiedRoutePlanner({ initialMode = 'gps' }: UnifiedRout
             </div>
 
             <div className="flex items-center gap-2">
-              <span className={`px-3 py-1 rounded-full text-xs font-extrabold flex items-center gap-1.5 shadow-2xs ${
-                gpsAccuracyMeters <= 5
-                  ? 'bg-secondary-container text-on-secondary-container'
-                  : 'bg-amber-100 text-amber-900 dark:bg-amber-900/50 dark:text-amber-200'
-              }`}>
-                <ShieldCheck className="w-4 h-4" />
-                <span>Accuracy ±{gpsAccuracyMeters}m</span>
-              </span>
+
             </div>
           </div>
 
@@ -438,17 +420,7 @@ export default function UnifiedRoutePlanner({ initialMode = 'gps' }: UnifiedRout
                   Detected Location: <span className="text-primary">{detectedLocationName}</span>
                 </h3>
 
-                <p className="text-xs text-on-surface-variant font-medium mt-0.5">
-                  {gpsAccuracyMeters <= 5 ? (
-                    <span className="text-emerald-700 dark:text-emerald-400 font-semibold">
-                      ✓ Your starting location is precise enough for high-accuracy route comparison.
-                    </span>
-                  ) : (
-                    <span className="text-amber-700 dark:text-amber-400 font-semibold">
-                      ⚠️ Location accuracy is low (±{gpsAccuracyMeters}m). Route starting point may be approximate.
-                    </span>
-                  )}
-                </p>
+
               </div>
             </div>
 

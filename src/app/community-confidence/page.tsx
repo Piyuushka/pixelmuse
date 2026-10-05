@@ -1,6 +1,7 @@
 'use client';
 
 import React, { useState, useRef, useEffect, Suspense } from 'react';
+import Link from 'next/link';
 import { useSearchParams } from 'next/navigation';
 import { useAccessibility } from '@/context/AccessibilityContext';
 import {
@@ -19,12 +20,16 @@ import {
   Camera,
   Send,
   CheckCircle2,
-  Check
+  Check,
+  AlertTriangle,
+  Timer,
+  Navigation,
+  ChevronRight,
 } from 'lucide-react';
 
 function CommunityConfidenceContent() {
   const searchParams = useSearchParams();
-  const { barrierReports, addBarrierReport, upvoteReport, downvoteReport, speakText } = useAccessibility();
+  const { barrierReports, addBarrierReport, upvoteReport, downvoteReport, speakText, activeHazardAlert } = useAccessibility();
 
   // View state: 'feed' (default) or 'reportForm'
   const [view, setView] = useState<'feed' | 'reportForm'>('feed');
@@ -42,9 +47,11 @@ function CommunityConfidenceContent() {
 
   // Report Form States
   const [title, setTitle] = useState('');
-  const [category, setCategory] = useState('Elevator Outage');
+  const [category, setCategory] = useState('Elevator Out of Service / Escalator Down');
   const [location, setLocation] = useState('North Concourse Plaza - Entrance Gate 3');
+  const [microLocation, setMicroLocation] = useState('');
   const [severity, setSeverity] = useState<'low' | 'medium' | 'high' | 'critical'>('high');
+  const [estimatedResolutionTime, setEstimatedResolutionTime] = useState('Est. 2h 0m');
   const [description, setDescription] = useState('');
   const [attachedPhotoName, setAttachedPhotoName] = useState<string | null>(null);
   const [isSubmitting, setIsSubmitting] = useState(false);
@@ -61,17 +68,55 @@ function CommunityConfidenceContent() {
     }
   }, [view]);
 
-  const categories = [
-    'Flooding/Waterlogging',
-    'Elevator Outage',
-    'Blocked Ramp/Flyover',
-    'Police Checkpoint/Barricade',
-    'Fallen Tree/Pothole Obstruction',
-    'Construction Obstruction',
-    'Missing Curb Cut',
-    'Door Sensor Malfunction',
-    'Steep Slope Ramp',
-    'Other Hazard'
+  // Grouped obstacle categories matching Dynamic Obstacle Avoidance spec
+  const categoryGroups = [
+    {
+      groupLabel: '🔌 Outages',
+      items: [
+        'Elevator Out of Service / Escalator Down',
+        'Door Sensor Malfunction',
+      ],
+    },
+    {
+      groupLabel: '🌧️ Surface / Weather',
+      items: [
+        'Puddles / Waterlogging',
+        'Mud / Loose Gravel',
+        'Flooding / Waterlogging',
+      ],
+    },
+    {
+      groupLabel: '🚧 Construction / Blockade',
+      items: [
+        'Blockade / Scaffolding on Curb Cut',
+        'Blocked Ramp / Flyover',
+        'Police Checkpoint / Barricade',
+        'Construction Obstruction',
+      ],
+    },
+    {
+      groupLabel: '⚠️ Other Hazards',
+      items: [
+        'Missing Curb Cut',
+        'Steep Slope Ramp',
+        'Fallen Tree / Pothole',
+        'Other Hazard',
+      ],
+    },
+  ];
+
+  // Flat list for backwards compat
+  const categories = categoryGroups.flatMap(g => g.items);
+
+  const resolutionOptions = [
+    'Est. 30m',
+    'Est. 1h 0m',
+    'Est. 2h 0m',
+    'Est. 3h 0m',
+    'Est. 4h 0m',
+    'Est. 8h 0m',
+    'Est. 24h+',
+    'Unknown',
   ];
 
   const filterOptions = [
@@ -128,16 +173,20 @@ function CommunityConfidenceContent() {
         category,
         severity,
         location: location.trim(),
+        microLocation: microLocation.trim() || undefined,
+        estimatedResolutionTime: estimatedResolutionTime,
+        affectsActiveRoute: severity === 'critical' || severity === 'high',
         description: description.trim() || 'Reported by community navigator.'
       });
       setIsSubmitting(false);
       setSubmitted(true);
 
-      speakText("Barrier report published successfully. Returning to Community Audit Feed.");
+      speakText("Barrier report published successfully. Rerouting check initiated. Returning to Community Audit Feed.");
 
       setTimeout(() => {
         // Reset form
         setTitle('');
+        setMicroLocation('');
         setDescription('');
         setAttachedPhotoName(null);
         setSubmitted(false);
@@ -155,6 +204,41 @@ function CommunityConfidenceContent() {
         {/* ========================================================================= */}
         {view === 'feed' && (
           <>
+            {/* ── Dynamic Obstacle Avoidance: Live Alert Banner ─────────────── */}
+            {activeHazardAlert?.active && (
+              <div className="p-4 rounded-2xl bg-tertiary-container/20 border-2 border-tertiary/50 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3 shadow-sm animate-pulse" role="alert" aria-live="assertive">
+                <div className="flex items-start gap-3">
+                  <div className="w-9 h-9 rounded-xl bg-tertiary/20 text-tertiary flex items-center justify-center flex-shrink-0">
+                    <AlertTriangle className="w-5 h-5" aria-hidden="true" />
+                  </div>
+                  <div>
+                    <div className="flex items-center gap-2 flex-wrap">
+                      <span className="text-[10px] font-black uppercase text-tertiary tracking-wider">
+                        🔴 Instant Rerouting Triggered
+                      </span>
+                      <span className="text-[10px] font-bold px-2 py-0.5 rounded bg-tertiary text-white">
+                        {activeHazardAlert.detourTime}
+                      </span>
+                    </div>
+                    <p className="text-sm font-extrabold text-on-surface mt-0.5">
+                      {activeHazardAlert.title}
+                    </p>
+                    <p className="text-xs text-on-surface-variant font-medium mt-0.5">
+                      📍 {activeHazardAlert.location} · {activeHazardAlert.impact}
+                    </p>
+                  </div>
+                </div>
+                <Link
+                  href="/live-adaptation-alert"
+                  className="px-3 py-2 rounded-xl bg-tertiary text-on-tertiary font-extrabold text-xs flex items-center gap-1.5 shadow-sm hover:opacity-90 transition-opacity whitespace-nowrap self-start sm:self-center"
+                >
+                  <Navigation className="w-3.5 h-3.5" aria-hidden="true" />
+                  <span>View Reroute</span>
+                  <ChevronRight className="w-3.5 h-3.5" aria-hidden="true" />
+                </Link>
+              </div>
+            )}
+
             {/* Header with Top-Right Deep Blue Action Button */}
             <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
               <div className="flex items-center gap-4">
@@ -307,6 +391,24 @@ function CommunityConfidenceContent() {
                       </p>
                     </div>
 
+                    {/* Metadata Row: Resolution Time + Micro-Location */}
+                    {(report.estimatedResolutionTime || report.microLocation) && (
+                      <div className="flex flex-wrap gap-2 mt-1">
+                        {report.estimatedResolutionTime && (
+                          <span className="flex items-center gap-1 text-[11px] font-bold text-on-surface-variant bg-surface-container px-2.5 py-1 rounded-lg border border-outline-variant/20">
+                            <Timer className="w-3 h-3 text-secondary" aria-hidden="true" />
+                            {report.estimatedResolutionTime}
+                          </span>
+                        )}
+                        {report.microLocation && report.microLocation !== report.location && (
+                          <span className="flex items-center gap-1 text-[11px] font-bold text-primary bg-primary/5 px-2.5 py-1 rounded-lg border border-primary/20">
+                            <MapPin className="w-3 h-3" aria-hidden="true" />
+                            {report.microLocation}
+                          </span>
+                        )}
+                      </div>
+                    )}
+
                     {/* Footer Upvote & Downvote */}
                     <div className="flex items-center justify-between pt-2 border-t border-outline-variant/20 flex-wrap gap-2">
                       <div className="flex items-center gap-2">
@@ -319,7 +421,7 @@ function CommunityConfidenceContent() {
                           className="flex items-center gap-2 px-4 py-2 rounded-xl bg-surface-container hover:bg-surface-container-high text-primary font-bold text-xs transition-colors"
                         >
                           <ThumbsUp className="w-4 h-4" aria-hidden="true" />
-                          <span>Confirm Still There (+30m) ({report.votes})</span>
+                          <span>✅ Confirm Still There (+30m) ({report.votes})</span>
                         </button>
 
                         <button
@@ -330,7 +432,7 @@ function CommunityConfidenceContent() {
                           }}
                           className="flex items-center gap-1.5 px-3 py-2 rounded-xl bg-error-container/20 hover:bg-error-container/40 text-error font-bold text-xs transition-colors"
                         >
-                          <span>Resolved / Not There (-45m)</span>
+                          <span>🟢 Resolved / Not There (-45m)</span>
                         </button>
                       </div>
 
@@ -414,35 +516,44 @@ function CommunityConfidenceContent() {
                 />
               </div>
 
-              {/* 2. Hazard Category Selector (Wrapping pill tags) */}
+              {/* 2. Hazard Category Selector (Grouped by type) */}
               <div className="flex flex-col gap-2">
                 <label className="text-sm font-bold text-on-surface flex items-center gap-2">
                   <Tag className="w-4 h-4 text-primary" aria-hidden="true" />
                   <span>Hazard Category</span>
                 </label>
-                <div className="flex flex-wrap gap-2" role="radiogroup" aria-label="Hazard Category">
-                  {categories.map((cat) => {
-                    const isSelected = category === cat;
-                    return (
-                      <button
-                        key={cat}
-                        type="button"
-                        role="radio"
-                        aria-checked={isSelected}
-                        onClick={() => {
-                          setCategory(cat);
-                          speakText(`Category selected: ${cat}`);
-                        }}
-                        className={`px-3.5 py-2 rounded-xl text-xs font-bold transition-all focus:outline-none focus:ring-2 focus:ring-primary ${
-                          isSelected
-                            ? 'bg-primary text-on-primary shadow-xs'
-                            : 'bg-surface-container-low hover:bg-surface-container-high text-on-surface border border-outline-variant/30'
-                        }`}
-                      >
-                        {cat}
-                      </button>
-                    );
-                  })}
+                <div className="flex flex-col gap-3" role="radiogroup" aria-label="Hazard Category">
+                  {categoryGroups.map((group) => (
+                    <div key={group.groupLabel} className="flex flex-col gap-1.5">
+                      <span className="text-[10px] font-extrabold text-on-surface-variant uppercase tracking-wider pl-1">
+                        {group.groupLabel}
+                      </span>
+                      <div className="flex flex-wrap gap-1.5">
+                        {group.items.map((cat) => {
+                          const isSelected = category === cat;
+                          return (
+                            <button
+                              key={cat}
+                              type="button"
+                              role="radio"
+                              aria-checked={isSelected}
+                              onClick={() => {
+                                setCategory(cat);
+                                speakText(`Category selected: ${cat}`);
+                              }}
+                              className={`px-3 py-1.5 rounded-xl text-xs font-bold transition-all focus:outline-none focus:ring-2 focus:ring-primary ${
+                                isSelected
+                                  ? 'bg-primary text-on-primary shadow-xs'
+                                  : 'bg-surface-container-low hover:bg-surface-container-high text-on-surface border border-outline-variant/30'
+                              }`}
+                            >
+                              {cat}
+                            </button>
+                          );
+                        })}
+                      </div>
+                    </div>
+                  ))}
                 </div>
               </div>
 
@@ -471,6 +582,48 @@ function CommunityConfidenceContent() {
                     <MapPin className="w-4 h-4" aria-hidden="true" />
                     <span>◎ GPS Pin</span>
                   </button>
+                </div>
+              </div>
+
+              {/* 3b. Micro-Location Field */}
+              <div className="flex flex-col gap-2">
+                <label htmlFor="barrier-micro-location-input" className="text-sm font-bold text-on-surface flex items-center gap-2">
+                  <MapPin className="w-4 h-4 text-primary" aria-hidden="true" />
+                  <span>Micro-Location <span className="text-on-surface-variant font-normal">(optional)</span></span>
+                </label>
+                <input
+                  id="barrier-micro-location-input"
+                  type="text"
+                  value={microLocation}
+                  onChange={(e) => setMicroLocation(e.target.value)}
+                  placeholder="e.g. 'Elevator B Shaft, Level 1' or 'NE corner curb cut'"
+                  className="w-full h-12 px-4 rounded-xl bg-surface-container-low border border-outline-variant/40 font-medium text-sm text-on-surface focus:outline-none focus:ring-2 focus:ring-primary"
+                />
+              </div>
+
+              {/* 3c. Estimated Resolution Time */}
+              <div className="flex flex-col gap-2">
+                <label className="text-sm font-bold text-on-surface flex items-center gap-2">
+                  <Timer className="w-4 h-4 text-secondary" aria-hidden="true" />
+                  <span>Estimated Resolution Time</span>
+                </label>
+                <div className="flex flex-wrap gap-1.5" role="radiogroup" aria-label="Estimated Resolution Time">
+                  {resolutionOptions.map((opt) => (
+                    <button
+                      key={opt}
+                      type="button"
+                      role="radio"
+                      aria-checked={estimatedResolutionTime === opt}
+                      onClick={() => setEstimatedResolutionTime(opt)}
+                      className={`px-3 py-1.5 rounded-xl text-xs font-bold transition-all border ${
+                        estimatedResolutionTime === opt
+                          ? 'bg-secondary text-on-secondary border-secondary shadow-xs'
+                          : 'bg-surface-container-low hover:bg-surface-container-high text-on-surface border-outline-variant/30'
+                      }`}
+                    >
+                      {opt}
+                    </button>
+                  ))}
                 </div>
               </div>
 

@@ -28,7 +28,14 @@ import {
   Sliders,
   Sun,
   Moon,
+  Layers,
+  CircleSlash,
+  TrendingUp,
+  Lightbulb,
+  TrafficCone,
+  Mountain,
 } from 'lucide-react';
+import { SurfaceFilterPreferences } from '@/lib/safetyRoutingEngine';
 
 const navItems = [
   { href: '/gps-precision', label: 'GPS Precision Map', icon: MapPin, badge: 'HIGH ACCURACY' },
@@ -50,6 +57,8 @@ export default function Sidebar() {
     toggleVoicePrompt,
     persona,
     setPersona,
+    surfaceFilters,
+    toggleSurfaceFilter,
     simulatedObstacle,
     speakText,
     user,
@@ -72,6 +81,18 @@ export default function Sidebar() {
     { id: 'older-adult', title: 'Older Adult', icon: Footprints },
     { id: 'low-vision', title: 'Low Vision', icon: Eye },
     { id: 'caregiver', title: 'Caregiver', icon: Heart },
+  ];
+
+  const surfaceTypeFilters: { key: keyof SurfaceFilterPreferences; label: string; icon: React.ElementType }[] = [
+    { key: 'avoidCobblestones', label: 'Avoid Cobblestones', icon: Layers },
+    { key: 'avoidUnpavedGravel', label: 'Avoid Unpaved/Gravel', icon: CircleSlash },
+    { key: 'avoidSteepInclines', label: 'Avoid Steep Inclines (>5%)', icon: TrendingUp },
+  ];
+
+  const sensoryFilters: { key: keyof SurfaceFilterPreferences; label: string; icon: React.ElementType }[] = [
+    { key: 'preferTactilePaving', label: 'Prefer Tactile Paving', icon: Footprints },
+    { key: 'preferSignalizedCrossings', label: 'Prefer Signalized Crossings', icon: TrafficCone },
+    { key: 'wellLitOnly', label: 'Well-Lit Only', icon: Lightbulb },
   ];
 
   return (
@@ -171,6 +192,90 @@ export default function Sidebar() {
               >
                 <Icon className="w-4 h-4 flex-shrink-0" />
                 <span className="truncate">{p.title}</span>
+              </button>
+            );
+          })}
+        </div>
+
+        {/* Surface Type Filters */}
+        <div className="mt-4 px-3 py-1 flex items-center justify-between">
+          <span className="text-[10px] font-extrabold text-on-surface-variant uppercase tracking-wider">
+            Surface Type Filters
+          </span>
+          <span className="text-[9px] font-extrabold px-1.5 py-0.5 rounded bg-primary/10 text-primary">
+            {Object.entries(surfaceFilters).filter(([k, v]) => ['avoidCobblestones', 'avoidUnpavedGravel', 'avoidSteepInclines'].includes(k) && v).length} Active
+          </span>
+        </div>
+        <div className="flex flex-col gap-1 px-1">
+          {surfaceTypeFilters.map((f) => {
+            const isSelected = surfaceFilters[f.key];
+            const Icon = f.icon;
+            return (
+              <button
+                key={f.key}
+                type="button"
+                aria-pressed={isSelected}
+                onClick={() => {
+                  toggleSurfaceFilter(f.key);
+                  speakText(`${f.label} ${!isSelected ? 'filter active' : 'filter removed'}`);
+                }}
+                className={`px-2.5 py-2 rounded-xl flex items-center justify-between text-xs font-bold transition-all border ${
+                  isSelected
+                    ? 'bg-primary/15 border-primary text-primary shadow-xs'
+                    : 'bg-surface-container-low border-transparent text-on-surface-variant hover:bg-surface-container-high'
+                }`}
+              >
+                <div className="flex items-center gap-2 truncate">
+                  <Icon className={`w-3.5 h-3.5 flex-shrink-0 ${isSelected ? 'text-primary' : 'text-on-surface-variant'}`} />
+                  <span className="text-[11px] truncate">{f.label}</span>
+                </div>
+                <div className={`w-3.5 h-3.5 rounded-full flex items-center justify-center text-[9px] font-black transition-colors ${
+                  isSelected ? 'bg-primary text-white' : 'bg-outline-variant/30 text-transparent'
+                }`}>
+                  ✓
+                </div>
+              </button>
+            );
+          })}
+        </div>
+
+        {/* Sensory & Safety Filters */}
+        <div className="mt-3 px-3 py-1 flex items-center justify-between">
+          <span className="text-[10px] font-extrabold text-on-surface-variant uppercase tracking-wider">
+            Sensory & Safety
+          </span>
+          <span className="text-[9px] font-extrabold px-1.5 py-0.5 rounded bg-secondary/10 text-secondary">
+            {Object.entries(surfaceFilters).filter(([k, v]) => ['preferTactilePaving', 'preferSignalizedCrossings', 'wellLitOnly'].includes(k) && v).length} Active
+          </span>
+        </div>
+        <div className="flex flex-col gap-1 px-1">
+          {sensoryFilters.map((f) => {
+            const isSelected = surfaceFilters[f.key];
+            const Icon = f.icon;
+            return (
+              <button
+                key={f.key}
+                type="button"
+                aria-pressed={isSelected}
+                onClick={() => {
+                  toggleSurfaceFilter(f.key);
+                  speakText(`${f.label} ${!isSelected ? 'preference active' : 'preference removed'}`);
+                }}
+                className={`px-2.5 py-2 rounded-xl flex items-center justify-between text-xs font-bold transition-all border ${
+                  isSelected
+                    ? 'bg-secondary/15 border-secondary text-secondary shadow-xs'
+                    : 'bg-surface-container-low border-transparent text-on-surface-variant hover:bg-surface-container-high'
+                }`}
+              >
+                <div className="flex items-center gap-2 truncate">
+                  <Icon className={`w-3.5 h-3.5 flex-shrink-0 ${isSelected ? 'text-secondary' : 'text-on-surface-variant'}`} />
+                  <span className="text-[11px] truncate">{f.label}</span>
+                </div>
+                <div className={`w-3.5 h-3.5 rounded-full flex items-center justify-center text-[9px] font-black transition-colors ${
+                  isSelected ? 'bg-secondary text-white' : 'bg-outline-variant/30 text-transparent'
+                }`}>
+                  ✓
+                </div>
               </button>
             );
           })}
