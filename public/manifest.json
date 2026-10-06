@@ -1,0 +1,31 @@
+{
+  "name": "PathFinder Access",
+  "short_name": "PathFinder",
+  "description": "WCAG AAA barrier-free navigation dashboard with two-phone live caregiver tracking and SOS guardian protection.",
+  "start_url": "/login",
+  "display": "standalone",
+  "background_color": "#ffffff",
+  "theme_color": "#0284c7",
+  "icons": [
+    {
+      "src": "/favicon.ico",
+      "sizes": "48x48 32x32 16x16",
+      "type": "image/x-icon"
+    },
+    {
+      "src": "/icon-192.png",
+      "sizes": "192x192",
+      "type": "image/png"
+    },
+    {
+      "src": "/icon-512.png",
+      "sizes": "512x512",
+      "type": "image/png"
+    },
+    {
+      "src": "/logo.png",
+      "sizes": "760x760",
+      "type": "image/png"
+    }
+  ]
+}

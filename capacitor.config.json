@@ -1,0 +1,36 @@
+{
+  "appId": "com.pixelmuse.pathfinderaccess",
+  "appName": "PathFinder Access",
+  "webDir": "public",
+  "server": {
+    "url": "http://192.168.1.103:3000",
+    "cleartext": true
+  },
+  "plugins": {
+    "SplashScreen": {
+      "launchShowDuration": 2000,
+      "launchAutoHide": true,
+      "backgroundColor": "#1D4ED8",
+      "showSpinner": true,
+      "spinnerColor": "#FFFFFF",
+      "androidScaleType": "CENTER_CROP",
+      "splashFullScreen": true,
+      "splashImmersive": true
+    },
+    "StatusBar": {
+      "style": "LIGHT",
+      "backgroundColor": "#1D4ED8"
+    },
+    "Keyboard": {
+      "resize": "body",
+      "resizeOnFullScreen": true
+    },
+    "PushNotifications": {
+      "presentationOptions": [
+        "badge",
+        "sound",
+        "alert"
+      ]
+    }
+  }
+}

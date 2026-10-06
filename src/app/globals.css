@@ -1,0 +1,303 @@
+@import "tailwindcss";
+
+@custom-variant dark (&:where(.dark, .dark *, [data-theme="dark"], [data-theme="dark"] *));
+
+@layer base {
+  :root {
+    --surface: #f8faf9;
+    --surface-dim: #dce3e0;
+    --surface-bright: #f8faf9;
+    --surface-container-lowest: #ffffff;
+    --surface-container-low: #f0f4f2;
+    --surface-container: #e6ece8;
+    --surface-container-high: #dae3de;
+    --surface-container-highest: #d6d7dd;
+    --on-surface: #131d1a;
+    --on-surface-variant: #3f4945;
+    --inverse-surface: #2b3230;
+    --inverse-on-surface: #eff2f0;
+    --outline: #6f7975;
+    --outline-variant: #d6d7dd;
+    --surface-tint: #2563eb;
+    --primary: #2563eb;
+    --on-primary: #ffffff;
+    --primary-container: #1d4ed8;
+    --on-primary-container: #dbeafe;
+    --inverse-primary: #93c5fd;
+    --secondary: #059669;
+    --on-secondary: #ffffff;
+    --secondary-container: #d1fae5;
+    --on-secondary-container: #065f46;
+    --tertiary: #facc15;
+    --on-tertiary: #1c1917;
+    --tertiary-container: #fef08a;
+    --on-tertiary-container: #713f12;
+    --neutral: #d6d7dd;
+    --error: #ba1a1a;
+    --on-error: #ffffff;
+    --error-container: #ffdad6;
+    --on-error-container: #93000a;
+    --background: #f8faf9;
+    --on-background: #131d1a;
+  }
+
+  :root.dark,
+  :root[data-theme="dark"],
+  html.dark,
+  html[data-theme="dark"],
+  body.dark,
+  body[data-theme="dark"],
+  .dark,
+  [data-theme="dark"] {
+    /* Main Background: Deep dark background (#0f172a) */
+    --background: #0f172a;
+    --on-background: #f8fafc;
+    --surface: #0f172a;
+    --surface-dim: #0b1120;
+    --surface-bright: #1e293b;
+
+    /* Sidebar / Containers / Cards: Slate dark gray backgrounds (#1e293b) with dark borders (#334155) */
+    --surface-container-lowest: #1e293b;
+    --surface-container-low: #151f30;
+    --surface-container: #1e293b;
+    --surface-container-high: #243247;
+    --surface-container-highest: #334155;
+
+    /* Text Colors: High-contrast light text (#f8fafc for headers, #94a3b8 for muted secondary labels) */
+    --on-surface: #f8fafc;
+    --on-surface-variant: #94a3b8;
+    --inverse-surface: #f1f5f9;
+    --inverse-on-surface: #0f172a;
+
+    /* Borders: Dark borders (#334155) */
+    --outline: #64748b;
+    --outline-variant: #334155;
+    --neutral: #334155;
+    --surface-tint: #3b82f6;
+
+    /* Primary */
+    --primary: #3b82f6;
+    --on-primary: #ffffff;
+    --primary-container: #1e3a8a;
+    --on-primary-container: #bfdbfe;
+    --inverse-primary: #60a5fa;
+
+    /* Accent Cards / Badges: Darkened containers with high contrast light text (WCAG AAA) */
+    --secondary: #10b981;
+    --on-secondary: #ffffff;
+    --secondary-container: #064e3b;
+    --on-secondary-container: #a7f3d0;
+
+    --tertiary: #f59e0b;
+    --on-tertiary: #1c1917;
+    --tertiary-container: #78350f;
+    --on-tertiary-container: #fef08a;
+
+    --error: #f87171;
+    --on-error: #ffffff;
+    --error-container: #7f1d1d;
+    --on-error-container: #fecaca;
+  }
+
+  .high-contrast {
+    --surface: #050b09;
+    --surface-dim: #101614;
+    --surface-bright: #1b211f;
+    --surface-container-lowest: #000000;
+    --surface-container-low: #151b19;
+    --surface-container: #202624;
+    --surface-container-high: #2b312f;
+    --surface-container-highest: #363c3a;
+    --on-surface: #ffffff;
+    --on-surface-variant: #e0e0e0;
+    --primary: #10b981;
+    --primary-container: #0d7a5f;
+    --on-primary: #ffffff;
+    --on-primary-container: #ffffff;
+    --secondary: #2563eb;
+    --on-secondary: #ffffff;
+    --outline: #ffffff;
+    --outline-variant: #888888;
+    --background: #050b09;
+    --on-background: #ffffff;
+  }
+}
+
+@theme {
+  --font-headline: var(--font-atkinson), 'Atkinson Hyperlegible', sans-serif;
+  --font-sans: var(--font-inter), 'Inter', sans-serif;
+  --color-surface: var(--surface);
+  --color-surface-dim: var(--surface-dim);
+  --color-surface-bright: var(--surface-bright);
+  --color-surface-container-lowest: var(--surface-container-lowest);
+  --color-surface-container-low: var(--surface-container-low);
+  --color-surface-container: var(--surface-container);
+  --color-surface-container-high: var(--surface-container-high);
+  --color-surface-container-highest: var(--surface-container-highest);
+  --color-on-surface: var(--on-surface);
+  --color-on-surface-variant: var(--on-surface-variant);
+  --color-inverse-surface: var(--inverse-surface);
+  --color-inverse-on-surface: var(--inverse-on-surface);
+  --color-outline: var(--outline);
+  --color-outline-variant: var(--outline-variant);
+  --color-surface-tint: var(--surface-tint);
+  --color-primary: var(--primary);
+  --color-on-primary: var(--on-primary);
+  --color-primary-container: var(--primary-container);
+  --color-on-primary-container: var(--on-primary-container);
+  --color-inverse-primary: var(--inverse-primary);
+  --color-secondary: var(--secondary);
+  --color-on-secondary: var(--on-secondary);
+  --color-secondary-container: var(--secondary-container);
+  --color-on-secondary-container: var(--on-secondary-container);
+  --color-tertiary: var(--tertiary);
+  --color-on-tertiary: var(--on-tertiary);
+  --color-tertiary-container: var(--tertiary-container);
+  --color-on-tertiary-container: var(--on-tertiary-container);
+  --color-neutral: var(--neutral);
+  --color-error: var(--error);
+  --color-on-error: var(--on-error);
+  --color-error-container: var(--error-container);
+  --color-on-error-container: var(--on-error-container);
+  --color-background: var(--background);
+  --color-on-background: var(--on-background);
+}
+
+h1, h2, h3, h4, h5, h6, .font-headline {
+  font-family: var(--font-atkinson), 'Atkinson Hyperlegible', sans-serif;
+}
+
+body, .font-body, .font-label {
+  font-family: var(--font-inter), 'Inter', system-ui, -apple-system, sans-serif;
+  background-color: var(--background);
+  color: var(--on-surface);
+  transition: background-color 0.2s ease, color 0.2s ease;
+}
+
+/* Font Scale Utilities (WCAG Compliant Dynamic Text Resizing) */
+:root,
+html {
+  font-size: 100%;
+}
+
+:root[data-font-scale="sm"],
+html[data-font-scale="sm"],
+html.font-scale-sm,
+body.font-scale-sm {
+  font-size: 87.5%; /* Compact (14px baseline) */
+}
+
+:root[data-font-scale="md"],
+html[data-font-scale="md"],
+html.font-scale-md,
+body.font-scale-md {
+  font-size: 100%; /* Standard (16px baseline) */
+}
+
+:root[data-font-scale="lg"],
+html[data-font-scale="lg"],
+html.font-scale-lg,
+body.font-scale-lg {
+  font-size: 120%; /* Large / High Legibility (19.2px baseline) */
+}
+
+.font-scale-sm {
+  font-size: 87.5%;
+}
+.font-scale-md {
+  font-size: 100%;
+}
+.font-scale-lg {
+  font-size: 120%;
+}
+
+/* Custom Scrollbar for Accessibility */
+::-webkit-scrollbar {
+  width: 8px;
+  height: 8px;
+}
+::-webkit-scrollbar-track {
+  background: var(--surface-container-low);
+}
+::-webkit-scrollbar-thumb {
+  background: var(--outline-variant);
+  border-radius: 4px;
+}
+::-webkit-scrollbar-thumb:hover {
+  background: var(--outline);
+}
+
+/* Dark Mode Leaflet Map Tiles & Scrollbar overrides */
+.dark .leaflet-tile-pane,
+[data-theme="dark"] .leaflet-tile-pane {
+  filter: brightness(0.65) invert(1) contrast(3) hue-rotate(200deg) saturate(0.3) brightness(0.75);
+}
+
+.dark ::-webkit-scrollbar-track,
+[data-theme="dark"] ::-webkit-scrollbar-track {
+  background: #0f172a;
+}
+
+.dark ::-webkit-scrollbar-thumb,
+[data-theme="dark"] ::-webkit-scrollbar-thumb {
+  background: #334155;
+}
+
+.dark ::-webkit-scrollbar-thumb:hover,
+[data-theme="dark"] ::-webkit-scrollbar-thumb:hover {
+  background: #475569;
+}
+
+/* Accent Cards & Badges WCAG AAA Contrast Fallback for Dark Mode */
+.dark .bg-emerald-50,
+.dark .bg-emerald-100,
+[data-theme="dark"] .bg-emerald-50,
+[data-theme="dark"] .bg-emerald-100 {
+  background-color: rgba(6, 78, 59, 0.5) !important;
+  color: #a7f3d0 !important;
+}
+
+.dark .bg-blue-50,
+.dark .bg-blue-100,
+[data-theme="dark"] .bg-blue-50,
+[data-theme="dark"] .bg-blue-100 {
+  background-color: rgba(30, 58, 138, 0.5) !important;
+  color: #bfdbfe !important;
+}
+
+.dark .bg-amber-50,
+.dark .bg-amber-100,
+.dark .bg-yellow-50,
+.dark .bg-yellow-100,
+[data-theme="dark"] .bg-amber-50,
+[data-theme="dark"] .bg-amber-100,
+[data-theme="dark"] .bg-yellow-50,
+[data-theme="dark"] .bg-yellow-100 {
+  background-color: rgba(120, 53, 15, 0.5) !important;
+  color: #fde68a !important;
+}
+
+.dark .bg-rose-50,
+.dark .bg-rose-100,
+[data-theme="dark"] .bg-rose-50,
+[data-theme="dark"] .bg-rose-100 {
+  background-color: rgba(127, 29, 29, 0.5) !important;
+  color: #fecaca !important;
+}
+
+/* Animated Green Route Polyline for Adapted Rerouting */
+@keyframes routeDashAnimation {
+  from {
+    stroke-dashoffset: 48;
+  }
+  to {
+    stroke-dashoffset: 0;
+  }
+}
+
+.pathfinder-animated-green-route {
+  stroke-dasharray: 12, 6;
+  animation: routeDashAnimation 1.4s linear infinite;
+  filter: drop-shadow(0 0 6px rgba(16, 185, 129, 0.75));
+}
+
