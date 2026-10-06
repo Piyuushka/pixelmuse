@@ -1,0 +1,155 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Path Finder</title>
+
+  <!-- ==============================================================
+       CONFIGURABLE SETTINGS:
+       1. Fallback URL: Replace '/login' below with your destination
+          (e.g., '/home.html', '/index.html', or 'https://example.com')
+       ============================================================== -->
+  <!-- Fallback redirect for browsers with JavaScript disabled (3 seconds) -->
+  <noscript>
+    <meta http-equiv="refresh" content="3;url=/login" />
+  </noscript>
+
+  <style>
+    /* ==============================================================
+       CSS RESET & FULLSCREEN CANVAS
+       ============================================================== */
+    *, *::before, *::after {
+      margin: 0;
+      padding: 0;
+      box-sizing: border-box;
+    }
+
+    html, body {
+      width: 100%;
+      height: 100%;
+      overflow: hidden;
+      /* Brand Navy: #0b132b (matches app icon) */
+      background-color: #0b132b;
+      display: flex;
+      justify-content: center;
+      align-items: center;
+      font-family: system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+      -webkit-user-select: none;
+      user-select: none;
+    }
+
+    /* Centering Container: Centers content vertically & horizontally */
+    .splash-container {
+      display: flex;
+      flex-direction: column;
+      justify-content: center;
+      align-items: center;
+      width: 100%;
+      height: 100%;
+    }
+
+    /* 
+      Animated Content Block:
+      - 3s total duration
+      - 0s - 0.75s (0% - 25%): Smooth Fade-In + subtle scale in
+      - 0.75s - 2.4s (25% - 80%): Held fully visible
+      - 2.4s - 3.0s (80% - 100%): Gentle Fade-Out before 3-second redirect
+    */
+    .splash-content {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      gap: 20px;
+      animation: splashFade 3s cubic-bezier(0.4, 0, 0.2, 1) forwards;
+      will-change: opacity, transform;
+    }
+
+    /* Responsive Logo:
+       - Mobile: ~180px wide
+       - Desktop (>= 768px): ~250px wide
+    */
+    .splash-logo {
+      width: 180px;
+      max-width: 75vw;
+      height: auto;
+      aspect-ratio: 1 / 1;
+      object-fit: contain;
+      display: block;
+      filter: drop-shadow(0 14px 32px rgba(0, 0, 0, 0.5));
+    }
+
+    /* 'Path Finder' Title below the logo */
+    .splash-title {
+      color: #ffffff;
+      font-size: 1.65rem;
+      font-weight: 800;
+      letter-spacing: 0.08em;
+      text-align: center;
+      text-shadow: 0 4px 16px rgba(0, 0, 0, 0.6);
+      line-height: 1.2;
+    }
+
+    @media (min-width: 768px) {
+      .splash-logo {
+        width: 250px;
+      }
+      .splash-title {
+        font-size: 2rem;
+      }
+    }
+
+    @keyframes splashFade {
+      0% {
+        opacity: 0;
+        transform: scale(0.92);
+      }
+      25% { /* 0.75s: Fully visible */
+        opacity: 1;
+        transform: scale(1);
+      }
+      80% { /* 2.4s: Held visible */
+        opacity: 1;
+        transform: scale(1);
+      }
+      100% { /* 3.0s: Gentle fade-out */
+        opacity: 0;
+        transform: scale(0.96);
+      }
+    }
+  </style>
+</head>
+<body>
+
+  <main class="splash-container" role="main" aria-label="Path Finder Loading">
+    <div class="splash-content">
+      <!-- App Logo -->
+      <img 
+        src="public/app-icon.png" 
+        alt="Path Finder Logo" 
+        class="splash-logo" 
+        id="splash-logo" 
+        width="250" 
+        height="250"
+      />
+      <!-- App Name below logo -->
+      <h1 class="splash-title">Path Finder</h1>
+    </div>
+  </main>
+
+  <script>
+    (function () {
+      // Configuration
+      const TARGET_URL = '/login'; // Destination URL (e.g., '/login', '/home.html', or 'https://example.com')
+      const REDIRECT_DELAY_MS = 3000; // Exactly 3 seconds
+
+      // Redirect using window.location.replace() so this splash screen
+      // does not stay in the user's browser back-button history.
+      setTimeout(function () {
+        window.location.replace(TARGET_URL);
+      }, REDIRECT_DELAY_MS);
+    })();
+  </script>
+</body>
+</html>

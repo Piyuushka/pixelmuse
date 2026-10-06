@@ -976,7 +976,7 @@ export function AccessibilityProvider({ children }: { children: React.ReactNode 
       }}
     >
       <div
-        className={`${isHighContrast ? 'high-contrast' : ''} ${isDarkMode ? 'dark dark-mode' : ''} font-scale-${fontScale} min-h-screen transition-all`}
+        className={`${isHighContrast ? 'high-contrast' : ''} ${isDarkMode ? 'dark dark-mode' : ''} font-scale-${fontScale} w-full min-h-screen transition-all`}
         data-theme={isDarkMode ? 'dark' : 'light'}
       >
         {children}

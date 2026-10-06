@@ -1,0 +1,128 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Path Finder</title>
+
+  <!-- Fallback redirect for browsers with JavaScript disabled (3 seconds) -->
+  <noscript>
+    <meta http-equiv="refresh" content="3;url=/login" />
+  </noscript>
+
+  <style>
+    *, *::before, *::after {
+      margin: 0;
+      padding: 0;
+      box-sizing: border-box;
+    }
+
+    html, body {
+      width: 100%;
+      height: 100%;
+      overflow: hidden;
+      background-color: #0b132b;
+      display: flex;
+      justify-content: center;
+      align-items: center;
+      font-family: system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+      -webkit-user-select: none;
+      user-select: none;
+    }
+
+    .splash-container {
+      display: flex;
+      flex-direction: column;
+      justify-content: center;
+      align-items: center;
+      width: 100%;
+      height: 100%;
+    }
+
+    .splash-content {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      gap: 20px;
+      animation: splashFade 3s cubic-bezier(0.4, 0, 0.2, 1) forwards;
+      will-change: opacity, transform;
+    }
+
+    .splash-logo {
+      width: 180px;
+      max-width: 75vw;
+      height: auto;
+      aspect-ratio: 1 / 1;
+      object-fit: contain;
+      display: block;
+      filter: drop-shadow(0 14px 32px rgba(0, 0, 0, 0.5));
+    }
+
+    .splash-title {
+      color: #ffffff;
+      font-size: 1.65rem;
+      font-weight: 800;
+      letter-spacing: 0.08em;
+      text-align: center;
+      text-shadow: 0 4px 16px rgba(0, 0, 0, 0.6);
+      line-height: 1.2;
+    }
+
+    @media (min-width: 768px) {
+      .splash-logo {
+        width: 250px;
+      }
+      .splash-title {
+        font-size: 2rem;
+      }
+    }
+
+    @keyframes splashFade {
+      0% {
+        opacity: 0;
+        transform: scale(0.92);
+      }
+      25% {
+        opacity: 1;
+        transform: scale(1);
+      }
+      80% {
+        opacity: 1;
+        transform: scale(1);
+      }
+      100% {
+        opacity: 0;
+        transform: scale(0.96);
+      }
+    }
+  </style>
+</head>
+<body>
+
+  <main class="splash-container" role="main" aria-label="Path Finder Loading">
+    <div class="splash-content">
+      <img 
+        src="app-icon.png" 
+        alt="Path Finder Logo" 
+        class="splash-logo" 
+        id="splash-logo" 
+        width="250" 
+        height="250"
+      />
+      <h1 class="splash-title">Path Finder</h1>
+    </div>
+  </main>
+
+  <script>
+    (function () {
+      const TARGET_URL = '/login';
+      const REDIRECT_DELAY_MS = 3000;
+
+      setTimeout(function () {
+        window.location.replace(TARGET_URL);
+      }, REDIRECT_DELAY_MS);
+    })();
+  </script>
+</body>
+</html>

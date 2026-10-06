@@ -39,7 +39,7 @@ export default function RootLayout({
           }}
         />
       </head>
-      <body className="min-h-full flex bg-surface text-on-surface overflow-x-hidden transition-colors duration-200">
+      <body className="min-h-full w-full flex flex-col bg-surface text-on-surface overflow-x-hidden transition-colors duration-200">
         <AccessibilityProvider>
           <VoiceAssistantProvider>
             {/* Bootstraps all Capacitor native plugins — no-op on web */}
