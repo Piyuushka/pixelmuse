@@ -5,8 +5,32 @@ import { PersonaType } from '@/context/AccessibilityContext';
 // ─────────────────────────────────────────────────────────────────────────────
 
 export type CrossingType = 'signal' | 'zebra' | 'refuge' | 'uncontrolled' | 'none';
-export type FootpathSurface = 'smooth' | 'tactile' | 'rough' | 'broken' | 'missing';
+export type FootpathSurface = 'smooth' | 'tactile' | 'rough' | 'broken' | 'missing' | 'cobblestone' | 'unpaved';
 export type SafetyLabel = 'safe' | 'moderate' | 'caution';
+
+export interface SurfaceFilterPreferences {
+  avoidCobblestones: boolean;
+  avoidUnpavedGravel: boolean;
+  avoidSteepInclines: boolean;
+  preferTactilePaving: boolean;
+  preferSignalizedCrossings: boolean;
+  wellLitOnly: boolean;
+}
+
+export const DEFAULT_SURFACE_FILTERS: SurfaceFilterPreferences = {
+  avoidCobblestones: false,
+  avoidUnpavedGravel: false,
+  avoidSteepInclines: false,
+  preferTactilePaving: false,
+  preferSignalizedCrossings: false,
+  wellLitOnly: false,
+};
+
+export interface SurfaceQualityBadge {
+  label: string;
+  type: 'safe' | 'caution' | 'warning' | 'info';
+  iconName?: string;
+}
 
 export interface SegmentSafetyProfile {
   id: string;
@@ -50,6 +74,11 @@ export interface RouteWithSafety {
   personaSuitability: Record<PersonaType, boolean>;
   nightSafetyScore: number;           // re-weighted with 40% lighting
   isRecommendedForPersona: boolean;   // set by rankRoutesForPersona
+  surfaceQualityBadges: SurfaceQualityBadge[];
+  filterViolations: string[];
+  isBlockedByHazard?: boolean;
+  hazardBlockReason?: string;
+  detourNotice?: string;
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
@@ -109,11 +138,13 @@ function computeSubScores(seg: Omit<SegmentSafetyProfile, 'lightingScore' | 'cro
   // ── Footpath (0–20) ──────────────────────────────────────────────────────
   let footpathScore = 0;
   switch (seg.footpathSurface) {
-    case 'smooth':  footpathScore = 10; break;
-    case 'tactile': footpathScore = 12; break;
-    case 'rough':   footpathScore = 6;  break;
-    case 'broken':  footpathScore = 2;  break;
-    case 'missing': footpathScore = 0;  break;
+    case 'smooth':      footpathScore = 10; break;
+    case 'tactile':     footpathScore = 12; break;
+    case 'rough':       footpathScore = 6;  break;
+    case 'unpaved':     footpathScore = 4;  break;
+    case 'cobblestone': footpathScore = 3;  break;
+    case 'broken':      footpathScore = 2;  break;
+    case 'missing':     footpathScore = 0;  break;
   }
   if (seg.hasTactilePaving) footpathScore = Math.min(20, footpathScore + 4);
   if (seg.footpathWidthCm >= 180) footpathScore = Math.min(20, footpathScore + 4);
@@ -240,11 +271,108 @@ function compositeScore(segments: SegmentSafetyProfile[]): number {
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
-// ROUTE RANKING
+// SURFACE & INFRASTRUCTURE EVALUATION
+// ─────────────────────────────────────────────────────────────────────────────
+
+export function computeSurfaceQualityBadges(segments: SegmentSafetyProfile[]): SurfaceQualityBadge[] {
+  const badges: SurfaceQualityBadge[] = [];
+
+  const allSmooth = segments.every(s => s.footpathSurface === 'smooth' || s.footpathSurface === 'tactile');
+  if (allSmooth) {
+    badges.push({ label: 'Smooth Concrete', type: 'safe' });
+  }
+
+  if (segments.some(s => s.hasTactilePaving)) {
+    badges.push({ label: 'Tactile Paving Verified', type: 'info' });
+  }
+
+  const maxSlope = Math.max(...segments.map(s => s.maxSlopePercent));
+  if (maxSlope > 5) {
+    badges.push({ label: `Steep Slope Warning (${maxSlope}%)`, type: 'warning' });
+  } else if (maxSlope > 0) {
+    badges.push({ label: `Gentle Incline (${maxSlope}%)`, type: 'safe' });
+  }
+
+  if (segments.some(s => s.footpathSurface === 'cobblestone')) {
+    badges.push({ label: 'Cobblestones', type: 'caution' });
+  }
+
+  if (segments.some(s => s.footpathSurface === 'unpaved' || s.footpathSurface === 'rough')) {
+    badges.push({ label: 'Unpaved / Gravel Path', type: 'caution' });
+  }
+
+  if (segments.some(s => s.crossingType === 'signal' || s.hasPelicanSignal)) {
+    badges.push({ label: 'Signalized Crossing', type: 'safe' });
+  }
+
+  if (segments.every(s => s.isLit && s.streetlampDensityPerKm >= 8)) {
+    badges.push({ label: 'Well-Lit Corridor', type: 'safe' });
+  } else if (segments.some(s => !s.isLit || s.streetlampDensityPerKm < 4)) {
+    badges.push({ label: 'Low Visibility Warning', type: 'caution' });
+  }
+
+  return badges;
+}
+
+export function evaluateFilterViolations(
+  segments: SegmentSafetyProfile[],
+  filters?: SurfaceFilterPreferences,
+): { penalty: number; violations: string[] } {
+  if (!filters) return { penalty: 0, violations: [] };
+
+  let penalty = 0;
+  const violations: string[] = [];
+
+  if (filters.avoidCobblestones && segments.some(s => s.footpathSurface === 'cobblestone')) {
+    penalty += 35;
+    violations.push('Violates Avoid Cobblestones (Cobblestone segment present)');
+  }
+
+  if (filters.avoidUnpavedGravel && segments.some(s => s.footpathSurface === 'unpaved' || s.footpathSurface === 'rough')) {
+    penalty += 25;
+    violations.push('Violates Avoid Unpaved/Gravel (Contains loose gravel / unpaved path)');
+  }
+
+  if (filters.avoidSteepInclines && segments.some(s => s.maxSlopePercent > 5)) {
+    penalty += 35;
+    violations.push('Violates Avoid Steep Inclines (Exceeds 5% slope threshold)');
+  }
+
+  if (filters.preferTactilePaving) {
+    const hasTactile = segments.some(s => s.hasTactilePaving);
+    if (!hasTactile) {
+      penalty += 20;
+      violations.push('Lacks Tactile Paving infrastructure');
+    } else {
+      penalty -= 10; // Reward
+    }
+  }
+
+  if (filters.preferSignalizedCrossings) {
+    const hasSignal = segments.some(s => s.crossingType === 'signal' || s.hasPelicanSignal);
+    if (!hasSignal) {
+      penalty += 20;
+      violations.push('Lacks Signalized Pedestrian Crossings');
+    } else {
+      penalty -= 10; // Reward
+    }
+  }
+
+  if (filters.wellLitOnly && segments.some(s => !s.isLit || s.streetlampDensityPerKm < 6)) {
+    penalty += 40;
+    violations.push('Violates Well-Lit Only (Dark/low-light corridor)');
+  }
+
+  return { penalty, violations };
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// ROUTE RANKING WITH DYNAMIC OBSTACLE AVOIDANCE & SURFACE WEIGHTING
 // ─────────────────────────────────────────────────────────────────────────────
 
 /**
- * Ranks an array of routes for a given persona and night mode.
+ * Ranks an array of routes for a given persona, night mode, surface filters,
+ * and live reported obstacles.
  * Sets isRecommendedForPersona = true on the best-suited route.
  * Returns a sorted copy (best first).
  */
@@ -252,10 +380,19 @@ export function rankRoutesForPersona(
   routes: RouteWithSafety[],
   persona: PersonaType,
   nightMode = false,
+  surfaceFilters?: SurfaceFilterPreferences,
+  activeObstacleAlert?: { active: boolean; title?: string; location?: string; category?: string } | null,
 ): RouteWithSafety[] {
   const scored = routes.map(route => {
     const rescoredSegments = route.segments.map(s => scoreSegment(s, nightMode));
-    const nightScore = compositeScore(rescoredSegments);
+    const baseScore = compositeScore(rescoredSegments);
+    const nightScore = compositeScore(segmentsWithNight(route.segments));
+    
+    // Evaluate surface filters
+    const { penalty, violations } = evaluateFilterViolations(route.segments, surfaceFilters);
+    const finalDayScore = Math.max(5, Math.min(100, baseScore - penalty));
+    const finalNightScore = Math.max(5, Math.min(100, nightScore - penalty));
+
     const personaSuitability: Record<PersonaType, boolean> = {
       'wheelchair': getPersonaSuitability(route, 'wheelchair'),
       'low-vision': getPersonaSuitability(route, 'low-vision'),
@@ -263,29 +400,69 @@ export function rankRoutesForPersona(
       'caregiver': getPersonaSuitability(route, 'caregiver'),
       'none': getPersonaSuitability(route, 'none'),
     };
+
+    // If severe violations exist, adjust suitability
+    if (violations.length > 0 && (surfaceFilters?.avoidCobblestones || surfaceFilters?.avoidSteepInclines)) {
+      if (route.segments.some(s => s.footpathSurface === 'cobblestone' || s.maxSlopePercent > 5)) {
+        personaSuitability[persona] = false;
+      }
+    }
+
+    const currentScore = nightMode ? finalNightScore : finalDayScore;
+
+    // Check dynamic obstacle avoidance on active route
+    const isBlocked = !!(
+      activeObstacleAlert?.active &&
+      (route.routeId === 'route-a' ||
+       route.label.toLowerCase().includes('concourse') ||
+       route.segments.some(s => s.name.toLowerCase().includes('elevator') || s.name.toLowerCase().includes('concourse')))
+    );
+
     return {
       ...route,
       segments: rescoredSegments,
-      compositeSafetyScore: compositeScore(rescoredSegments),
-      nightSafetyScore: nightScore,
+      compositeSafetyScore: isBlocked ? Math.max(10, currentScore - 60) : currentScore,
+      nightSafetyScore: isBlocked ? Math.max(10, finalNightScore - 60) : finalNightScore,
       personaSuitability,
-      safetyLabel: getSafetyLabel(compositeScore(rescoredSegments)),
+      safetyLabel: getSafetyLabel(isBlocked ? 25 : currentScore),
+      surfaceQualityBadges: computeSurfaceQualityBadges(route.segments),
+      filterViolations: violations,
+      isBlockedByHazard: isBlocked,
+      hazardBlockReason: isBlocked ? (activeObstacleAlert?.title || 'Reported Barrier on Concourse Path') : undefined,
+      detourNotice: !isBlocked && activeObstacleAlert?.active && route.routeId === 'route-b' ? '+2 min detour' : undefined,
       isRecommendedForPersona: false,
     };
   });
 
-  // Sort: persona-suitable routes first, then by composite score desc
+  // Sort: non-blocked first, then persona-suitable, then composite score desc
   scored.sort((a, b) => {
+    // 1. Unblocked routes prioritized over blocked ones
+    if (a.isBlockedByHazard !== b.isBlockedByHazard) {
+      return a.isBlockedByHazard ? 1 : -1;
+    }
+    // 2. Persona suitability
     const aFit = a.personaSuitability[persona] ? 1 : 0;
     const bFit = b.personaSuitability[persona] ? 1 : 0;
     if (aFit !== bFit) return bFit - aFit;
+    // 3. Composite score
     const aScore = nightMode ? a.nightSafetyScore : a.compositeSafetyScore;
     const bScore = nightMode ? b.nightSafetyScore : b.compositeSafetyScore;
     return bScore - aScore;
   });
 
-  if (scored.length > 0) scored[0].isRecommendedForPersona = true;
+  // Top unblocked route becomes the recommended route
+  const firstUnblocked = scored.find(r => !r.isBlockedByHazard);
+  if (firstUnblocked) {
+    firstUnblocked.isRecommendedForPersona = true;
+  } else if (scored.length > 0) {
+    scored[0].isRecommendedForPersona = true;
+  }
+
   return scored;
+}
+
+function segmentsWithNight(segs: SegmentSafetyProfile[]): SegmentSafetyProfile[] {
+  return segs.map(s => scoreSegment(s, true));
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
@@ -323,7 +500,7 @@ const RAW_SEGMENTS: Array<Omit<SegmentSafetyProfile, 'lightingScore' | 'crossing
   {
     id: 'seg-b2', name: 'Service Lift Bypass Corridor', distanceMeters: 160,
     isLit: true, streetlampDensityPerKm: 10,
-    hasTactilePaving: false, footpathSurface: 'rough', footpathWidthCm: 130,
+    hasTactilePaving: false, footpathSurface: 'unpaved', footpathWidthCm: 130,
     hasSteps: false, stepCount: 0, maxSlopePercent: 2,
     crossingType: 'zebra', hasPelicanSignal: false, hasRefugeIsland: false,
     obstacleFreeLineOfSight: true, estimatedCrowdDensity: 'moderate',
@@ -332,7 +509,7 @@ const RAW_SEGMENTS: Array<Omit<SegmentSafetyProfile, 'lightingScore' | 'crossing
   {
     id: 'seg-c1', name: 'Elevated Flyover Ramp A', distanceMeters: 280,
     isLit: false, streetlampDensityPerKm: 3,
-    hasTactilePaving: false, footpathSurface: 'rough', footpathWidthCm: 90,
+    hasTactilePaving: false, footpathSurface: 'cobblestone', footpathWidthCm: 90,
     hasSteps: true, stepCount: 4, maxSlopePercent: 9,
     crossingType: 'uncontrolled', hasPelicanSignal: false, hasRefugeIsland: false,
     obstacleFreeLineOfSight: false, estimatedCrowdDensity: 'high',
@@ -383,6 +560,8 @@ function buildRoute(
     personaSuitability,
     nightSafetyScore: night,
     isRecommendedForPersona: false,
+    surfaceQualityBadges: computeSurfaceQualityBadges(segments),
+    filterViolations: [],
   };
 }
 

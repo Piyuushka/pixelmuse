@@ -8,6 +8,9 @@ export interface IndianBarrierReport {
   category: string;
   severity: 'low' | 'medium' | 'high' | 'critical';
   location: string;
+  microLocation?: string;
+  estimatedResolutionTime?: string;
+  affectsActiveRoute?: boolean;
   status: 'Reported' | 'Verified' | 'Under Review' | 'Resolved' | 'Expired';
   votes: number;
   downvotes: number;
@@ -25,16 +28,23 @@ export interface IndianBarrierReport {
 }
 
 export const CATEGORY_TTL_SECONDS: Record<string, number> = {
-  'Flooding/Waterlogging': 7200,      // 2 hours
-  'Waterlogging': 7200,
-  'Construction': 43200,              // 12 hours
+  // Outages
+  'Elevator Out of Service / Escalator Down': 21600, // 6 hours
+  'Elevator Outage': 21600,
+  // Surface / Weather
+  'Puddles / Waterlogging': 7200,      // 2 hours
+  'Mud / Loose Gravel': 14400,         // 4 hours
+  'Flooding/Waterlogging': 7200,
+  // Construction
+  'Blockade / Scaffolding on Curb Cut': 43200, // 12 hours
+  'Construction': 43200,
   'Construction Obstruction': 43200,
+  // Physical / Infrastructure
   'Blocked Ramp/Flyover': 3600,       // 1 hour
   'Blocked Flyover': 3600,
   'Police Checkpoint/Barricade': 10800,// 3 hours
   'Police Checkpoint': 10800,
   'Fallen Tree/Pothole Obstruction': 14400, // 4 hours
-  'Elevator Outage': 21600,           // 6 hours
   'Missing Curb Cut': 28800,          // 8 hours
   'Door Sensor Malfunction': 14400,
   'Steep Slope Ramp': 28800,
@@ -58,6 +68,9 @@ export function createBarrierReport(input: {
   category: string;
   severity?: 'low' | 'medium' | 'high' | 'critical';
   location: string;
+  microLocation?: string;
+  estimatedResolutionTime?: string;
+  affectsActiveRoute?: boolean;
   description?: string;
   coordinates?: Coordinates;
   roadLayer?: RoadLayer;
@@ -67,12 +80,31 @@ export function createBarrierReport(input: {
   const coords = input.coordinates || { lat: 19.0760, lng: 72.8777 }; // Default Mumbai / Urban core lat/lng
   const layer = input.roadLayer || 'at_grade';
 
+  const hours = Math.floor(ttl / 3600);
+  const mins = Math.floor((ttl % 3600) / 60);
+  const formattedEstTime = input.estimatedResolutionTime || (mins > 0 ? `Est. ${hours}h ${mins}m` : `Est. ${hours}h`);
+
+  const affectsRoute = typeof input.affectsActiveRoute === 'boolean'
+    ? input.affectsActiveRoute
+    : (
+        input.title.toLowerCase().includes('elevator') ||
+        input.title.toLowerCase().includes('concourse') ||
+        input.title.toLowerCase().includes('ramp') ||
+        input.location.toLowerCase().includes('concourse') ||
+        input.location.toLowerCase().includes('entrance') ||
+        input.location.toLowerCase().includes('gate') ||
+        input.severity === 'critical'
+      );
+
   return {
     id: `rep-${now}-${Math.floor(Math.random() * 1000)}`,
     title: input.title,
     category: input.category,
     severity: input.severity || 'high',
     location: input.location,
+    microLocation: input.microLocation || input.location,
+    estimatedResolutionTime: formattedEstTime,
+    affectsActiveRoute: affectsRoute,
     status: 'Reported',
     votes: 1,
     downvotes: 0,
@@ -103,6 +135,9 @@ export function processIncomingBarrierReport(
     category: string;
     severity?: 'low' | 'medium' | 'high' | 'critical';
     location: string;
+    microLocation?: string;
+    estimatedResolutionTime?: string;
+    affectsActiveRoute?: boolean;
     description?: string;
     coordinates?: Coordinates;
     roadLayer?: RoadLayer;

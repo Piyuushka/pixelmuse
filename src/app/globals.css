@@ -258,3 +258,20 @@ body, .font-body, .font-label {
   background-color: rgba(127, 29, 29, 0.5) !important;
   color: #fecaca !important;
 }
+
+/* Animated Green Route Polyline for Adapted Rerouting */
+@keyframes routeDashAnimation {
+  from {
+    stroke-dashoffset: 48;
+  }
+  to {
+    stroke-dashoffset: 0;
+  }
+}
+
+.pathfinder-animated-green-route {
+  stroke-dasharray: 12, 6;
+  animation: routeDashAnimation 1.4s linear infinite;
+  filter: drop-shadow(0 0 6px rgba(16, 185, 129, 0.75));
+}
+

@@ -43,6 +43,10 @@ export interface LiveLeafletMapProps {
   totalSteps?: number;
   destName?: string;
   roadName?: string;
+  originalRouteGeojson?: any;
+  originalRoutePath?: Array<{ lat: number; lng: number }>;
+  barrierLocation?: { lat: number; lng: number; title?: string };
+  isRerouted?: boolean;
 }
 
 const libraries: ("places" | "geometry")[] = ["places", "geometry"];
@@ -59,6 +63,9 @@ function LeafletGoogleStyleMap({
   zoom = 16,
   accuracy = 0.5,
   routePath,
+  originalRoutePath,
+  barrierLocation,
+  isRerouted,
   navigationStep,
   isNavigating,
   onExitNavigation,
@@ -75,6 +82,9 @@ function LeafletGoogleStyleMap({
   zoom?: number;
   accuracy?: number;
   routePath: Array<{ lat: number; lng: number }>;
+  originalRoutePath?: Array<{ lat: number; lng: number }>;
+  barrierLocation?: { lat: number; lng: number; title?: string };
+  isRerouted?: boolean;
   navigationStep?: any;
   isNavigating?: boolean;
   onExitNavigation?: () => void;
@@ -219,22 +229,86 @@ function LeafletGoogleStyleMap({
     }
 
     // ─────────────────────────────────────────────────────────────────────────
-    // DOTTED WALKING ROUTE PATH (LIKE GOOGLE MAPS WALKING ROUTE)
+    // DOTTED WALKING ROUTE PATH OR ADAPTED/BLOCKED REROUTE VISUALIZATION
     // ─────────────────────────────────────────────────────────────────────────
     if (polylineRef.current) polylineRef.current.remove();
     if (dottedLineRef.current) dottedLineRef.current.remove();
 
-    if (routePath && routePath.length > 0) {
-      const latlngs = routePath.map(p => [p.lat, p.lng]);
+    // 1. Draw Original Route as Dashed Red Line + Barrier Marker (if rerouted)
+    if (isRerouted || (originalRoutePath && originalRoutePath.length > 0)) {
+      if (originalRoutePath && originalRoutePath.length > 0) {
+        const origLatLngs = originalRoutePath.map(p => [p.lat, p.lng]);
+        const blockedLine = L.polyline(origLatLngs, {
+          color: '#ef4444',
+          weight: 5,
+          opacity: 0.85,
+          dashArray: '8, 8',
+          lineCap: 'round',
+        }).addTo(map);
+        markersRef.current.push(blockedLine);
+      }
 
-      // Base path layer
+      // 2. Draw Blocked Marker at Barrier Location
+      if (barrierLocation) {
+        const barrierIcon = L.divIcon({
+          className: 'pathfinder-blocked-barrier-marker',
+          html: `
+            <div style="position: relative; display: flex; flex-direction: column; align-items: center; transform: translate(-50%, -100%); z-index: 1200;">
+              <div style="background: #dc2626; color: white; padding: 4px 10px; border-radius: 9999px; font-size: 11px; font-weight: 900; box-shadow: 0 4px 14px rgba(220,38,38,0.6); border: 2px solid white; white-space: nowrap; display: flex; align-items: center; gap: 4px; animation: pulse 2s infinite;">
+                <span>⛔</span>
+                <span>Blocked: ${barrierLocation.title || 'Reported Barrier'}</span>
+              </div>
+              <div style="width: 32px; height: 32px; border-radius: 50%; background: #dc2626; border: 3px solid white; box-shadow: 0 4px 14px rgba(220,38,38,0.5); display: flex; align-items: center; justify-content: center; color: white; font-weight: 900; font-size: 16px; margin-top: 2px;">
+                ✕
+              </div>
+            </div>
+          `,
+          iconSize: [44, 52],
+          iconAnchor: [22, 52],
+        });
+
+        const barrierMarker = L.marker([barrierLocation.lat, barrierLocation.lng], { icon: barrierIcon, zIndexOffset: 1500 }).addTo(map);
+        markersRef.current.push(barrierMarker);
+      }
+
+      // 3. Draw New Adapted Route as Solid Green Line (Animated)
+      if (routePath && routePath.length > 0) {
+        const latlngs = routePath.map(p => [p.lat, p.lng]);
+        const greenBase = L.polyline(latlngs, {
+          color: '#065f46',
+          weight: 9,
+          opacity: 0.5,
+        }).addTo(map);
+
+        const greenLine = L.polyline(latlngs, {
+          color: '#10b981',
+          weight: 6,
+          opacity: 1,
+          className: 'pathfinder-animated-green-route',
+          lineCap: 'round',
+        }).addTo(map);
+
+        polylineRef.current = L.featureGroup([greenBase, greenLine]).addTo(map);
+
+        // Auto zoom/fit map to include barrier, origin, destination, and adapted path
+        const fitCoords: [number, number][] = latlngs.map(p => [p[0], p[1]] as [number, number]);
+        if (barrierLocation) fitCoords.push([barrierLocation.lat, barrierLocation.lng]);
+        if (originalRoutePath) originalRoutePath.forEach(p => fitCoords.push([p.lat, p.lng]));
+        if (center) fitCoords.push([center.lat, center.lng]);
+        if (destination) fitCoords.push([destination.lat, destination.lng]);
+
+        const bounds = L.latLngBounds(fitCoords);
+        map.fitBounds(bounds, { padding: [60, 60], maxZoom: 17 });
+      }
+    } else if (routePath && routePath.length > 0) {
+      // Normal Walking Dotted Route
+      const latlngs = routePath.map(p => [p.lat, p.lng]);
       const baseLine = L.polyline(latlngs, {
         color: '#93c5fd',
         weight: 8,
         opacity: 0.6,
       }).addTo(map);
 
-      // Google Maps Dotted Walking Pattern
       const dotLine = L.polyline(latlngs, {
         color: '#1d4ed8',
         weight: 6,
@@ -256,7 +330,7 @@ function LeafletGoogleStyleMap({
       map.fitBounds(bounds, { padding: [60, 60] });
     }
 
-  }, [center, destination, zoom, routePath, isNavigating, mapType, bearing, destName]);
+  }, [center, destination, zoom, routePath, originalRoutePath, barrierLocation, isRerouted, isNavigating, mapType, bearing, destName]);
 
   const stepDistance = navigationStep?.distance || 60;
   const stepStepsCount = Math.max(1, Math.round(stepDistance / 0.75));
@@ -478,6 +552,20 @@ export default function LiveLeafletMap(props: LiveLeafletMapProps) {
     return [];
   }, [props.routeGeojson]);
 
+  const originalRoutePath = useMemo(() => {
+    if (props.originalRoutePath) return props.originalRoutePath;
+    if (!props.originalRouteGeojson) return undefined;
+    try {
+      if (props.originalRouteGeojson.geometry && props.originalRouteGeojson.geometry.type === 'LineString') {
+        const coords = props.originalRouteGeojson.geometry.coordinates;
+        return coords.map((c: any) => ({ lat: c[1], lng: c[0] }));
+      }
+    } catch (e) {
+      console.error('Failed to parse originalRouteGeojson', e);
+    }
+    return undefined;
+  }, [props.originalRoutePath, props.originalRouteGeojson]);
+
   // Use LeafletGoogleStyleMap for guaranteed rendering, full Google Maps mobile overlay, Re-centre button, and dotted navigation path!
   return (
     <LeafletGoogleStyleMap
@@ -486,6 +574,9 @@ export default function LiveLeafletMap(props: LiveLeafletMapProps) {
       zoom={props.zoom || 16}
       accuracy={props.accuracy || 0.5}
       routePath={routePath}
+      originalRoutePath={originalRoutePath}
+      barrierLocation={props.barrierLocation}
+      isRerouted={props.isRerouted}
       navigationStep={props.navigationStep}
       isNavigating={props.isNavigating}
       onExitNavigation={props.onExitNavigation}
