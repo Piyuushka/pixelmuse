@@ -1,63 +1,41 @@
 'use client';
 
-import React, { useEffect, useRef } from 'react';
+import { useEffect } from 'react';
 import { useAccessibility } from '@/context/AccessibilityContext';
+import { VOICE_ASSISTANT_NAME } from '@/lib/navigationVoiceCommander';
 
 /**
- * Conversational Voice Onboarding & Hands-Free Auto-Start for Blind / Low-Vision Users.
- * As soon as the app opens:
- * 1. Directly opens the Voice Assistant modal.
- * 2. Speaks the welcoming onboarding greeting aloud:
- *    "Welcome. I am your navigation assistant. Are you looking to go somewhere, or do you need help logging in?"
- * 3. Immediately activates the microphone for hands-free conversational voice commands,
- *    allowing blind users to navigate the app completely without touching the screen.
- * 4. Provides a full-screen tap / keypress listener so any touch anywhere on the screen
- *    instantly activates or wakes the assistant if browser autoplay restricted initial ungestured audio.
+ * Conversational Voice Accessibility Assistant Companion.
+ * Adheres strictly to the requirement:
+ * - Does NOT arbitrarily auto-open or pop up on random clicks/touches or page load.
+ * - Provides keyboard accessibility (Alt+V or Spacebar when focused) to open Nova.
+ * - Works hand-in-hand with the background wake-word listener ("Hey Nova").
  */
 export default function ConversationalVoiceOnboarding() {
-  const { speakText, persona } = useAccessibility();
-  const hasTriggeredRef = useRef(false);
+  const { persona } = useAccessibility();
 
   useEffect(() => {
     if (typeof window === 'undefined') return;
 
-    const WELCOME_PHRASE =
-      'Welcome. I am your navigation assistant. Are you looking to go somewhere, or do you need help logging in?';
-
-    const launchVoiceAssistantDirectly = () => {
-      if (hasTriggeredRef.current) return;
-      hasTriggeredRef.current = true;
-
-      // Dispatch event to directly open the Voice Assistant modal in hands-free listening mode
-      window.dispatchEvent(
-        new CustomEvent('pathfinder:open-voice-assistant', {
-          detail: { prompt: WELCOME_PHRASE, autoListen: true, handsFree: true },
-        })
-      );
+    const handleKeyDown = (e: KeyboardEvent) => {
+      // Accessible global keyboard shortcut: Alt + V to toggle Nova
+      if (e.altKey && (e.key === 'v' || e.key === 'V')) {
+        e.preventDefault();
+        window.dispatchEvent(
+          new CustomEvent('pathfinder:open-voice-assistant', {
+            detail: {
+              prompt: `Hello, I am ${VOICE_ASSISTANT_NAME}. How can I assist you with your route?`,
+            },
+          })
+        );
+      }
     };
 
-    // 1. Immediately launch on mount (400ms delay to allow layout hydration)
-    const initialTimer = setTimeout(() => {
-      launchVoiceAssistantDirectly();
-    }, 400);
-
-    // 2. Full-screen gesture listener: If the browser blocked ungestured autoplay/microphone,
-    // any tap anywhere on the screen or keypress immediately wakes up the voice assistant!
-    const handleGestureWake = () => {
-      launchVoiceAssistantDirectly();
-    };
-
-    window.addEventListener('pointerdown', handleGestureWake);
-    window.addEventListener('keydown', handleGestureWake);
-    window.addEventListener('touchstart', handleGestureWake);
-
+    window.addEventListener('keydown', handleKeyDown);
     return () => {
-      clearTimeout(initialTimer);
-      window.removeEventListener('pointerdown', handleGestureWake);
-      window.removeEventListener('keydown', handleGestureWake);
-      window.removeEventListener('touchstart', handleGestureWake);
+      window.removeEventListener('keydown', handleKeyDown);
     };
-  }, [speakText, persona]);
+  }, [persona]);
 
   return null;
 }

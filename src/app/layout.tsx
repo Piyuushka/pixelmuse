@@ -2,7 +2,7 @@ import type { Metadata } from 'next';
 import { Inter, Atkinson_Hyperlegible } from 'next/font/google';
 import './globals.css';
 import { AccessibilityProvider } from '@/context/AccessibilityContext';
-import Sidebar from '@/components/Sidebar';
+import { VoiceAssistantProvider } from '@/context/VoiceAssistantContext';
 import TalkToAssistantButton from '@/components/TalkToAssistantButton';
 import CapacitorInit from '@/components/CapacitorInit';
 import ConversationalVoiceOnboarding from '@/components/ConversationalVoiceOnboarding';
@@ -41,12 +41,15 @@ export default function RootLayout({
       </head>
       <body className="min-h-full flex bg-surface text-on-surface overflow-x-hidden transition-colors duration-200">
         <AccessibilityProvider>
-          {/* Bootstraps all Capacitor native plugins — no-op on web */}
-          <CapacitorInit />
-          <ConversationalVoiceOnboarding />
-          <div className="w-full min-h-screen flex flex-col">
-            {children}
-          </div>
+          <VoiceAssistantProvider>
+            {/* Bootstraps all Capacitor native plugins — no-op on web */}
+            <CapacitorInit />
+            <ConversationalVoiceOnboarding />
+            <div className="w-full min-h-screen flex flex-col">
+              {children}
+            </div>
+            <TalkToAssistantButton variant="fab" />
+          </VoiceAssistantProvider>
         </AccessibilityProvider>
       </body>
     </html>

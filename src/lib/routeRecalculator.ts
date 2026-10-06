@@ -235,11 +235,23 @@ export async function triggerActiveBarrierRecalculation(
         message: `Reroute emitted for session "${session.sessionId}": avoids ${payload.hazardType}, saves ${payload.timeSaved}m.`,
       });
 
+      // Notify in-browser UI & Voice Assistant listeners
+      if (typeof window !== 'undefined') {
+        try {
+          window.dispatchEvent(
+            new CustomEvent('pathfinder:route-recalculated', {
+              detail: { reroute: payload, alert, newRoute },
+            })
+          );
+        } catch {}
+      }
+
       // Optionally update the session route in registry
       if (options.autoUpdateSession && newRoute.coordinates.length > 0) {
         session.routeCoords = newRoute.coordinates;
         session.totalDistanceMeters = newRoute.totalDistanceMeters;
         session.remainingDistanceMeters = newRoute.totalDistanceMeters;
+        session.currentPositionIndex = 0;
       }
     }
   }

@@ -3,29 +3,13 @@
 import React, { useMemo, useCallback, useRef, useEffect, useState } from 'react';
 import { GoogleMap, useJsApiLoader, Marker, Polyline } from '@react-google-maps/api';
 import {
-  Layers,
   Map as MapIcon,
   Globe,
-  Mountain,
   Navigation,
-  MapPin,
-  Compass,
-  ZoomIn,
-  ZoomOut,
-  Crosshair,
   Search,
   Volume2,
   VolumeX,
   Camera,
-  Sparkles,
-  X,
-  CornerUpRight,
-  CornerUpLeft,
-  ArrowUp,
-  RotateCcw,
-  Footprints,
-  GitFork,
-  ArrowRight,
 } from 'lucide-react';
 import { useAccessibility } from '@/context/AccessibilityContext';
 
@@ -332,174 +316,12 @@ function LeafletGoogleStyleMap({
 
   }, [center, destination, zoom, routePath, originalRoutePath, barrierLocation, isRerouted, isNavigating, mapType, bearing, destName]);
 
-  const stepDistance = navigationStep?.distance || 60;
-  const stepStepsCount = Math.max(1, Math.round(stepDistance / 0.75));
-  const isRightTurn = navigationStep?.title?.toLowerCase().includes('right');
-  const isLeftTurn = navigationStep?.title?.toLowerCase().includes('left');
-
   return (
     <div className="relative w-full h-full min-h-[500px] rounded-3xl overflow-hidden shadow-2xl bg-slate-100 select-none">
       <div ref={mapContainerRef} className="w-full h-full min-h-[500px]" />
 
-      {/* ─────────────────────────────────────────────────────────────────────
-          1. TOP GOOGLE MAPS DEEP GREEN NAVIGATION BANNER
-      ───────────────────────────────────────────────────────────────────── */}
-      <div className="absolute top-4 left-4 right-4 z-[1000] flex flex-col gap-2 pointer-events-none">
-        <div className="p-4 rounded-3xl bg-[#05443B] text-white shadow-2xl border border-emerald-900/40 flex items-center justify-between pointer-events-auto backdrop-blur-md">
-          <div className="flex items-center gap-3.5">
-            {/* Turn Icon */}
-            <div className="w-12 h-12 rounded-2xl bg-white/15 text-white flex items-center justify-center flex-shrink-0 shadow-inner">
-              {isRightTurn ? (
-                <CornerUpRight className="w-7 h-7 text-white stroke-[3]" />
-              ) : isLeftTurn ? (
-                <CornerUpLeft className="w-7 h-7 text-white stroke-[3]" />
-              ) : (
-                <ArrowUp className="w-7 h-7 text-white stroke-[3]" />
-              )}
-            </div>
-
-            {/* Distance, Steps & Road Name */}
-            <div className="flex flex-col">
-              <div className="flex items-baseline gap-2">
-                <span className="text-2xl sm:text-3xl font-black tracking-tight">{stepDistance} m</span>
-                <span className="text-xs font-bold text-emerald-200">({stepStepsCount} steps ahead)</span>
-              </div>
-              <span className="text-xs sm:text-sm font-extrabold text-emerald-100 truncate max-w-[200px] sm:max-w-[320px]">
-                {navigationStep?.title || roadName}
-              </span>
-            </div>
-          </div>
-
-          {/* AI Surroundings & Voice Assistant button */}
-          <button
-            type="button"
-            onClick={() => speakText(`Next turn: in ${stepDistance} meters or ${stepStepsCount} steps, ${navigationStep?.title || 'turn onto ' + roadName}`)}
-            className="w-11 h-11 rounded-full bg-white text-[#05443B] flex items-center justify-center shadow-lg hover:scale-105 active:scale-95 transition-transform flex-shrink-0 cursor-pointer"
-            title="Voice guidance & AI assistance"
-          >
-            <Sparkles className="w-5 h-5 text-blue-600 fill-blue-600" />
-          </button>
-        </div>
-      </div>
-
-      {/* ─────────────────────────────────────────────────────────────────────
-          2. FLOATING RIGHT ACTION BUTTONS (COMPASS, SEARCH, VOICE, AR SCANNER)
-      ───────────────────────────────────────────────────────────────────── */}
-      <div className="absolute right-4 top-28 z-[1000] flex flex-col gap-2.5 items-center">
-        {/* North Indicator / Compass */}
-        <button
-          type="button"
-          onClick={() => {
-            setBearing(0);
-            speakText('Map aligned to True North');
-          }}
-          className="w-12 h-12 rounded-full bg-white text-slate-800 shadow-xl border border-slate-200 flex flex-col items-center justify-center hover:bg-slate-50 transition-colors cursor-pointer"
-          title="Compass North"
-        >
-          <span className="text-[10px] font-black text-red-600 leading-none">▲</span>
-          <span className="text-xs font-black text-slate-800 leading-none mt-0.5">N</span>
-        </button>
-
-        {/* Search button */}
-        <button
-          type="button"
-          onClick={() => speakText('Opening search for accessible points along your route')}
-          className="w-12 h-12 rounded-full bg-white text-slate-700 shadow-xl border border-slate-200 flex items-center justify-center hover:bg-slate-50 transition-colors cursor-pointer"
-          title="Search along route"
-        >
-          <Search className="w-5 h-5" />
-        </button>
-
-        {/* Mute / Unmute Voice */}
-        <button
-          type="button"
-          onClick={() => {
-            toggleVoicePrompt();
-            speakText(isVoicePromptActive ? 'Voice guidance muted' : 'Voice guidance enabled');
-          }}
-          className={`w-12 h-12 rounded-full shadow-xl border flex items-center justify-center transition-colors cursor-pointer ${
-            isVoicePromptActive
-              ? 'bg-white text-slate-800 border-slate-200 hover:bg-slate-50'
-              : 'bg-slate-800 text-white border-slate-900'
-          }`}
-          title="Toggle Voice Guidance"
-        >
-          {isVoicePromptActive ? <Volume2 className="w-5 h-5 text-primary" /> : <VolumeX className="w-5 h-5 text-amber-400" />}
-        </button>
-
-        {/* Surroundings Scanner Button */}
-        <button
-          type="button"
-          onClick={() => speakText('Scanning surroundings camera for obstacles and tactile paving')}
-          className="w-12 h-12 rounded-full bg-white text-slate-700 shadow-xl border border-slate-200 flex items-center justify-center hover:bg-slate-50 transition-colors cursor-pointer"
-          title="Scan surroundings camera"
-        >
-          <Camera className="w-5 h-5 text-primary" />
-        </button>
-      </div>
-
-      {/* ─────────────────────────────────────────────────────────────────────
-          3. FLOATING "▲ RE-CENTRE" BUTTON (BOTTOM-LEFT)
-      ───────────────────────────────────────────────────────────────────── */}
-      <div className="absolute bottom-24 left-4 z-[1000]">
-        <button
-          type="button"
-          onClick={handleRecentre}
-          className="px-4 py-2.5 rounded-full bg-white text-[#1d4ed8] font-black text-xs shadow-2xl border border-slate-200 flex items-center gap-2 hover:bg-slate-50 hover:scale-105 active:scale-95 transition-all cursor-pointer"
-        >
-          <Navigation className="w-4 h-4 text-[#1d4ed8] fill-current" />
-          <span>Re-centre</span>
-        </button>
-      </div>
-
-      {/* ─────────────────────────────────────────────────────────────────────
-          4. BOTTOM GOOGLE MAPS SUMMARY CARD (ETA, DISTANCE, ALTERNATIVES, CLOSE)
-      ───────────────────────────────────────────────────────────────────── */}
-      <div className="absolute bottom-4 left-4 right-4 z-[1000]">
-        <div className="p-4 sm:p-5 rounded-3xl bg-white text-slate-900 shadow-2xl border border-slate-200 flex items-center justify-between backdrop-blur-md">
-          {/* Close Navigation button */}
-          <button
-            type="button"
-            onClick={onExitNavigation}
-            className="w-11 h-11 rounded-full bg-slate-100 hover:bg-slate-200 text-slate-700 flex items-center justify-center transition-colors cursor-pointer"
-            title="Exit Navigation"
-          >
-            <X className="w-5 h-5 stroke-[2.5]" />
-          </button>
-
-          {/* Center ETA & Steps Status */}
-          <div className="flex flex-col items-center text-center">
-            <span className="text-2xl sm:text-3xl font-black text-slate-900 tracking-tight leading-none">
-              {totalMinutes} min
-            </span>
-            <div className="flex items-center gap-1.5 text-xs font-extrabold text-slate-500 mt-1">
-              <span>{totalDistanceKm} km</span>
-              <span>•</span>
-              <span className="text-secondary font-black flex items-center gap-0.5">
-                <Footprints className="w-3.5 h-3.5" />
-                {totalSteps} steps
-              </span>
-              <span>•</span>
-              <span>
-                {new Date(Date.now() + totalMinutes * 60000).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
-              </span>
-            </div>
-          </div>
-
-          {/* Alternative Routes Switcher */}
-          <button
-            type="button"
-            onClick={() => speakText('Recalculating alternative step-free routes')}
-            className="w-11 h-11 rounded-full bg-slate-100 hover:bg-slate-200 text-slate-700 flex items-center justify-center transition-colors cursor-pointer"
-            title="Alternative Routes"
-          >
-            <GitFork className="w-5 h-5 stroke-[2.5]" />
-          </button>
-        </div>
-      </div>
-
       {/* Floating Style Picker (Top Left) */}
-      <div className="absolute top-24 left-4 z-[999] p-1 rounded-2xl bg-white/90 backdrop-blur-md border border-slate-200 shadow-md flex items-center gap-1">
+      <div className="absolute top-4 left-4 z-[999] p-1 rounded-2xl bg-white/90 backdrop-blur-md border border-slate-200 shadow-md flex items-center gap-1">
         <button
           type="button"
           onClick={() => setMapType('roadmap')}
@@ -520,6 +342,72 @@ function LeafletGoogleStyleMap({
         >
           <Globe className="w-3 h-3" />
           <span>Satellite</span>
+        </button>
+      </div>
+
+      {/* Floating Map Action Buttons (Compass, Search, Voice, Scanner) */}
+      <div className="absolute right-4 top-4 z-[1000] flex flex-col gap-2.5 items-center">
+        {/* North Indicator / Compass */}
+        <button
+          type="button"
+          onClick={() => {
+            setBearing(0);
+            speakText('Map aligned to True North');
+          }}
+          className="w-11 h-11 rounded-full bg-white text-slate-800 shadow-xl border border-slate-200 flex flex-col items-center justify-center hover:bg-slate-50 transition-colors cursor-pointer"
+          title="Compass North"
+        >
+          <span className="text-[10px] font-black text-red-600 leading-none">▲</span>
+          <span className="text-xs font-black text-slate-800 leading-none mt-0.5">N</span>
+        </button>
+
+        {/* Search button */}
+        <button
+          type="button"
+          onClick={() => speakText('Opening search for accessible points along your route')}
+          className="w-11 h-11 rounded-full bg-white text-slate-700 shadow-xl border border-slate-200 flex items-center justify-center hover:bg-slate-50 transition-colors cursor-pointer"
+          title="Search along route"
+        >
+          <Search className="w-4 h-4" />
+        </button>
+
+        {/* Mute / Unmute Voice */}
+        <button
+          type="button"
+          onClick={() => {
+            toggleVoicePrompt();
+            speakText(isVoicePromptActive ? 'Voice guidance muted' : 'Voice guidance enabled');
+          }}
+          className={`w-11 h-11 rounded-full shadow-xl border flex items-center justify-center transition-colors cursor-pointer ${
+            isVoicePromptActive
+              ? 'bg-white text-slate-800 border-slate-200 hover:bg-slate-50'
+              : 'bg-slate-800 text-white border-slate-900'
+          }`}
+          title="Toggle Voice Guidance"
+        >
+          {isVoicePromptActive ? <Volume2 className="w-4 h-4 text-primary" /> : <VolumeX className="w-4 h-4 text-amber-400" />}
+        </button>
+
+        {/* Surroundings Scanner Button */}
+        <button
+          type="button"
+          onClick={() => speakText('Scanning surroundings camera for obstacles and tactile paving')}
+          className="w-11 h-11 rounded-full bg-white text-slate-700 shadow-xl border border-slate-200 flex items-center justify-center hover:bg-slate-50 transition-colors cursor-pointer"
+          title="Scan surroundings camera"
+        >
+          <Camera className="w-4 h-4 text-primary" />
+        </button>
+      </div>
+
+      {/* Floating Re-centre Button (Bottom-Left) */}
+      <div className="absolute bottom-4 left-4 z-[1000]">
+        <button
+          type="button"
+          onClick={handleRecentre}
+          className="px-4 py-2.5 rounded-full bg-white text-[#1d4ed8] font-black text-xs shadow-2xl border border-slate-200 flex items-center gap-2 hover:bg-slate-50 hover:scale-105 active:scale-95 transition-all cursor-pointer"
+        >
+          <Navigation className="w-4 h-4 text-[#1d4ed8] fill-current" />
+          <span>Re-centre</span>
         </button>
       </div>
     </div>

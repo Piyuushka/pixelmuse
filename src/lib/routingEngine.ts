@@ -429,8 +429,18 @@ export function calculateAdaptedRoute(
     };
   }
 
-  // Collect route coordinates & affected barriers
-  const routeCoords = pathNodeIds.map(id => nodes[id].coordinates);
+  // Collect route coordinates & deduplicate consecutive identical waypoints
+  const rawRouteCoords = pathNodeIds.map(id => nodes[id].coordinates);
+  const routeCoords: Coordinates[] = [];
+  for (let i = 0; i < rawRouteCoords.length; i++) {
+    if (
+      i === 0 ||
+      rawRouteCoords[i].lat !== rawRouteCoords[i - 1].lat ||
+      rawRouteCoords[i].lng !== rawRouteCoords[i - 1].lng
+    ) {
+      routeCoords.push(rawRouteCoords[i]);
+    }
+  }
   const affectedByBarriers: IndianBarrierReport[] = [];
   let containsCompleteBlockage = false;
   let containsHeavyFlooding = false;

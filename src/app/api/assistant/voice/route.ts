@@ -13,7 +13,7 @@ export interface NavigationStep {
 export async function POST(req: Request) {
   try {
     const body = await req.json();
-    const { transcript = '', currentCoords, userPersona = 'low-vision', image } = body;
+    const { transcript = '', userPersona = 'low-vision', image } = body;
 
     const lower = (transcript || '').toLowerCase().trim();
     const apiKey = process.env.GEMINI_API_KEY || process.env.NEXT_PUBLIC_GEMINI_API_KEY;
@@ -34,7 +34,7 @@ export async function POST(req: Request) {
 
     if (isDescribeIntent) {
       let visionSpoken = '';
-      let visualDetails = {
+      const visualDetails = {
         obstacles: ['Three steps going up', 'Glass entrance door'],
         hazardLevel: 'low',
         handrail: 'Right side stainless steel handrail',
@@ -209,11 +209,91 @@ Example: "There are three steps going up, followed by a glass door. Stainless st
     }
 
     // =========================================================================
-    // 3. CONTEXT-AWARE LANDMARK-GUIDED NAVIGATION FOR THE BLIND
+    // 3. NAVIGATION CONTROL COMMAND INTERCEPTION
+    // =========================================================================
+    if (
+      lower === 'next' ||
+      lower === 'next step' ||
+      lower === 'continue' ||
+      lower === 'go next' ||
+      lower === 'forward' ||
+      lower === 'go forward' ||
+      lower === 'move on'
+    ) {
+      return NextResponse.json({
+        success: true,
+        intent: 'NEXT_STEP',
+        spokenResponse: 'Advancing to the next step.',
+        hapticCue: 'confirm',
+      });
+    }
+
+    if (
+      lower === 'previous' ||
+      lower === 'previous step' ||
+      lower === 'back' ||
+      lower === 'go back' ||
+      lower === 'last step' ||
+      lower === 'step back'
+    ) {
+      return NextResponse.json({
+        success: true,
+        intent: 'PREVIOUS_STEP',
+        spokenResponse: 'Returning to previous step.',
+        hapticCue: 'confirm',
+      });
+    }
+
+    if (
+      lower === 'repeat' ||
+      lower === 'repeat step' ||
+      lower === 'repeat direction' ||
+      lower === 'again' ||
+      lower === 'what was that' ||
+      lower === 'say again'
+    ) {
+      return NextResponse.json({
+        success: true,
+        intent: 'REPEAT_STEP',
+        spokenResponse: 'Repeating direction.',
+        hapticCue: 'confirm',
+      });
+    }
+
+    if (
+      lower === 'where am i' ||
+      lower === 'status' ||
+      lower === 'current step' ||
+      lower === 'navigation status'
+    ) {
+      return NextResponse.json({
+        success: true,
+        intent: 'NAVIGATION_STATUS',
+        spokenResponse: 'Current navigation status.',
+        hapticCue: 'confirm',
+      });
+    }
+
+    if (
+      lower === 'stop navigation' ||
+      lower === 'cancel navigation' ||
+      lower === 'end navigation' ||
+      lower === 'stop navigating'
+    ) {
+      return NextResponse.json({
+        success: true,
+        intent: 'STOP_NAVIGATION',
+        spokenResponse: 'Navigation stopped.',
+        hapticCue: 'confirm',
+      });
+    }
+
+    // =========================================================================
+    // 4. CONTEXT-AWARE LANDMARK-GUIDED NAVIGATION FOR THE BLIND
     // =========================================================================
     let destination = 'Cardiology Pavilion Suite 304';
-    let origin = 'Current Location';
-    let persona = userPersona || 'low-vision';
+    const origin = 'Current Location';
+    const persona = userPersona || 'low-vision';
     let spokenIntro = '';
     let landmarkSteps: NavigationStep[] = [];
 
@@ -353,7 +433,7 @@ Generate a valid JSON object matching this structure:
           },
           {
             stepNumber: 4,
-            instruction: 'Walk 12 steps across the tactile ground indicator. Arrive at Shivaji Park accessible entrance.',
+            instruction: 'Walk 12 steps across the tactile ground indicator to the accessible entrance gate.',
             landmark: 'Tactile ground indicator',
             cue: 'stop',
             distance: '12 steps',
@@ -388,7 +468,7 @@ Generate a valid JSON object matching this structure:
           },
           {
             stepNumber: 4,
-            instruction: 'Walk 10 steps to the main automatic sliding glass doors. Arrive at Central Library & Reading Hub.',
+            instruction: 'Walk 10 steps to the main automatic sliding glass entrance doors.',
             landmark: 'Automatic sliding doors',
             cue: 'stop',
             distance: '10 steps',
@@ -424,7 +504,7 @@ Generate a valid JSON object matching this structure:
           },
           {
             stepNumber: 4,
-            instruction: `Walk 10 steps straight ahead to the 110cm wide automatic entrance. Arrive at ${destination}.`,
+            instruction: 'Walk 10 steps straight ahead to the 110cm wide automatic accessible entrance.',
             landmark: 'Accessible automatic entrance',
             cue: 'stop',
             distance: '10 steps',
@@ -435,7 +515,7 @@ Generate a valid JSON object matching this structure:
     }
 
     if (!spokenIntro) {
-      spokenIntro = `Calculating accessible route to ${destination}. Step 1: ${landmarkSteps[0].instruction}`;
+      spokenIntro = `Accessible route to ${destination} is ready.`;
     }
 
     // Calculate routing engine representation
@@ -460,10 +540,11 @@ Generate a valid JSON object matching this structure:
       navigationSteps: landmarkSteps,
       route: routeEngineResult,
     });
-  } catch (err: any) {
+  } catch (err: unknown) {
+    const errorMsg = err instanceof Error ? err.message : 'Server error processing voice request';
     console.error('Voice Assistant Endpoint Error:', err);
     return NextResponse.json(
-      { success: false, error: err?.message || 'Server error processing voice request' },
+      { success: false, error: errorMsg },
       { status: 500 }
     );
   }

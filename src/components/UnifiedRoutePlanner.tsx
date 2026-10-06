@@ -16,6 +16,23 @@ import {
   RouteScenarioData
 } from '@/data/routeSimulatorData';
 import { getLiveRouteScenario, searchLocation } from '@/lib/orsClient';
+import {
+  cleanStepInstruction,
+  getConciseDestinationName,
+  buildNavigationSpeech,
+  NavigationStep,
+} from '@/lib/navigationVoiceCommander';
+import {
+  navigationSessionStore,
+  createNavigationSession,
+  advanceNavigationStep,
+  previousNavigationStep,
+  repeatNavigationStep,
+  transitionAdvanceStep,
+  transitionPreviousStep,
+  transitionRepeatStep,
+  transitionStopNavigation,
+} from '@/lib/authoritativeNavigationSession';
 import LocationSearchInput from '@/components/LocationSearchInput';
 import {
   MapPin,
@@ -47,7 +64,10 @@ import {
   Heart,
   Radio,
   Lock,
-  ArrowDown
+  ArrowDown,
+  ChevronLeft,
+  ChevronRight,
+  X
 } from 'lucide-react';
 
 interface UnifiedRoutePlannerProps {
@@ -278,28 +298,161 @@ export default function UnifiedRoutePlanner({ initialMode = 'gps' }: UnifiedRout
       }, 700);
       return () => clearTimeout(timer);
     }
-  }, [urlAutonav, urlDest, initialDest]);
+  }, [urlAutonav, urlDest, initialDest, accessibleSteps, speakText]);
+
+  // Synchronize with authoritativeNavigationSession store
+  useEffect(() => {
+    const unsubscribe = navigationSessionStore.subscribe((session) => {
+      if (session) {
+        if (session.status === 'navigating') {
+          setIsNavigating(true);
+          setCurrentStepIndex(session.currentStepIndex);
+        } else if (session.status === 'arrived') {
+          setIsNavigating(true);
+          setCurrentStepIndex(session.steps.length - 1);
+        } else if (session.status === 'stopped') {
+          setIsNavigating(false);
+        }
+      }
+    });
+    return unsubscribe;
+  }, []);
 
   const handleStartNavigation = () => {
     setIsNavigating(true);
     setCurrentStepIndex(0);
-    const firstStep =
+    const total = accessibleSteps ? accessibleSteps.length : 1;
+    const rawStep =
       accessibleSteps?.[0]?.detail ||
       accessibleSteps?.[0]?.title ||
       'Follow the arrows on the map.';
-    speakText(`Voice navigation started to ${destName}. Step 1: ${firstStep}`);
+    const conciseDest = getConciseDestinationName(destName);
+    const firstStep = cleanStepInstruction(rawStep, conciseDest);
+
+    if (accessibleSteps && accessibleSteps.length > 0) {
+      const navSteps: NavigationStep[] = accessibleSteps.map((s, idx) => ({
+        stepNumber: idx + 1,
+        instruction: cleanStepInstruction(s.detail || s.title, conciseDest),
+        landmark: s.title,
+        distance: s.distance ? `${Math.round(s.distance)}m` : 'Direct',
+        cue: s.title.toLowerCase().includes('left')
+          ? 'left_turn'
+          : s.title.toLowerCase().includes('right')
+          ? 'right_turn'
+          : 'confirm',
+      }));
+
+      const session = createNavigationSession({
+        destination: destName,
+        steps: navSteps,
+        persona: preference,
+      });
+      navigationSessionStore.setSession(session);
+    }
+
+    const initialSpeech = buildNavigationSpeech(
+      {
+        stepNumber: 1,
+        instruction: firstStep,
+        landmark: accessibleSteps?.[0]?.title,
+        cue: 'confirm',
+        distance: accessibleSteps?.[0]?.distance ? `${Math.round(accessibleSteps[0].distance)}m` : 'Direct',
+      },
+      0,
+      total,
+      { isInitial: true, destination: conciseDest }
+    );
+    speakText(initialSpeech);
     mapSectionRef.current?.scrollIntoView({ behavior: 'smooth', block: 'start' });
   };
 
+  const handleNextStep = () => {
+    if (isNavigating) {
+      const result = advanceNavigationStep();
+      if (result) {
+        setCurrentStepIndex(result.index);
+        if (result.isArrival) {
+          speakText(`You have arrived safely at ${getConciseDestinationName(destName)}.`);
+        } else {
+          const speech = buildNavigationSpeech(
+            result.step,
+            result.index,
+            result.session.steps.length,
+            { destination: getConciseDestinationName(destName) }
+          );
+          speakText(speech);
+        }
+        return;
+      }
+    }
+    handleSimulateWalk();
+  };
+
+  const handlePreviousStep = () => {
+    if (isNavigating && currentStepIndex > 0) {
+      const result = previousNavigationStep();
+      if (result) {
+        setCurrentStepIndex(result.index);
+        const speech = buildNavigationSpeech(
+          result.step,
+          result.index,
+          result.session.steps.length,
+          { destination: getConciseDestinationName(destName) }
+        );
+        speakText(speech);
+        return;
+      }
+    }
+    if (currentStepIndex > 0) {
+      const prevIdx = currentStepIndex - 1;
+      setCurrentStepIndex(prevIdx);
+      if (accessibleSteps && accessibleSteps[prevIdx]) {
+        const s = accessibleSteps[prevIdx];
+        speakText(`Step ${prevIdx + 1} of ${accessibleSteps.length}: ${cleanStepInstruction(s.detail || s.title, destName)}`);
+      }
+    }
+  };
+
+  const handleRepeatStep = () => {
+    if (isNavigating) {
+      const result = repeatNavigationStep();
+      if (result) {
+        const speech = buildNavigationSpeech(
+          result.step,
+          result.index,
+          result.session.steps.length,
+          { destination: getConciseDestinationName(destName) }
+        );
+        speakText(speech);
+        return;
+      }
+    }
+    if (accessibleSteps && accessibleSteps[currentStepIndex]) {
+      const s = accessibleSteps[currentStepIndex];
+      speakText(`Step ${currentStepIndex + 1} of ${accessibleSteps.length}: ${cleanStepInstruction(s.detail || s.title, destName)}`);
+    }
+  };
+
+  const handleEndNavigation = () => {
+    const currentSession = navigationSessionStore.getSession();
+    if (currentSession) {
+      const stopped = transitionStopNavigation(currentSession);
+      navigationSessionStore.setSession(stopped);
+    }
+    setIsNavigating(false);
+    speakText('Navigation stopped.');
+  };
+
   const handleSimulateWalk = () => {
+    const conciseDest = getConciseDestinationName(destName);
     if (accessibleSteps && currentStepIndex < accessibleSteps.length - 1) {
       const nextIdx = currentStepIndex + 1;
       setCurrentStepIndex(nextIdx);
       const step = accessibleSteps[nextIdx];
-      const stepText = step.detail || step.title;
-      speakText(`Step ${nextIdx + 1}: ${stepText}`);
+      const stepText = cleanStepInstruction(step.detail || step.title, conciseDest);
+      speakText(`Step ${nextIdx + 1} of ${accessibleSteps.length}: ${stepText}`);
     } else {
-      speakText("You have arrived safely at your destination.");
+      speakText(`You have arrived safely at ${conciseDest}.`);
       setIsNavigating(false);
     }
   };
@@ -502,8 +655,8 @@ export default function UnifiedRoutePlanner({ initialMode = 'gps' }: UnifiedRout
 
           </div>
 
-          {/* Complete Google Maps Style Interactive Map Component */}
-          <div className="relative rounded-3xl overflow-hidden border border-outline-variant/40 shadow-xl h-[540px]">
+          {/* Dedicated Map Container - Completely Unobstructed */}
+          <div className="relative rounded-3xl overflow-hidden border border-outline-variant/40 shadow-xl h-[480px] sm:h-[520px] md:h-[560px] w-full">
             {/* Route updated toast banner */}
             {routeUpdateToast && (
               <div className="absolute top-4 left-4 right-4 sm:left-auto sm:right-6 sm:max-w-md z-[1100] p-3.5 rounded-2xl bg-secondary text-white shadow-2xl border-2 border-white/40 flex items-center justify-between gap-3 animate-fade-in" role="status" aria-live="polite">
@@ -533,92 +686,204 @@ export default function UnifiedRoutePlanner({ initialMode = 'gps' }: UnifiedRout
               isRerouted={isRerouteActive}
               navigationStep={isNavigating && effectiveSteps ? effectiveSteps[currentStepIndex] : undefined}
               isNavigating={isNavigating}
-              onExitNavigation={() => setIsNavigating(false)}
+              onExitNavigation={handleEndNavigation}
               totalDistanceKm={isRerouteActive && activeHazardAlert?.rerouteResult?.distance ? activeHazardAlert.rerouteResult.distance : (accessible?.distance || 3.6)}
               totalMinutes={isRerouteActive && activeHazardAlert?.rerouteResult?.route?.properties?.durationMinutes ? activeHazardAlert.rerouteResult.route.properties.durationMinutes : (accessible?.time || 51)}
               totalSteps={Math.round(((accessible?.distance || 3.6) * 1000) / 0.75)}
               destName={destName}
               roadName={effectiveSteps?.[currentStepIndex]?.title || 'Juhu Rd / Juhu Tara Rd'}
             />
-            {isNavigating && effectiveSteps && (
-              <div className="absolute top-0 right-0 h-full w-full sm:w-80 md:w-96 bg-surface text-on-surface z-[1000] shadow-xl border-l border-outline-variant/30 flex flex-col overflow-hidden animate-in slide-in-from-right-4 duration-300">
-                <div className="p-4 bg-primary text-on-primary font-black flex items-center justify-between shrink-0 shadow-sm">
-                  <div className="flex items-center gap-2">
-                    <Navigation className="w-5 h-5" />
-                    <span>Turn-by-Turn Navigation</span>
-                  </div>
-                  <button onClick={() => setIsNavigating(false)} className="px-3 py-1 bg-white/20 hover:bg-white/30 rounded-lg text-xs transition-colors cursor-pointer">
-                    End
+          </div>
+
+          {/* TURN-BY-TURN NAVIGATION: Dedicated card immediately BELOW the map in normal document flow */}
+          {isNavigating && accessibleSteps && (
+            <div className="rounded-3xl bg-surface border border-outline-variant/40 shadow-xl p-5 sm:p-6 md:p-8 flex flex-col gap-6 animate-in fade-in slide-in-from-top-4 duration-300">
+              {/* Header: Step Number & Progress */}
+              <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 pb-4 border-b border-outline-variant/30">
+                <div className="flex items-center gap-3">
+                  <span className="px-3 py-1 rounded-full bg-primary/10 text-primary text-xs font-black tracking-wider uppercase flex items-center gap-1.5">
+                    <Navigation className="w-3.5 h-3.5" />
+                    Step {Math.min(currentStepIndex + 1, accessibleSteps.length)} of {accessibleSteps.length}
+                  </span>
+                  <span className="text-xs font-bold text-on-surface-variant flex items-center gap-1">
+                    <Clock className="w-3.5 h-3.5 text-secondary" />
+                    {isRerouteActive && activeHazardAlert?.rerouteResult?.route?.properties?.durationMinutes ? activeHazardAlert.rerouteResult.route.properties.durationMinutes : (accessible?.time || 51)} min • {isRerouteActive && activeHazardAlert?.rerouteResult?.distance ? activeHazardAlert.rerouteResult.distance : (accessible?.distance || 3.6)} km
+                  </span>
+                </div>
+                <div className="flex items-center gap-2">
+                  <span className="text-[11px] font-black uppercase text-emerald-600 dark:text-emerald-400 bg-emerald-500/10 px-2.5 py-1 rounded-full flex items-center gap-1">
+                    <span className="w-2 h-2 rounded-full bg-emerald-500 animate-pulse" />
+                    Turn-by-Turn Guidance Active
+                  </span>
+                  <button
+                    type="button"
+                    onClick={handleEndNavigation}
+                    className="px-3 py-1.5 rounded-xl bg-surface-container-high hover:bg-surface-container-highest text-xs font-bold text-on-surface flex items-center gap-1 transition-colors cursor-pointer"
+                  >
+                    <X className="w-3.5 h-3.5" />
+                    <span>End</span>
                   </button>
                 </div>
-                
-                <div className="flex-1 overflow-y-auto">
-                  {effectiveSteps.map((step, idx) => {
+              </div>
+
+              {/* Current Active Step Instruction Card */}
+              {accessibleSteps[currentStepIndex] && (
+                <div className="p-5 md:p-6 rounded-2xl bg-primary/5 border-2 border-primary/30 flex flex-col sm:flex-row items-start sm:items-center gap-5">
+                  <div className="w-14 h-14 rounded-2xl bg-primary text-white flex items-center justify-center font-black text-2xl shadow-md shrink-0">
+                    {accessibleSteps[currentStepIndex].title.toLowerCase().includes('left') ? '↰' : 
+                     accessibleSteps[currentStepIndex].title.toLowerCase().includes('right') ? '↱' : 
+                     accessibleSteps[currentStepIndex].type === 'elevator' ? '🛗' :
+                     accessibleSteps[currentStepIndex].type === 'ramp' ? '♿' : '↑'}
+                  </div>
+                  <div className="flex-1 flex flex-col gap-1.5">
+                    <div className="flex items-center gap-2 flex-wrap">
+                      <span className="text-xs font-black uppercase tracking-wider text-primary">
+                        STEP {currentStepIndex + 1} OF {accessibleSteps.length}
+                      </span>
+                      <span className="text-xs font-bold text-secondary flex items-center gap-1">
+                        <Footprints className="w-3.5 h-3.5" />
+                        {accessibleSteps[currentStepIndex].distance
+                          ? `${Math.round(accessibleSteps[currentStepIndex].distance)} m ahead (${Math.max(1, Math.round(accessibleSteps[currentStepIndex].distance / 0.75))} steps)`
+                          : 'Destination ahead'}
+                      </span>
+                    </div>
+                    <h3 className="text-xl md:text-2xl font-black text-on-surface leading-snug">
+                      {accessibleSteps[currentStepIndex].title}
+                    </h3>
+                    <p className="text-sm font-medium text-on-surface-variant">
+                      {accessibleSteps[currentStepIndex].detail}
+                    </p>
+                    {/* Landmark Confirmation */}
+                    <div className="mt-1 flex items-center gap-2 flex-wrap">
+                      <span className="text-xs font-extrabold text-on-surface bg-surface-container-high px-2.5 py-1 rounded-lg flex items-center gap-1">
+                        <Building className="w-3.5 h-3.5 text-primary" />
+                        <strong>Landmark:</strong> {accessibleSteps[currentStepIndex].title}
+                      </span>
+                      <span className="text-xs font-bold text-emerald-700 dark:text-emerald-300 bg-emerald-500/10 px-2.5 py-1 rounded-lg flex items-center gap-1">
+                        <ShieldCheck className="w-3.5 h-3.5" />
+                        Step-free route • Low slope
+                      </span>
+                    </div>
+                  </div>
+                </div>
+              )}
+
+              {/* Navigation Action Buttons (Previous / Repeat / Next / Simulate) */}
+              <div className="flex items-center justify-between gap-3 flex-wrap">
+                <div className="flex items-center gap-2">
+                  <button
+                    type="button"
+                    onClick={handlePreviousStep}
+                    disabled={currentStepIndex <= 0}
+                    className="px-4 py-2.5 rounded-xl bg-surface-container hover:bg-surface-container-high disabled:opacity-40 disabled:cursor-not-allowed text-xs font-black text-on-surface flex items-center gap-1.5 transition-colors cursor-pointer border border-outline-variant/30"
+                  >
+                    <ChevronLeft className="w-4 h-4" />
+                    <span>Previous</span>
+                  </button>
+
+                  <button
+                    type="button"
+                    onClick={handleRepeatStep}
+                    className="px-4 py-2.5 rounded-xl bg-surface-container hover:bg-surface-container-high text-xs font-black text-on-surface flex items-center gap-1.5 transition-colors cursor-pointer border border-outline-variant/30"
+                    title="Repeat current instruction"
+                  >
+                    <Volume2 className="w-4 h-4 text-primary" />
+                    <span>Repeat</span>
+                  </button>
+                </div>
+
+                <div className="flex items-center gap-2">
+                  <button
+                    type="button"
+                    onClick={handleNextStep}
+                    disabled={currentStepIndex >= accessibleSteps.length}
+                    className="px-5 py-2.5 rounded-xl bg-primary text-white hover:bg-primary-container text-xs font-black flex items-center gap-1.5 shadow-sm transition-all cursor-pointer"
+                  >
+                    <span>{currentStepIndex >= accessibleSteps.length - 1 ? 'Arrived' : 'Next Step'}</span>
+                    <ChevronRight className="w-4 h-4" />
+                  </button>
+
+                  <button
+                    type="button"
+                    onClick={handleSimulateWalk}
+                    disabled={currentStepIndex >= accessibleSteps.length}
+                    className="px-4 py-2.5 rounded-xl bg-secondary text-white hover:bg-secondary-container text-xs font-black flex items-center gap-1.5 transition-colors cursor-pointer"
+                  >
+                    <span>Simulate Walk</span>
+                  </button>
+                </div>
+              </div>
+
+              {/* Full Route Steps Overview (Scrollable timeline) */}
+              <div className="flex flex-col gap-2 pt-2 border-t border-outline-variant/30">
+                <span className="text-xs font-black uppercase text-on-surface-variant tracking-wider">
+                  Complete Route Journey ({accessibleSteps.length} Steps)
+                </span>
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-3 max-h-64 overflow-y-auto pr-1">
+                  {accessibleSteps.map((step, idx) => {
                     const isPast = idx < currentStepIndex;
                     const isCurrent = idx === currentStepIndex;
                     return (
-                      <div key={step.id} className={`p-4 border-b border-outline-variant/30 flex gap-4 transition-colors ${
-                        isPast ? 'opacity-50 bg-surface-container' : 
-                        isCurrent ? 'bg-primary/5 border-l-4 border-primary' : 'bg-surface'
-                      }`}>
-                        <div className="w-8 flex flex-col items-center gap-2 shrink-0">
-                          <div className={`w-8 h-8 rounded-full flex items-center justify-center font-bold shadow-xs ${isCurrent ? 'bg-primary text-white' : 'bg-surface-container-high text-on-surface-variant'}`}>
-                            {step.title.toLowerCase().includes('left') ? '↰' : 
-                             step.title.toLowerCase().includes('right') ? '↱' : '↑'}
-                          </div>
-                          {idx < effectiveSteps.length - 1 && (
-                            <div className="w-1 flex-1 bg-outline-variant/40 rounded-full min-h-[20px]" />
-                          )}
+                      <div
+                        key={step.id}
+                        className={`p-3.5 rounded-xl border flex items-start gap-3 transition-colors ${
+                          isPast
+                            ? 'opacity-60 bg-surface-container-low border-outline-variant/20'
+                            : isCurrent
+                            ? 'bg-primary/10 border-primary shadow-xs'
+                            : 'bg-surface-container-lowest border-outline-variant/30'
+                        }`}
+                      >
+                        <div
+                          className={`w-6 h-6 rounded-full flex items-center justify-center font-bold text-xs shrink-0 ${
+                            isPast
+                              ? 'bg-slate-300 dark:bg-slate-700 text-on-surface'
+                              : isCurrent
+                              ? 'bg-primary text-white'
+                              : 'bg-surface-container text-on-surface-variant'
+                          }`}
+                        >
+                          {isPast ? '✓' : idx + 1}
                         </div>
-                        <div className="flex flex-col py-1">
-                           <span className="font-extrabold text-sm text-on-surface">{step.title}</span>
-                           <span className="text-xs font-medium text-on-surface-variant mt-1">{step.detail}</span>
-                           <span className="text-[11px] font-black text-secondary mt-1.5 flex items-center gap-1">
-                             <Footprints className="w-3 h-3" />
-                             {step.distance && step.distance > 0 ? `${Math.max(1, Math.round(step.distance / 0.75))} steps ahead (${Math.round(step.distance)}m)` : 'Destination ahead'}
-                           </span>
+                        <div className="flex flex-col">
+                          <span className="font-extrabold text-xs text-on-surface leading-tight">
+                            {step.title}
+                          </span>
+                          <span className="text-[11px] font-medium text-on-surface-variant line-clamp-1 mt-0.5">
+                            {step.detail}
+                          </span>
+                          {step.distance && (
+                            <span className="text-[10px] font-black text-secondary mt-1">
+                              {Math.round(step.distance)}m ahead
+                            </span>
+                          )}
                         </div>
                       </div>
                     );
                   })}
-                  
-                  {/* Last 50 Meters Context (Core USP) */}
-                  <div className={`p-5 flex gap-4 ${currentStepIndex >= effectiveSteps.length ? 'bg-emerald-50/50 border-l-4 border-emerald-500' : 'bg-surface-container-lowest'}`}>
-                     <div className="w-8 flex flex-col items-center shrink-0">
-                        <div className="w-8 h-8 rounded-full bg-emerald-600 text-white flex items-center justify-center shadow-md">
-                          <MapPin className="w-4 h-4" />
-                        </div>
-                     </div>
-                     <div className="flex flex-col py-0.5">
-                         <span className="text-[10px] font-black uppercase text-emerald-700 tracking-wider mb-1">
-                           Last 50 Meters Precision
-                         </span>
-                         <span className="font-extrabold text-sm text-on-surface leading-tight">
-                           Arrive at {destName} - North Wing Wheelchair Ramp Entrance
-                         </span>
-                         <div className="mt-2 p-3 bg-emerald-100/50 border border-emerald-200 rounded-xl">
-                           <span className="text-xs font-bold text-emerald-900 block flex items-start gap-1.5">
-                             <Volume2 className="w-4 h-4 flex-shrink-0 mt-0.5" />
-                             "You are at the North Entrance. The elevators are 10 meters ahead on your left."
-                           </span>
-                         </div>
-                     </div>
-                  </div>
-                </div>
-
-                {/* Simulate Next Step CTA */}
-                <div className="p-4 bg-surface-container border-t border-outline-variant/30 shrink-0">
-                  <button
-                    onClick={handleSimulateWalk}
-                    disabled={currentStepIndex > effectiveSteps.length}
-                    className="w-full py-3 bg-secondary hover:bg-secondary-container text-white hover:text-on-secondary-container rounded-xl shadow-sm font-black text-sm transition-colors disabled:opacity-50 disabled:cursor-not-allowed cursor-pointer"
-                  >
-                    {currentStepIndex >= effectiveSteps.length ? 'Arrived' : 'Simulate Next Turn'}
-                  </button>
                 </div>
               </div>
-            )}
-          </div>
+
+              {/* Last 50 Meters Context (Arrival Guidance) */}
+              <div className={`p-4 rounded-2xl flex gap-4 ${currentStepIndex >= accessibleSteps.length - 1 ? 'bg-emerald-500/10 border-2 border-emerald-500' : 'bg-surface-container-low border border-outline-variant/30'}`}>
+                <div className="w-10 h-10 rounded-full bg-emerald-600 text-white flex items-center justify-center shadow-md shrink-0">
+                  <MapPin className="w-5 h-5" />
+                </div>
+                <div className="flex flex-col gap-1">
+                  <span className="text-[10px] font-black uppercase text-emerald-700 dark:text-emerald-400 tracking-wider">
+                    Last 50 Meters Precision
+                  </span>
+                  <span className="font-extrabold text-sm text-on-surface leading-tight">
+                    Arrive at {destName} - North Wing Accessible Entrance
+                  </span>
+                  <p className="text-xs font-bold text-emerald-900 dark:text-emerald-200 mt-1 flex items-start gap-1.5">
+                    <Volume2 className="w-4 h-4 flex-shrink-0 mt-0.5" />
+                    &quot;You are at the North Entrance. The elevators are 10 meters ahead on your left.&quot;
+                  </p>
+                </div>
+              </div>
+            </div>
+          )}
         </section>
 
         {/* ========================================================================= */}

@@ -14,33 +14,44 @@ import {
   Camera,
   ChevronRight,
   ChevronLeft,
-  RotateCcw,
   CheckCircle2,
   Eye,
-  MapPin,
   Compass,
-  Radio,
+  Square,
 } from 'lucide-react';
 import { useVoiceFeedback } from '@/hooks/useVoiceFeedback';
 import { triggerHapticCue } from '@/utils/haptics';
 import { safeFetchJson } from '@/lib/safeFetch';
 import { useAccessibility } from '@/context/AccessibilityContext';
 import Badge from './ui/Badge';
-
-export interface NavigationStep {
-  stepNumber: number;
-  instruction: string;
-  landmark?: string;
-  cue: 'left_turn' | 'right_turn' | 'confirm' | 'stop' | 'obstacle';
-  distance: string;
-  stepsCount?: number;
-}
+import {
+  classifyVoiceCommand,
+  buildNavigationSpeech,
+  cleanStepInstruction,
+  getConciseDestinationName,
+  VOICE_ASSISTANT_NAME,
+} from '@/lib/navigationVoiceCommander';
+import {
+  AuthoritativeNavigationSession,
+  navigationSessionStore,
+  createNavigationSession,
+  transitionAdvanceStep,
+  transitionPreviousStep,
+  advanceNavigationStep,
+  previousNavigationStep,
+  repeatNavigationStep,
+  stopNavigationSession,
+  getNavigationStatusSummary,
+} from '@/lib/authoritativeNavigationSession';
+import { useVoiceAssistant, VoiceLifecycleState } from '@/context/VoiceAssistantContext';
 
 export interface VoiceAssistantModalProps {
   isOpen: boolean;
   onClose: () => void;
-  onRouteCalculated?: (data: any) => void;
+  onRouteCalculated?: (data: Record<string, unknown>) => void;
   initialPrompt?: string;
+  initialCommand?: string;
+  onStateChange?: (state: VoiceLifecycleState) => void;
 }
 
 export default function VoiceAssistantModal({
@@ -48,33 +59,65 @@ export default function VoiceAssistantModal({
   onClose,
   onRouteCalculated,
   initialPrompt,
+  initialCommand,
+  onStateChange,
 }: VoiceAssistantModalProps) {
   const router = useRouter();
   const pathname = usePathname();
 
-  const [isListening, setIsListening] = useState(false);
+  // ─────────────────────────────────────────────────────────────────────────
+  // AUTHORITATIVE NAVIGATION REFS (Single Source of Truth for async callbacks)
+  // ─────────────────────────────────────────────────────────────────────────
+  const sessionRef = useRef<AuthoritativeNavigationSession | null>(null);
+  const activeStepIndexRef = useRef<number>(0);
+  const isNavigatingRef = useRef<boolean>(false);
+
+  // Global Voice Assistant Context
+  const {
+    transcript: contextTranscript,
+    voiceState,
+    statusText,
+    isListening,
+    isSpeaking,
+    isProcessing: contextIsProcessing,
+    isSupported,
+    speakNova,
+    registerCommandHandler,
+    startRecognitionSession,
+    stopRecognitionSession,
+  } = useVoiceAssistant();
+
+  // Speech Recognition & Audio Lifecycle Guards
+  const isSpeakingRef = useRef<boolean>(false);
+  const isProcessingRef = useRef<boolean>(false);
+  const lastCommandRef = useRef<{ text: string; timestamp: number } | null>(null);
+
+  // Function reference holders to avoid circular closures & hoisting
+  const processSpokenTextRef = useRef<(text: string) => Promise<void>>(async () => {});
+
+  // Vision refs
+  const videoRef = useRef<HTMLVideoElement>(null);
+  const canvasRef = useRef<HTMLCanvasElement>(null);
+  const cameraStreamRef = useRef<MediaStream | null>(null);
+
+  // ─────────────────────────────────────────────────────────────────────────
+  // REACT STATE FOR UI RENDERING
+  // ─────────────────────────────────────────────────────────────────────────
   const [transcript, setTranscript] = useState('');
   const [isProcessing, setIsProcessing] = useState(false);
-  const [assistantResponse, setAssistantResponse] = useState<any>(null);
+  const [assistantResponse, setAssistantResponse] = useState<Record<string, unknown> | null>(null);
   const [errorMessage, setErrorMessage] = useState('');
-  const [isHandsFreeActive, setIsHandsFreeActive] = useState(true);
 
-  // Turn-by-turn voice guidance state
+  // Synchronized turn-by-turn guidance state
   const [activeStepIndex, setActiveStepIndex] = useState<number>(0);
   const [isNavigatingSteps, setIsNavigatingSteps] = useState(false);
+  const [currentSession, setCurrentSession] = useState<AuthoritativeNavigationSession | null>(null);
 
   // Computer Vision / Surroundings state
   const [isCameraActive, setIsCameraActive] = useState(false);
   const [isScanningSurroundings, setIsScanningSurroundings] = useState(false);
   const [surroundingsResult, setSurroundingsResult] = useState<string | null>(null);
   const [capturedImagePreview, setCapturedImagePreview] = useState<string | null>(null);
-
-  const videoRef = useRef<HTMLVideoElement>(null);
-  const canvasRef = useRef<HTMLCanvasElement>(null);
-  const cameraStreamRef = useRef<MediaStream | null>(null);
-  const recognitionRef = useRef<any>(null);
-  const isSpeakingRef = useRef<boolean>(false);
-  const restartListeningTimerRef = useRef<any>(null);
 
   const { speakText } = useVoiceFeedback();
   const {
@@ -85,208 +128,171 @@ export default function VoiceAssistantModal({
     setFontScale,
   } = useAccessibility();
 
-  // Helper to safely speak aloud and automatically resume microphone listening on completion
-  const speakWithAutoResume = useCallback(
-    (text: string, onDone?: () => void) => {
-      isSpeakingRef.current = true;
-      // Stop recognition while speaking so mic does not capture synthetic audio
-      if (recognitionRef.current) {
-        try {
-          recognitionRef.current.stop();
-        } catch {
-          // ignore
+  // Synchronize transcript from context
+  useEffect(() => {
+    if (contextTranscript) {
+      setTranscript(contextTranscript);
+    }
+  }, [contextTranscript]);
+
+  // Synchronize active session from navigationSessionStore
+  useEffect(() => {
+    const unsub = navigationSessionStore.subscribe((sess) => {
+      if (sess) {
+        sessionRef.current = sess;
+        setCurrentSession(sess);
+        setActiveStepIndex(sess.currentStepIndex);
+        activeStepIndexRef.current = sess.currentStepIndex;
+        if (sess.status === 'navigating' || sess.status === 'arrived') {
+          isNavigatingRef.current = true;
+          setIsNavigatingSteps(true);
+        } else {
+          isNavigatingRef.current = false;
+          setIsNavigatingSteps(false);
         }
       }
-      setIsListening(false);
+    });
+    return unsub;
+  }, []);
 
-      speakText(text, true, () => {
-        isSpeakingRef.current = false;
-        if (onDone) onDone();
-        // Immediately restart listening hands-free
-        if (isHandsFreeActive) {
-          setTimeout(() => {
-            startListeningInternal();
-          }, 250);
-        }
-      });
+  // Synchronize speaking state with ref
+  useEffect(() => {
+    isSpeakingRef.current = isSpeaking;
+  }, [isSpeaking]);
+
+  const speakWithAutoResume = useCallback(
+    (text: string, onDone?: () => void) => {
+      speakNova(text, onDone);
     },
-    [speakText, isHandsFreeActive]
+    [speakNova]
   );
 
-  // Stop camera tracks cleanly
-  const stopCamera = () => {
+  const stopCameraStreams = () => {
     if (cameraStreamRef.current) {
       cameraStreamRef.current.getTracks().forEach((track) => track.stop());
       cameraStreamRef.current = null;
     }
-    setIsCameraActive(false);
-    setIsScanningSurroundings(false);
   };
 
-  // Internal start listening function
-  const startListeningInternal = useCallback(() => {
-    if (isSpeakingRef.current) return;
-    setErrorMessage('');
-    triggerHapticCue('confirm');
-
-    const SpeechRecognition =
-      (window as any).SpeechRecognition || (window as any).webkitSpeechRecognition;
-
-    if (SpeechRecognition) {
-      try {
-        if (recognitionRef.current) {
-          try {
-            recognitionRef.current.stop();
-          } catch {
-            // ignore
-          }
-        }
-
-        const recognition = new SpeechRecognition();
-        recognition.continuous = true;
-        recognition.interimResults = true;
-        recognition.lang = 'en-US';
-
-        recognition.onstart = () => {
-          setIsListening(true);
-        };
-
-        recognition.onresult = (event: any) => {
-          let finalTranscript = '';
-          for (let i = event.resultIndex; i < event.results.length; ++i) {
-            const item = event.results[i];
-            if (item.isFinal) {
-              finalTranscript += item[0].transcript;
-            } else {
-              setTranscript(item[0].transcript);
-            }
-          }
-
-          if (finalTranscript.trim()) {
-            setTranscript(finalTranscript.trim());
-            processSpokenText(finalTranscript.trim());
-          }
-        };
-
-        recognition.onend = () => {
-          setIsListening(false);
-          // Auto-restart listening if hands-free is active and assistant is not speaking
-          if (isHandsFreeActive && !isSpeakingRef.current) {
-            clearTimeout(restartListeningTimerRef.current);
-            restartListeningTimerRef.current = setTimeout(() => {
-              if (!isSpeakingRef.current) {
-                startListeningInternal();
-              }
-            }, 300);
-          }
-        };
-
-        recognition.onerror = (event: any) => {
-          if (event.error === 'no-speech' || event.error === 'aborted') {
-            // Benign silence timeout — restart listening smoothly
-            if (isHandsFreeActive && !isSpeakingRef.current) {
-              clearTimeout(restartListeningTimerRef.current);
-              restartListeningTimerRef.current = setTimeout(() => {
-                startListeningInternal();
-              }, 400);
-            }
-            return;
-          }
-          console.warn('Speech recognition error:', event.error);
-          setIsListening(false);
-        };
-
-        recognitionRef.current = recognition;
-        recognition.start();
-        return;
-      } catch (e) {
-        console.warn('SpeechRecognition initialization error:', e);
-      }
-    }
-
-    // Fallback simulation for environments without Web Speech API
-    setIsListening(true);
-    const samplePhrases = [
-      'Take me to Central Library',
-      "What's in front of me?",
-      'Help logging in',
-      'Navigate to Shivaji Park',
-    ];
-    const chosenPhrase = samplePhrases[Math.floor(Math.random() * samplePhrases.length)];
-
-    let charIndex = 0;
-    const interval = setInterval(() => {
-      charIndex += 4;
-      setTranscript(chosenPhrase.slice(0, charIndex));
-      if (charIndex >= chosenPhrase.length) {
-        clearInterval(interval);
-        setIsListening(false);
-        processSpokenText(chosenPhrase);
-      }
-    }, 140);
-  }, [isHandsFreeActive]);
-
-  const stopListening = useCallback(() => {
-    setIsListening(false);
-    clearTimeout(restartListeningTimerRef.current);
-    if (recognitionRef.current) {
-      try {
-        recognitionRef.current.stop();
-      } catch {
-        // ignore
-      }
-    }
+  const stopCamera = useCallback(() => {
+    stopCameraStreams();
+    setIsCameraActive(false);
+    setIsScanningSurroundings(false);
   }, []);
 
-  // Announce modal opening with conversational onboarding and start continuous listening
+  // Register command processing with the single authoritative engine
   useEffect(() => {
-    if (isOpen) {
-      triggerHapticCue('confirm');
-      const greeting =
-        initialPrompt ||
-        'Welcome. I am your navigation assistant. Are you looking to go somewhere, or do you need help logging in?';
-      speakWithAutoResume(greeting);
-    } else {
-      stopListening();
-      stopCamera();
-      setTranscript('');
-      setAssistantResponse(null);
-      setErrorMessage('');
-      setIsNavigatingSteps(false);
-      setActiveStepIndex(0);
-      setSurroundingsResult(null);
-      setCapturedImagePreview(null);
+    return registerCommandHandler(async (text: string) => {
+      await processSpokenTextRef.current(text);
+    });
+  }, [registerCommandHandler]);
+
+  // ─────────────────────────────────────────────────────────────────────────
+  // AUTHORITATIVE STEP NAVIGATION ACTIONS (Button + Voice Parity)
+  // ─────────────────────────────────────────────────────────────────────────
+
+  const handleAdvanceStep = useCallback(() => {
+    console.log('[Voice] advanceNavigationStep()');
+    const result = advanceNavigationStep();
+    if (!result) {
+      speakWithAutoResume('There is no active navigation route.');
+      return;
     }
 
-    return () => {
-      clearTimeout(restartListeningTimerRef.current);
-      stopCamera();
-    };
-  }, [isOpen, initialPrompt]);
+    sessionRef.current = result.session;
+    activeStepIndexRef.current = result.index;
+    setCurrentSession(result.session);
+    setActiveStepIndex(result.index);
+    triggerHapticCue(result.step.cue || 'confirm');
 
-  // Keyboard shortcut: Spacebar to toggle microphone, Escape to close
-  useEffect(() => {
-    const handleKeyDown = (e: KeyboardEvent) => {
-      if (!isOpen) return;
-      if (e.code === 'Space' && e.target === document.body) {
-        e.preventDefault();
-        if (isListening) {
-          stopListening();
-        } else {
-          startListeningInternal();
-        }
-      } else if (e.code === 'Escape') {
-        onClose();
+    const speech = buildNavigationSpeech(
+      result.step,
+      result.index,
+      result.session.steps.length,
+      {
+        isArrival: result.isArrival,
+        destination: result.session.destination,
       }
-    };
-    window.addEventListener('keydown', handleKeyDown);
-    return () => window.removeEventListener('keydown', handleKeyDown);
-  }, [isOpen, isListening, onClose, startListeningInternal, stopListening]);
+    );
 
-  // =========================================================================
-  // "DESCRIBE MY SURROUNDINGS" (COMPUTER VISION / AI)
-  // =========================================================================
-  const handleDescribeSurroundings = async () => {
+    speakWithAutoResume(speech);
+  }, [speakWithAutoResume]);
+
+  const handlePreviousStep = useCallback(() => {
+    console.log('[Voice] previousNavigationStep()');
+    const result = previousNavigationStep();
+    if (!result) {
+      speakWithAutoResume('There is no active navigation route.');
+      return;
+    }
+
+    sessionRef.current = result.session;
+    activeStepIndexRef.current = result.index;
+    setCurrentSession(result.session);
+    setActiveStepIndex(result.index);
+    triggerHapticCue(result.step.cue || 'confirm');
+
+    const speech = buildNavigationSpeech(
+      result.step,
+      result.index,
+      result.session.steps.length,
+      {
+        destination: result.session.destination,
+      }
+    );
+
+    speakWithAutoResume(speech);
+  }, [speakWithAutoResume]);
+
+  const handleRepeatStep = useCallback(() => {
+    console.log('[Voice] repeatNavigationStep()');
+    const result = repeatNavigationStep();
+    if (!result) {
+      speakWithAutoResume('There is no active navigation route.');
+      return;
+    }
+
+    triggerHapticCue(result.step.cue || 'confirm');
+    const speech = buildNavigationSpeech(
+      result.step,
+      result.index,
+      result.session.steps.length,
+      {
+        isArrival: result.isArrival,
+        destination: result.session.destination,
+      }
+    );
+
+    speakWithAutoResume(speech);
+  }, [speakWithAutoResume]);
+
+  const handleStopNavigation = useCallback(() => {
+    console.log('[Voice] stopNavigationSession()');
+    const stopped = stopNavigationSession();
+    sessionRef.current = stopped;
+    isNavigatingRef.current = false;
+    setIsNavigatingSteps(false);
+    triggerHapticCue('confirm');
+    speakWithAutoResume('Navigation stopped. Where would you like to go now?');
+  }, [speakWithAutoResume]);
+
+  const handleNavigationStatus = useCallback(() => {
+    console.log('[Voice] getNavigationStatusSummary()');
+    const status = getNavigationStatusSummary();
+    if (!status || !status.isActive || !status.currentStep) {
+      speakWithAutoResume('There is no active navigation route. Tell me where you would like to go.');
+      return;
+    }
+
+    const conciseDest = getConciseDestinationName(status.destination);
+    const speech = `You are on step ${status.currentStepIndex + 1} of ${status.totalSteps} toward ${conciseDest}. ${cleanStepInstruction(status.currentStep.instruction, conciseDest)}`;
+    speakWithAutoResume(speech);
+  }, [speakWithAutoResume]);
+
+  // ─────────────────────────────────────────────────────────────────────────
+  // COMPUTER VISION / SURROUNDINGS
+  // ─────────────────────────────────────────────────────────────────────────
+  const handleDescribeSurroundings = useCallback(async () => {
     try {
       setIsScanningSurroundings(true);
       setErrorMessage('');
@@ -307,7 +313,6 @@ export default function VoiceAssistantModal({
         console.warn('Camera access unavailable, proceeding with fallback description:', camErr);
       }
 
-      // Allow camera 800ms to stabilize exposure before snapshot
       setTimeout(async () => {
         let base64Snapshot = '';
         if (videoRef.current && canvasRef.current && stream) {
@@ -357,7 +362,7 @@ export default function VoiceAssistantModal({
           setIsScanningSurroundings(false);
         }
       }, 900);
-    } catch (err: any) {
+    } catch (err: unknown) {
       console.warn('Describe error:', err);
       stopCamera();
       const fallback =
@@ -367,194 +372,351 @@ export default function VoiceAssistantModal({
       speakWithAutoResume(fallback);
       setIsScanningSurroundings(false);
     }
-  };
+  }, [speakWithAutoResume, stopCamera]);
 
-  // =========================================================================
-  // PROCESSING SPOKEN USER INPUT (HANDS-FREE FOR BLIND USERS)
-  // =========================================================================
-  const processSpokenText = async (textToProcess: string) => {
-    if (!textToProcess.trim()) return;
-    setIsProcessing(true);
-    setErrorMessage('');
-    const lower = textToProcess.toLowerCase().trim();
+  // ─────────────────────────────────────────────────────────────────────────
+  // DETERMINISTIC PROCESS SPOKEN USER INPUT
+  // ─────────────────────────────────────────────────────────────────────────
+  const processSpokenText = useCallback(
+    async (textToProcess: string) => {
+      if (!textToProcess.trim()) return;
 
-    // 1. Check for stop listening / cancel command
-    if (
-      lower === 'stop listening' ||
-      lower === 'pause assistant' ||
-      lower === 'close assistant' ||
-      lower === 'goodbye' ||
-      lower === 'bye'
-    ) {
-      setIsProcessing(false);
-      speakText('Voice assistant paused. Tap anywhere on the screen or press Spacebar whenever you need me.');
-      onClose();
-      return;
-    }
+      const classified = classifyVoiceCommand(textToProcess);
+      const now = Date.now();
 
-    // 2. Check for surroundings question directly in speech
-    if (
-      lower.includes("what's in front") ||
-      lower.includes('what is in front') ||
-      lower.includes('describe surroundings') ||
-      lower.includes('describe my surroundings') ||
-      lower.includes('what do you see') ||
-      lower.includes('is there an obstacle') ||
-      lower.includes('look ahead')
-    ) {
-      setIsProcessing(false);
-      await handleDescribeSurroundings();
-      return;
-    }
+      if (
+        lastCommandRef.current &&
+        lastCommandRef.current.text === classified.normalizedText &&
+        now - lastCommandRef.current.timestamp < 800
+      ) {
+        return;
+      }
+      lastCommandRef.current = { text: classified.normalizedText, timestamp: now };
 
-    // 3. Check for active navigation step commands
-    if (isNavigatingSteps && assistantResponse?.navigationSteps) {
-      const steps: NavigationStep[] = assistantResponse.navigationSteps;
-      if (lower.includes('next') || lower.includes('forward') || lower.includes('continue')) {
-        setIsProcessing(false);
-        if (activeStepIndex < steps.length - 1) {
-          handleGoToStep(activeStepIndex + 1);
+      if (isProcessingRef.current) return;
+      isProcessingRef.current = true;
+      setIsProcessing(true);
+      setErrorMessage('');
+
+      try {
+        if (classified.intent === 'STOP_LISTENING') {
+          isProcessingRef.current = false;
+          setIsProcessing(false);
+          speakText('Voice assistant paused. Press Spacebar or tap the screen whenever you need me.');
+          onClose();
+          return;
+        }
+
+        if (classified.intent === 'SURROUNDINGS') {
+          isProcessingRef.current = false;
+          setIsProcessing(false);
+          await handleDescribeSurroundings();
+          return;
+        }
+
+        // Local deterministic navigation controls
+        if (classified.intent === 'START_NAVIGATION') {
+          isProcessingRef.current = false;
+          setIsProcessing(false);
+          console.log('[Voice] Command: START_NAVIGATION');
+          if (isNavigatingRef.current && sessionRef.current) {
+            handleAdvanceStep();
+          } else {
+            speakWithAutoResume('Tell me where you would like to go, for example: take me to Cardiology Pavilion.');
+          }
+          return;
+        }
+
+        if (isNavigatingRef.current && sessionRef.current) {
+          if (classified.intent === 'NEXT_STEP') {
+            isProcessingRef.current = false;
+            setIsProcessing(false);
+            console.log('[Voice] Command: NEXT_STEP');
+            handleAdvanceStep();
+            return;
+          }
+
+          if (classified.intent === 'PREVIOUS_STEP') {
+            isProcessingRef.current = false;
+            setIsProcessing(false);
+            console.log('[Voice] Command: PREVIOUS_STEP');
+            handlePreviousStep();
+            return;
+          }
+
+          if (classified.intent === 'REPEAT_STEP') {
+            isProcessingRef.current = false;
+            setIsProcessing(false);
+            console.log('[Voice] Command: REPEAT_STEP');
+            handleRepeatStep();
+            return;
+          }
+
+          if (classified.intent === 'NAVIGATION_STATUS') {
+            isProcessingRef.current = false;
+            setIsProcessing(false);
+            console.log('[Voice] Command: NAVIGATION_STATUS');
+            handleNavigationStatus();
+            return;
+          }
+
+          if (classified.intent === 'STOP_NAVIGATION') {
+            isProcessingRef.current = false;
+            setIsProcessing(false);
+            console.log('[Voice] Command: STOP_NAVIGATION');
+            handleStopNavigation();
+            return;
+          }
         } else {
-          speakWithAutoResume('You have arrived at your destination.');
+          if (
+            classified.intent === 'NEXT_STEP' ||
+            classified.intent === 'PREVIOUS_STEP' ||
+            classified.intent === 'REPEAT_STEP' ||
+            classified.intent === 'NAVIGATION_STATUS'
+          ) {
+            isProcessingRef.current = false;
+            setIsProcessing(false);
+            speakWithAutoResume('There is no active navigation route. Tell me where you would like to go.');
+            return;
+          }
+
+          if (classified.intent === 'STOP_NAVIGATION') {
+            isProcessingRef.current = false;
+            setIsProcessing(false);
+            speakWithAutoResume('Navigation is not currently active.');
+            return;
+          }
         }
-        return;
-      }
-      if (lower.includes('repeat') || lower.includes('again') || lower.includes('what was that') || lower.includes('pardon')) {
-        setIsProcessing(false);
-        handleSpeakCurrentStep();
-        return;
-      }
-      if (lower.includes('previous') || lower.includes('back') || lower.includes('last step')) {
-        setIsProcessing(false);
-        if (activeStepIndex > 0) {
-          handleGoToStep(activeStepIndex - 1);
-        }
-        return;
-      }
-      if (lower.includes('where am i') || lower.includes('status')) {
-        setIsProcessing(false);
-        const curr = steps[activeStepIndex];
-        speakWithAutoResume(`You are on Step ${activeStepIndex + 1} of ${steps.length}. ${curr.instruction}`);
-        return;
-      }
-      if (lower.includes('stop navigation') || lower.includes('cancel navigation') || lower.includes('end navigation')) {
-        setIsProcessing(false);
-        setIsNavigatingSteps(false);
-        speakWithAutoResume('Navigation stopped. Where would you like to go now?');
-        return;
-      }
-    }
 
-    try {
-      const res = await fetch('/api/assistant/voice', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          transcript: textToProcess,
-          userPersona: persona,
-        }),
-      });
-
-      const data = await safeFetchJson(res);
-      setIsProcessing(false);
-
-      if (data.success) {
-        setAssistantResponse(data);
-        triggerHapticCue(data.hapticCue || 'confirm');
-
-        // A. UI Navigation Hands-Free (Keep assistant open so blind user stays in conversational control)
-        if (data.intent === 'NAVIGATE_UI') {
-          if (data.action === 'TOGGLE_DARK_MODE' || data.action === 'TOGGLE_LIGHT_MODE') {
-            toggleDarkMode();
-            speakWithAutoResume(data.spokenResponse);
-          } else if (data.action === 'SET_FONT_LARGE') {
-            setFontScale('lg');
-            speakWithAutoResume(data.spokenResponse);
-          } else if (data.targetUrl) {
-            router.push(data.targetUrl);
-            speakWithAutoResume(data.spokenResponse);
+        // UI actions
+        if (classified.intent === 'UI_ACTION' && classified.payload?.action) {
+          isProcessingRef.current = false;
+          setIsProcessing(false);
+          const action = classified.payload.action;
+          if (action === 'LOGIN') {
+            router.push('/login');
+            speakWithAutoResume('Opening login page.');
+          } else if (action === 'REPORT_BARRIER') {
+            router.push('/report-barrier');
+            speakWithAutoResume('Opening barrier reporting screen.');
+          } else if (action === 'DARK_MODE') {
+            if (!isDarkMode) toggleDarkMode();
+            speakWithAutoResume('Night mode enabled for high contrast viewing.');
+          } else if (action === 'LIGHT_MODE') {
+            if (isDarkMode) toggleDarkMode();
+            speakWithAutoResume('Day mode restored.');
           }
           return;
         }
 
-        // B. Greeting / Onboarding
-        if (data.intent === 'GREETING') {
+        // New destinations & general queries
+        const res = await fetch('/api/assistant/voice', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            transcript: textToProcess,
+            userPersona: persona,
+          }),
+        });
+
+        const data = await safeFetchJson(res);
+        isProcessingRef.current = false;
+        setIsProcessing(false);
+
+        if (data.success) {
+          setAssistantResponse(data);
+          triggerHapticCue(data.hapticCue || 'confirm');
+
+          if (data.intent === 'NAVIGATE_UI') {
+            if (data.action === 'TOGGLE_DARK_MODE' || data.action === 'TOGGLE_LIGHT_MODE') {
+              toggleDarkMode();
+              speakWithAutoResume(data.spokenResponse);
+            } else if (data.action === 'SET_FONT_LARGE') {
+              setFontScale('lg');
+              speakWithAutoResume(data.spokenResponse);
+            } else if (data.targetUrl) {
+              router.push(data.targetUrl);
+              speakWithAutoResume(data.spokenResponse);
+            }
+            return;
+          }
+
+          if (data.intent === 'GREETING') {
+            speakWithAutoResume(data.spokenResponse);
+            return;
+          }
+
+          if (data.intent === 'NAVIGATE' && Array.isArray(data.navigationSteps) && data.navigationSteps.length > 0) {
+            const newSession = createNavigationSession({
+              destination: data.destination,
+              steps: data.navigationSteps,
+              persona: persona,
+              routeCoords: data.route?.coordinates,
+              metrics: data.metrics,
+            });
+
+            sessionRef.current = newSession;
+            activeStepIndexRef.current = 0;
+            isNavigatingRef.current = true;
+
+            setCurrentSession(newSession);
+            setActiveStepIndex(0);
+            setIsNavigatingSteps(true);
+            navigationSessionStore.setSession(newSession);
+
+            const firstStep = newSession.steps[0];
+            triggerHapticCue(firstStep.cue || 'confirm');
+
+            if (pathname !== '/gps-precision') {
+              router.push(`/gps-precision?dest=${encodeURIComponent(data.destination)}&autonav=1`);
+            }
+
+            if (onRouteCalculated) {
+              onRouteCalculated(data);
+            }
+
+            const initialSpeech = buildNavigationSpeech(
+              firstStep,
+              0,
+              newSession.steps.length,
+              {
+                isInitial: true,
+                destination: newSession.destination,
+              }
+            );
+
+            speakWithAutoResume(initialSpeech);
+            return;
+          }
+
           speakWithAutoResume(data.spokenResponse);
-          return;
+        } else {
+          setErrorMessage(data.error || 'Could not understand request.');
+          speakWithAutoResume(
+            'Sorry, I did not catch that. You can say: take me to Central Library, what is in front of me, or next step.'
+          );
+          triggerHapticCue('error');
         }
-
-        // C. Navigation with Landmark Steps
-        if (data.intent === 'NAVIGATE' && Array.isArray(data.navigationSteps) && data.navigationSteps.length > 0) {
-          setIsNavigatingSteps(true);
-          setActiveStepIndex(0);
-          const firstStep = data.navigationSteps[0];
-          triggerHapticCue(firstStep.cue || 'confirm');
-
-          // Automatically navigate to map in background so route displays immediately!
-          if (pathname !== '/gps-precision') {
-            router.push(`/gps-precision?dest=${encodeURIComponent(data.destination)}&autonav=1`);
-          }
-
-          if (onRouteCalculated) {
-            onRouteCalculated(data);
-          }
-
-          // Speak route confirmation and first landmark instruction, then immediately resume listening for "next" or "repeat"
-          speakWithAutoResume(`${data.spokenResponse}. Step 1: ${firstStep.instruction}`);
-          return;
-        }
-
-        speakWithAutoResume(data.spokenResponse);
-      } else {
-        setErrorMessage(data.error || 'Could not understand request.');
-        speakWithAutoResume(
-          'Sorry, I did not catch that. You can say: take me to Central Library, what is in front of me, or help logging in.'
-        );
+      } catch {
+        isProcessingRef.current = false;
+        setIsProcessing(false);
+        setErrorMessage('Network connection error.');
+        speakWithAutoResume('Network error. Please speak your command again.');
         triggerHapticCue('error');
       }
-    } catch {
-      setIsProcessing(false);
-      setErrorMessage('Network connection error.');
-      speakWithAutoResume('Network error. Please try speaking your destination again.');
-      triggerHapticCue('error');
-    }
-  };
+    },
+    [
+      handleAdvanceStep,
+      handlePreviousStep,
+      handleRepeatStep,
+      handleNavigationStatus,
+      handleStopNavigation,
+      handleDescribeSurroundings,
+      isDarkMode,
+      onClose,
+      onRouteCalculated,
+      persona,
+      pathname,
+      router,
+      setFontScale,
+      speakText,
+      speakWithAutoResume,
+      toggleDarkMode,
+    ]
+  );
 
-  // =========================================================================
-  // STEP-BY-STEP VOICE GUIDANCE ACTIONS
-  // =========================================================================
-  const handleGoToStep = (index: number) => {
-    if (!assistantResponse?.navigationSteps) return;
-    const steps: NavigationStep[] = assistantResponse.navigationSteps;
-    if (index >= 0 && index < steps.length) {
-      setActiveStepIndex(index);
-      const step = steps[index];
-      triggerHapticCue(step.cue || 'confirm');
-      speakWithAutoResume(`Step ${index + 1}: ${step.instruction}`);
-    }
-  };
-
-  const handleSpeakCurrentStep = () => {
-    if (!assistantResponse?.navigationSteps) return;
-    const steps: NavigationStep[] = assistantResponse.navigationSteps;
-    const step = steps[activeStepIndex];
-    if (step) {
-      triggerHapticCue(step.cue || 'confirm');
-      speakWithAutoResume(`Step ${activeStepIndex + 1}: ${step.instruction}`);
-    }
-  };
+  // Keep processSpokenTextRef updated
+  useEffect(() => {
+    processSpokenTextRef.current = processSpokenText;
+  }, [processSpokenText]);
 
   const handleShowOnInteractiveMap = () => {
-    if (!assistantResponse?.destination) return;
-    speakText(`Showing route to ${assistantResponse.destination} on interactive map.`);
+    const dest = currentSession?.destination || (assistantResponse?.destination as string | undefined);
+    if (!dest) return;
+    speakText(`Showing route to ${dest} on interactive map.`);
     onClose();
-    router.push(`/gps-precision?dest=${encodeURIComponent(assistantResponse.destination)}&autonav=1`);
+    router.push(`/gps-precision?dest=${encodeURIComponent(dest)}&autonav=1`);
   };
+
+  // ─────────────────────────────────────────────────────────────────────────
+  // ROUTE RECALCULATION & SESSION EVENT SUBSCRIPTION
+  // ─────────────────────────────────────────────────────────────────────────
+  useEffect(() => {
+    const handleRerouteEvent = (e: Event) => {
+      const customEvent = e as CustomEvent<{ reroute?: unknown }>;
+      const reroute = customEvent?.detail?.reroute;
+      if (reroute && sessionRef.current && isNavigatingRef.current) {
+        speakWithAutoResume(
+          'An obstacle was detected ahead. I found a safer accessible route. Continuing from your current position.'
+        );
+      }
+    };
+
+    window.addEventListener('pathfinder:route-recalculated', handleRerouteEvent);
+    return () => {
+      window.removeEventListener('pathfinder:route-recalculated', handleRerouteEvent);
+    };
+  }, [speakWithAutoResume]);
+
+  // ─────────────────────────────────────────────────────────────────────────
+  // MODAL OPEN / CLOSE LIFECYCLE
+  // ─────────────────────────────────────────────────────────────────────────
+  useEffect(() => {
+    let timer: NodeJS.Timeout | null = null;
+    if (isOpen) {
+      triggerHapticCue('confirm');
+      onStateChange?.(initialCommand ? 'PROCESSING' : 'OPEN_COMMAND_LISTENING');
+      const greeting =
+        initialPrompt ||
+        `Hello, I am ${VOICE_ASSISTANT_NAME}. How can I help you? You can say: take me to a destination, or ask what is in front of you.`;
+
+      timer = setTimeout(() => {
+        if (initialCommand && initialCommand.trim()) {
+          processSpokenTextRef.current(initialCommand);
+        } else {
+          speakWithAutoResume(greeting);
+        }
+      }, 50);
+    } else {
+      stopCameraStreams();
+      setTranscript('');
+      setErrorMessage('');
+      setIsCameraActive(false);
+      setIsScanningSurroundings(false);
+    }
+
+    return () => {
+      if (timer) clearTimeout(timer);
+      stopCameraStreams();
+    };
+  }, [isOpen, initialPrompt, initialCommand, onStateChange, speakWithAutoResume]);
+
+  // Keyboard shortcut: Spacebar to toggle microphone, Escape to close
+  useEffect(() => {
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if (!isOpen) return;
+      if (e.code === 'Space' && e.target === document.body) {
+        e.preventDefault();
+        if (isListening) {
+          stopRecognitionSession();
+        } else {
+          startRecognitionSession();
+        }
+      } else if (e.code === 'Escape') {
+        onClose();
+      }
+    };
+    window.addEventListener('keydown', handleKeyDown);
+    return () => window.removeEventListener('keydown', handleKeyDown);
+  }, [isOpen, isListening, onClose, startRecognitionSession, stopRecognitionSession]);
 
   if (!isOpen) return null;
 
-  const currentNavStep =
-    assistantResponse?.navigationSteps && assistantResponse.navigationSteps[activeStepIndex];
+  const activeSessionSteps = currentSession?.steps;
+  const currentNavStep = activeSessionSteps && activeSessionSteps[activeStepIndex];
+  const totalNavSteps = activeSessionSteps ? activeSessionSteps.length : 0;
+  const isFinalStep = activeStepIndex >= totalNavSteps - 1;
+  const isFirstStep = activeStepIndex <= 0;
 
   return (
     <div
@@ -563,7 +725,6 @@ export default function VoiceAssistantModal({
       aria-modal="true"
       aria-label="Voice AI Accessibility Assistant - Hands Free"
     >
-      {/* Hidden elements for computer vision camera capture */}
       <video ref={videoRef} className="hidden" playsInline muted />
       <canvas ref={canvasRef} className="hidden" />
 
@@ -580,22 +741,59 @@ export default function VoiceAssistantModal({
             <Sparkles className="w-6 h-6 text-primary animate-spin" />
             <div>
               <h2 className="font-headline text-lg font-black tracking-wide leading-tight">
-                Voice AI Assistant
+                {VOICE_ASSISTANT_NAME} Accessibility Assistant
               </h2>
               <span className="text-[10px] font-black uppercase text-emerald-600 dark:text-emerald-400 tracking-wider flex items-center gap-1">
                 <span className="w-2 h-2 rounded-full bg-emerald-500 animate-pulse" />
-                Hands-Free Voice Active • Touch-Free
+                Wake: &quot;Hey {VOICE_ASSISTANT_NAME}&quot; • Hands-Free Active
               </span>
             </div>
           </div>
-          <button
-            onClick={onClose}
-            aria-label="Close Voice Assistant"
-            className="p-2 rounded-full hover:bg-surface-container-high transition-colors"
-          >
-            <X className="w-6 h-6 text-on-surface-variant" />
-          </button>
+          <div className="flex items-center gap-2">
+            {/* Live Voice Status Badge */}
+            <span className={`px-2.5 py-1 rounded-full text-[11px] font-black flex items-center gap-1.5 shadow-2xs ${
+              voiceState === 'OPEN_COMMAND_LISTENING'
+                ? 'bg-emerald-500/15 text-emerald-700 dark:text-emerald-300'
+                : voiceState === 'PROCESSING'
+                ? 'bg-blue-500/15 text-blue-700 dark:text-blue-300'
+                : voiceState === 'SPEAKING'
+                ? 'bg-purple-500/15 text-purple-700 dark:text-purple-300'
+                : voiceState === 'MIC_UNAVAILABLE'
+                ? 'bg-rose-500/15 text-rose-700 dark:text-rose-300'
+                : 'bg-surface-container text-on-surface-variant'
+            }`}>
+              <span className={`w-2 h-2 rounded-full ${
+                voiceState === 'OPEN_COMMAND_LISTENING'
+                  ? 'bg-emerald-500 animate-pulse'
+                  : voiceState === 'PROCESSING'
+                  ? 'bg-blue-500 animate-pulse'
+                  : voiceState === 'SPEAKING'
+                  ? 'bg-purple-500 animate-pulse'
+                  : voiceState === 'MIC_UNAVAILABLE'
+                  ? 'bg-rose-500'
+                  : 'bg-on-surface-variant'
+              }`} />
+              <span>{statusText}</span>
+            </span>
+            <button
+              onClick={onClose}
+              aria-label="Close Voice Assistant"
+              className="p-2 rounded-full hover:bg-surface-container-high transition-colors cursor-pointer"
+            >
+              <X className="w-6 h-6 text-on-surface-variant" />
+            </button>
+          </div>
         </div>
+
+        {/* Fallback Notice for Unsupported Browsers */}
+        {!isSupported && (
+          <div className="p-3.5 rounded-2xl bg-amber-500/15 border border-amber-500/40 text-amber-900 dark:text-amber-200 text-xs flex items-center gap-2">
+            <AlertCircle className="w-4 h-4 shrink-0 text-amber-600 dark:text-amber-400" />
+            <span>
+              Voice recognition isn&apos;t supported in this browser. Please use a supported browser or open the assistant using the button.
+            </span>
+          </div>
+        )}
 
         {/* Accessibility Profile Pill & Vision Quick Action */}
         <div className="flex items-center justify-between gap-2 flex-wrap">
@@ -607,7 +805,7 @@ export default function VoiceAssistantModal({
               type="button"
               onClick={handleDescribeSurroundings}
               disabled={isScanningSurroundings}
-              className="px-3 py-1.5 rounded-full bg-secondary-container text-on-secondary-container hover:opacity-90 transition-all text-xs font-extrabold flex items-center gap-1.5 shadow-2xs border border-secondary/20"
+              className="px-3 py-1.5 rounded-full bg-secondary-container text-on-secondary-container hover:opacity-90 transition-all text-xs font-extrabold flex items-center gap-1.5 shadow-2xs border border-secondary/20 cursor-pointer"
               title="Activate camera and describe physical obstacles"
               aria-label="What is in front of me? Describe surroundings using camera"
             >
@@ -620,7 +818,7 @@ export default function VoiceAssistantModal({
           </div>
         </div>
 
-        {/* Camera Live Scanning Overlay Banner (if camera active) */}
+        {/* Camera Live Scanning Overlay Banner */}
         {isCameraActive && (
           <div className="p-3.5 rounded-2xl bg-amber-500/15 border border-amber-500/40 flex items-center gap-3 animate-pulse">
             <Camera className="w-5 h-5 text-amber-600 dark:text-amber-400 animate-bounce" />
@@ -646,17 +844,18 @@ export default function VoiceAssistantModal({
               <button
                 type="button"
                 onClick={() => speakWithAutoResume(surroundingsResult)}
-                className="text-xs font-extrabold text-emerald-700 dark:text-emerald-300 hover:underline flex items-center gap-1"
+                className="text-xs font-extrabold text-emerald-700 dark:text-emerald-300 hover:underline flex items-center gap-1 cursor-pointer"
                 aria-label="Repeat surroundings description"
               >
                 <Volume2 className="w-3.5 h-3.5" /> Repeat
               </button>
             </div>
             <p className="text-base font-extrabold text-on-surface leading-snug">
-              "{surroundingsResult}"
+              &ldquo;{surroundingsResult}&rdquo;
             </p>
             {capturedImagePreview && (
               <div className="mt-1 rounded-xl overflow-hidden max-h-32 border border-outline-variant/30">
+                {/* eslint-disable-next-line @next/next/no-img-element */}
                 <img
                   src={capturedImagePreview}
                   alt="Captured surroundings snapshot"
@@ -671,9 +870,9 @@ export default function VoiceAssistantModal({
         <div className="flex flex-col items-center justify-center py-3 gap-3">
           <button
             type="button"
-            onClick={isListening ? stopListening : startListeningInternal}
+            onClick={isListening ? stopRecognitionSession : startRecognitionSession}
             aria-label={isListening ? 'Microphone listening hands free' : 'Tap to start listening'}
-            className={`relative w-28 h-28 rounded-full flex items-center justify-center transition-all transform active:scale-95 shadow-xl ${
+            className={`relative w-28 h-28 rounded-full flex items-center justify-center transition-all transform active:scale-95 shadow-xl cursor-pointer ${
               isListening
                 ? 'bg-emerald-600 text-white ring-8 ring-emerald-500/30 animate-pulse'
                 : isProcessing
@@ -690,11 +889,7 @@ export default function VoiceAssistantModal({
 
           <div className="flex flex-col items-center gap-1">
             <p className="text-xs font-black text-on-surface text-center">
-              {isListening
-                ? '🎙️ Listening... (Speak freely, no touch needed)'
-                : isProcessing
-                ? '⚡ Processing your request...'
-                : 'Microphone active • Say any command'}
+              {statusText}
             </p>
             <span className="text-[11px] font-bold text-on-surface-variant text-center">
               Hands-free continuous loop enabled for blind accessibility
@@ -709,7 +904,7 @@ export default function VoiceAssistantModal({
               You Spoke:
             </span>
             <p className="text-base font-bold text-on-surface leading-snug">
-              "{transcript}"
+              &ldquo;{transcript}&rdquo;
             </p>
           </div>
         )}
@@ -724,9 +919,7 @@ export default function VoiceAssistantModal({
           </div>
         )}
 
-        {/* ========================================================================= */}
-        {/* ACTIVE CONTEXT-AWARE TURN-BY-TURN VOICE GUIDANCE PLAYER                   */}
-        {/* ========================================================================= */}
+        {/* Active Context-Aware Turn-by-Turn Voice Guidance Player */}
         {isNavigatingSteps && currentNavStep && (
           <div className="p-5 rounded-3xl bg-primary/10 border-2 border-primary flex flex-col gap-4 shadow-lg animate-fade-in">
             {/* Navigation Header */}
@@ -734,8 +927,7 @@ export default function VoiceAssistantModal({
               <div className="flex items-center gap-2">
                 <Compass className="w-5 h-5 text-primary animate-spin" />
                 <span className="text-xs font-black text-primary uppercase tracking-wide">
-                  Live Spoken Guidance • Step {activeStepIndex + 1} of{' '}
-                  {assistantResponse.navigationSteps.length}
+                  Live Guidance • Step {activeStepIndex + 1} of {totalNavSteps}
                 </span>
               </div>
               <span className="text-xs font-black px-2.5 py-1 rounded-full bg-primary text-white">
@@ -756,49 +948,73 @@ export default function VoiceAssistantModal({
               </div>
               <div className="flex flex-col gap-1 flex-1">
                 {currentNavStep.landmark && (
-                  <span className="text-[11px] font-black text-secondary uppercase tracking-wider">
+                  <span className="text-[11px] font-black text-secondary uppercase tracking-wider flex items-center gap-1">
+                    <CheckCircle2 className="w-3.5 h-3.5 text-secondary" />
                     Landmark: {currentNavStep.landmark}
                   </span>
                 )}
                 <p className="text-lg font-black text-on-surface leading-snug">
-                  {currentNavStep.instruction}
+                  {cleanStepInstruction(currentNavStep.instruction, currentSession?.destination)}
                 </p>
               </div>
             </div>
 
-            {/* Voice Guidance Interactive Controls */}
-            <div className="grid grid-cols-2 gap-2 pt-2 border-t border-primary/20">
+            {/* Voice Guidance Interactive Controls (Full Button + Voice Parity) */}
+            <div className="grid grid-cols-3 gap-2 pt-2 border-t border-primary/20">
               <button
                 type="button"
-                onClick={handleSpeakCurrentStep}
-                className="h-11 rounded-xl bg-surface-container-high hover:bg-surface-container text-on-surface font-extrabold text-xs flex items-center justify-center gap-2 shadow-xs transition-colors"
-                aria-label="Repeat current turn direction aloud"
+                onClick={handlePreviousStep}
+                disabled={isFirstStep}
+                className="h-11 rounded-xl bg-surface-container-high hover:bg-surface-container text-on-surface font-extrabold text-xs flex items-center justify-center gap-1.5 shadow-xs transition-colors disabled:opacity-40 cursor-pointer"
+                aria-label="Previous navigation step"
               >
-                <Volume2 className="w-4 h-4 text-primary" />
-                <span>Repeat ("Repeat")</span>
+                <ChevronLeft className="w-4 h-4 text-primary" />
+                <span>Previous</span>
               </button>
 
               <button
                 type="button"
-                onClick={() => handleGoToStep(activeStepIndex + 1)}
-                disabled={activeStepIndex >= assistantResponse.navigationSteps.length - 1}
-                className="h-11 rounded-xl bg-primary text-white font-extrabold text-xs flex items-center justify-center gap-2 shadow-md hover:bg-primary/90 disabled:opacity-50 transition-colors"
-                aria-label="Advance to next navigation step"
+                onClick={handleRepeatStep}
+                className="h-11 rounded-xl bg-surface-container-high hover:bg-surface-container text-on-surface font-extrabold text-xs flex items-center justify-center gap-1.5 shadow-xs transition-colors cursor-pointer"
+                aria-label="Repeat current turn direction aloud"
               >
-                <span>Next Step ("Next")</span>
+                <Volume2 className="w-4 h-4 text-primary" />
+                <span>Repeat</span>
+              </button>
+
+              <button
+                type="button"
+                onClick={handleAdvanceStep}
+                className="h-11 rounded-xl bg-primary text-white font-extrabold text-xs flex items-center justify-center gap-1.5 shadow-md hover:bg-primary/90 transition-colors cursor-pointer"
+                aria-label={isFinalStep ? 'Finish navigation' : 'Advance to next navigation step'}
+              >
+                <span>{isFinalStep ? 'Arrive' : 'Next Step'}</span>
                 <ChevronRight className="w-4 h-4" />
               </button>
             </div>
 
-            {/* Show on Full Interactive Map CTA */}
-            <button
-              type="button"
-              onClick={handleShowOnInteractiveMap}
-              className="h-12 w-full rounded-2xl bg-secondary text-white font-black text-sm flex items-center justify-center gap-2 shadow-md hover:opacity-95 transition-all transform active:scale-98"
-            >
-              <Navigation className="w-4 h-4 fill-current" />
-              <span>Full Screen Map & Route View</span>
-            </button>
+            {/* Stop Navigation & Map CTAs */}
+            <div className="grid grid-cols-2 gap-2">
+              <button
+                type="button"
+                onClick={handleStopNavigation}
+                className="h-11 rounded-2xl bg-surface-container-high text-rose-600 dark:text-rose-400 font-extrabold text-xs flex items-center justify-center gap-1.5 border border-rose-500/30 hover:bg-rose-500/10 transition-colors cursor-pointer"
+                aria-label="Stop navigation"
+              >
+                <Square className="w-3.5 h-3.5 fill-current" />
+                <span>Stop Navigation</span>
+              </button>
+
+              <button
+                type="button"
+                onClick={handleShowOnInteractiveMap}
+                className="h-11 rounded-2xl bg-secondary text-white font-black text-xs flex items-center justify-center gap-1.5 shadow-md hover:opacity-95 transition-all cursor-pointer"
+                aria-label="View route on interactive map"
+              >
+                <Navigation className="w-3.5 h-3.5 fill-current" />
+                <span>Map View</span>
+              </button>
+            </div>
           </div>
         )}
 
@@ -807,16 +1023,16 @@ export default function VoiceAssistantModal({
           <div className="p-4 rounded-2xl bg-primary/10 border-2 border-primary flex flex-col gap-3">
             <div className="flex items-center justify-between">
               <span className="text-xs font-black text-primary uppercase">
-                {assistantResponse.destination ? `Destination: ${assistantResponse.destination}` : 'Assistant Response'}
+                {assistantResponse.destination ? `Destination: ${String(assistantResponse.destination)}` : 'Assistant Response'}
               </span>
-              {assistantResponse.metrics?.isStepFree && (
+              {(assistantResponse.metrics as { isStepFree?: boolean } | undefined)?.isStepFree && (
                 <span className="text-xs font-extrabold text-secondary">
                   ✓ 100% Step-Free
                 </span>
               )}
             </div>
             <p className="text-sm font-bold text-on-surface">
-              {assistantResponse.spokenResponse}
+              {String(assistantResponse.spokenResponse || '')}
             </p>
           </div>
         )}
@@ -839,18 +1055,19 @@ export default function VoiceAssistantModal({
             "What's in front of me?",
             'Next step',
             'Repeat direction',
-            'Help logging in',
-            'Report a barrier',
+            'Previous step',
+            'Where am I?',
+            'Stop navigation',
           ].map((sample, i) => (
             <button
               key={i}
               onClick={() => {
                 setTranscript(sample);
-                processSpokenText(sample);
+                processSpokenTextRef.current(sample);
               }}
-              className="px-3 py-1.5 rounded-xl bg-surface-container-high hover:bg-primary/20 text-xs font-bold text-on-surface transition-colors"
+              className="px-3 py-1.5 rounded-xl bg-surface-container-high hover:bg-primary/20 text-xs font-bold text-on-surface transition-colors cursor-pointer"
             >
-              "{sample}"
+              &ldquo;{sample}&rdquo;
             </button>
           ))}
         </div>
