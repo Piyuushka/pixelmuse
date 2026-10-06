@@ -20,6 +20,8 @@ import { sessionRegistry } from '@/lib/navigationSessionRegistry';
 import { realtimeClient } from '@/lib/realtimeClient';
 import { SurfaceFilterPreferences, DEFAULT_SURFACE_FILTERS } from '@/lib/safetyRoutingEngine';
 
+import { rerouteAroundBarrier, RerouteResult, RouteFeature } from '@/lib/rerouteEngine';
+
 export type PersonaType = 'wheelchair' | 'older-adult' | 'low-vision' | 'caregiver' | 'none';
 export type FontScale = 'sm' | 'md' | 'lg';
 
@@ -38,6 +40,7 @@ export interface ActiveObstacleAlert {
   adaptedRoute?: string;
   adaptedRouteDetail?: string;
   isAccepted?: boolean;
+  rerouteResult?: RerouteResult;
 }
 
 /**
@@ -147,6 +150,11 @@ interface AccessibilityContextType {
   saveAccessibilityProfile: (prefs: Partial<AccessibilityPreferences>) => Promise<UserProfile>;
   simulatedObstacle: ActiveObstacleAlert;
   activeHazardAlert: ActiveObstacleAlert;
+  activeAlert: ActiveObstacleAlert;
+  navigationStatus: 'idle' | 'planning' | 'navigating' | 'rerouting' | 'arrived';
+  setNavigationStatus: (status: 'idle' | 'planning' | 'navigating' | 'rerouting' | 'arrived') => void;
+  originalRoute: RouteFeature | null;
+  adaptedRoute: RouteFeature | null;
   toggleSimulatedObstacle: () => void;
   acceptReroute: () => void;
   barrierReports: BarrierReport[];
@@ -161,9 +169,10 @@ interface AccessibilityContextType {
     description?: string;
     roadLayer?: RoadLayer;
     coordinates?: { lat: number; lng: number };
-  }) => void;
+  }) => Promise<{ targetId: string; rerouteResult: RerouteResult }>;
   upvoteReport: (id: string) => void;
   downvoteReport: (id: string) => void;
+  resolveReport: (id: string) => void;
   currentRouteResult: RouteResult;
   recalculateCurrentRoute: () => RouteResult;
   realtimeEvents: BarrierEvent[];
@@ -500,6 +509,10 @@ export function AccessibilityProvider({ children }: { children: React.ReactNode 
     });
   }, []);
 
+  const [navigationStatus, setNavigationStatus] = useState<'idle' | 'planning' | 'navigating' | 'rerouting' | 'arrived'>('navigating');
+  const [originalRoute, setOriginalRoute] = useState<RouteFeature | null>(null);
+  const [adaptedRoute, setAdaptedRoute] = useState<RouteFeature | null>(null);
+
   const [activeHazardAlert, setActiveHazardAlert] = useState<ActiveObstacleAlert>({
     active: true,
     title: 'Elevator Out of Service / Escalator Down',
@@ -509,6 +522,7 @@ export function AccessibilityProvider({ children }: { children: React.ReactNode 
     impact: 'Wheelchair & Stroller access redirected via South Ramp C and Service Lift 4',
     category: 'Elevator Out of Service / Escalator Down',
     severity: 'critical',
+    barrierReportId: 'rep-default-1',
     originalRoute: 'Central Concourse Route (Blocked by Elevator Outage)',
     originalRouteDetail: 'Direct concourse path. Elevator out of service due to hydraulic fault. Stairs required as fallback (Not Step-Free).',
     adaptedRoute: 'South Ramp C & Lift 4 (Bypasses obstacle with +3 min detour)',
@@ -522,6 +536,30 @@ export function AccessibilityProvider({ children }: { children: React.ReactNode 
   const [realtimeEvents, setRealtimeEvents] = useState<BarrierEvent[]>([]);
   const [offlinePendingCount, setOfflinePendingCount] = useState(0);
   const [lastReroutePayload, setLastReroutePayload] = useState<ReroutePayload | null>(null);
+
+  // Initialize initial route reroute calculation
+  useEffect(() => {
+    rerouteAroundBarrier(
+      { lat: 19.0178, lng: 72.8430, name: 'Dadar Railway Station' },
+      { lat: 19.0267, lng: 72.8375, name: 'Shivaji Park' },
+      {
+        title: 'Elevator Out of Service / Escalator Down',
+        location: 'West Wing Transit Hub - Platform 2',
+        coordinates: { lat: 19.0220, lng: 72.8400 },
+        category: 'Elevator Out of Service / Escalator Down',
+        severity: 'critical',
+      },
+      persona,
+      surfaceFilters
+    ).then(res => {
+      setOriginalRoute(res.originalRoute);
+      setAdaptedRoute(res.route);
+      setActiveHazardAlert(prev => ({
+        ...prev,
+        rerouteResult: res,
+      }));
+    }).catch(err => console.warn('Initial reroute calculation fallback', err));
+  }, [persona, surfaceFilters]);
 
   // Compute Initial Route Result
   const [currentRouteResult, setCurrentRouteResult] = useState<RouteResult>(() =>
@@ -675,7 +713,7 @@ export function AccessibilityProvider({ children }: { children: React.ReactNode 
     });
   }, []);
 
-  const addBarrierReport = (input: {
+  const addBarrierReport = async (input: {
     title: string;
     category: string;
     severity?: 'low' | 'medium' | 'high' | 'critical';
@@ -686,7 +724,7 @@ export function AccessibilityProvider({ children }: { children: React.ReactNode 
     description?: string;
     roadLayer?: RoadLayer;
     coordinates?: { lat: number; lng: number };
-  }) => {
+  }): Promise<{ targetId: string; rerouteResult: RerouteResult }> => {
     // If offline, queue report locally
     if (typeof navigator !== 'undefined' && !navigator.onLine) {
       offlineSyncManager.enqueueReport({
@@ -700,7 +738,14 @@ export function AccessibilityProvider({ children }: { children: React.ReactNode 
       });
       setOfflinePendingCount(offlineSyncManager.getPendingQueue().length);
       speakText("Network connection spotty. Barrier report queued locally for sync.");
-      return;
+      const fallbackResult = await rerouteAroundBarrier(
+        { lat: 19.0178, lng: 72.8430, name: 'Current GPS Location' },
+        { lat: 19.0267, lng: 72.8375, name: 'Destination' },
+        input,
+        persona,
+        surfaceFilters
+      );
+      return { targetId: 'offline-rep', rerouteResult: fallbackResult };
     }
 
     // 20-Meter Spatial Clustering Process
@@ -709,30 +754,43 @@ export function AccessibilityProvider({ children }: { children: React.ReactNode 
 
     const target = updatedReports.find(r => r.id === targetId);
 
+    // Compute dynamic reroute around barrier
+    const rerouteRes = await rerouteAroundBarrier(
+      { lat: 19.0178, lng: 72.8430, name: 'Current GPS Position' },
+      { lat: 19.0267, lng: 72.8375, name: 'Destination Concourse' },
+      {
+        ...input,
+        coordinates: input.coordinates || target?.coordinates || { lat: 19.0220, lng: 72.8400 },
+      },
+      persona,
+      surfaceFilters
+    );
+
+    setOriginalRoute(rerouteRes.originalRoute);
+    setAdaptedRoute(rerouteRes.route);
+    setNavigationStatus('rerouting');
+
     // Instant Rerouting Trigger:
-    // If report is critical, high severity, or affects the active route, trigger live adaptation alert
-    if (input.severity === 'critical' || input.severity === 'high' || input.affectsActiveRoute || target?.affectsActiveRoute) {
-      setActiveHazardAlert({
-        active: true,
-        title: input.title,
-        location: input.location,
-        microLocation: input.microLocation || input.location,
-        detourTime: '+3 min detour',
-        impact: `Active hazard reported by community. Rerouting via safe step-free alternative.`,
-        category: input.category,
-        severity: input.severity || 'high',
-        barrierReportId: targetId,
-        originalRoute: `Original Route (Blocked by reported hazard: ${input.title})`,
-        originalRouteDetail: input.description || `Hazard reported at ${input.location}. Route impassable for mobility profile.`,
-        adaptedRoute: `Recommended Adapted Route (Bypasses obstacle with +3 min detour)`,
-        adaptedRouteDetail: `Dynamic bypass calculated avoiding ${input.category}. Verified step-free.`,
-        isAccepted: false,
-      });
-    }
+    setActiveHazardAlert({
+      active: true,
+      title: input.title,
+      location: input.location,
+      microLocation: input.microLocation || input.location,
+      detourTime: `+${rerouteRes.extraMinutes} min detour`,
+      impact: `Active hazard reported. Bypassed with +${rerouteRes.extraMinutes} min detour (100% step-free).`,
+      category: input.category,
+      severity: input.severity || 'high',
+      barrierReportId: targetId,
+      originalRoute: rerouteRes.originalRoute.properties.label || `Original Route (Blocked by ${input.title})`,
+      originalRouteDetail: input.description || `Hazard reported at ${input.location}. Route impassable for mobility profile.`,
+      adaptedRoute: rerouteRes.route.properties.label || `Recommended Adapted Route (+${rerouteRes.extraMinutes} min detour)`,
+      adaptedRouteDetail: `Dynamic bypass calculated avoiding ${input.category}. Verified step-free.`,
+      rerouteResult: rerouteRes,
+      isAccepted: false,
+    });
 
     // ── Spatial Lookup: find all active navigating users affected ──
     if (target) {
-      // Map our internal RoadLayer string to RoadLayerType enum for lookup engine
       const layerMap: Record<string, RoadLayerType> = {
         flyover: RoadLayerType.FLYOVER,
         service_road: RoadLayerType.SERVICE_ROAD,
@@ -747,7 +805,6 @@ export function AccessibilityProvider({ children }: { children: React.ReactNode 
         radiusMeters: 300,
       });
 
-      // Asynchronous route recalculation trigger when barrier is active/verified or critical
       if (target.status === 'Verified' || target.severity === 'critical') {
         triggerActiveBarrierRecalculation(target, { activeBarriers: updatedReports, autoUpdateSession: true });
       }
@@ -768,9 +825,30 @@ export function AccessibilityProvider({ children }: { children: React.ReactNode 
         barrier: target,
         message: `New temporary barrier reported: ${input.title}`,
       });
-      speakText("New temporary barrier reported to live network.");
+      speakText(`Barrier reported. Rerouting. New route adds ${rerouteRes.extraMinutes} minutes and is fully step-free.`);
     }
+
+    return { targetId, rerouteResult: rerouteRes };
   };
+
+  const resolveReport = useCallback((id: string) => {
+    setBarrierReports(prev =>
+      prev.map(r => (r.id === id ? { ...r, status: 'Resolved' as const, isExpired: true, ttlSeconds: 0 } : r))
+    );
+    setActiveHazardAlert(prev => {
+      if (prev.barrierReportId === id || prev.active) {
+        return {
+          ...prev,
+          active: false,
+          impact: 'Hazard marked resolved by community. Direct original route restored.',
+        };
+      }
+      return prev;
+    });
+    setAdaptedRoute(null);
+    setNavigationStatus('navigating');
+    speakText("Barrier marked resolved by community. Direct original route restored.");
+  }, [speakText]);
 
   const upvoteReport = (id: string) => {
     setBarrierReports(prev => {
@@ -785,7 +863,6 @@ export function AccessibilityProvider({ children }: { children: React.ReactNode 
         });
         speakText(`Upvoted barrier. Community confidence extended TTL by 30 minutes.`);
 
-        // When moving to 'Verified' (ACTIVE state), trigger asynchronous route recalculation & Live Adaptation Alert
         if (target.status === 'Verified' || target.severity === 'critical') {
           triggerActiveBarrierRecalculation(target, { activeBarriers: next, autoUpdateSession: true });
           setActiveHazardAlert({
@@ -823,6 +900,9 @@ export function AccessibilityProvider({ children }: { children: React.ReactNode 
             message: `Barrier "${target.title}" auto-expired due to community downvotes.`,
           });
           speakText(`Downvote threshold reached. Barrier auto-expired and cleared from route.`);
+          setActiveHazardAlert(prev => (prev.barrierReportId === id ? { ...prev, active: false } : prev));
+          setAdaptedRoute(null);
+          setNavigationStatus('navigating');
         } else {
           barrierBroadcaster.broadcast({
             type: 'BARRIER_CONFIRMED',
@@ -874,12 +954,18 @@ export function AccessibilityProvider({ children }: { children: React.ReactNode 
         saveAccessibilityProfile,
         simulatedObstacle: activeHazardAlert,
         activeHazardAlert,
+        activeAlert: activeHazardAlert,
+        navigationStatus,
+        setNavigationStatus,
+        originalRoute,
+        adaptedRoute,
         toggleSimulatedObstacle,
         acceptReroute,
         barrierReports,
         addBarrierReport,
         upvoteReport,
         downvoteReport,
+        resolveReport,
         currentRouteResult,
         recalculateCurrentRoute,
         realtimeEvents,

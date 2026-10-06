@@ -55,13 +55,17 @@ interface UnifiedRoutePlannerProps {
 }
 
 export default function UnifiedRoutePlanner({ initialMode = 'gps' }: UnifiedRoutePlannerProps) {
-  const { speakText, simulatedObstacle, persona } = useAccessibility();
+  const { speakText, simulatedObstacle, activeHazardAlert, originalRoute, adaptedRoute, persona } = useAccessibility();
   const searchParams = useSearchParams();
 
   const urlDest = searchParams?.get('dest');
   const urlPersona = searchParams?.get('persona') as PersonaType | null;
   const urlMode = searchParams?.get('mode') as 'gps' | 'manual' | null;
   const urlAutonav = searchParams?.get('autonav') === '1' || searchParams?.get('autonav') === 'true';
+  const urlReroute = searchParams?.get('reroute') === 'active' || Boolean(searchParams?.get('reportId'));
+
+  const isRerouteActive = Boolean(urlReroute || (activeHazardAlert?.active && activeHazardAlert?.rerouteResult));
+  const [routeUpdateToast, setRouteUpdateToast] = useState<string | null>(null);
 
   // Resolve initial destination from query param if provided
   const matchedDest = DEMO_LOCATIONS.find(
@@ -115,6 +119,25 @@ export default function UnifiedRoutePlanner({ initialMode = 'gps' }: UnifiedRout
     }
   }, [persona, urlPersona]);
 
+  // Trigger Reroute Toast & Auto-Navigation
+  useEffect(() => {
+    if (isRerouteActive) {
+      const detour = activeHazardAlert?.detourTime || '+3 min detour';
+      const toastMsg = `Route updated: ${detour}, 100% step-free`;
+      setRouteUpdateToast(toastMsg);
+      setIsNavigating(true);
+      speakText(`Route updated: ${detour}, 100% step-free. Navigation started along safe adapted route.`);
+
+      const timer = setTimeout(() => {
+        setRouteUpdateToast(null);
+      }, 9000);
+      return () => clearTimeout(timer);
+    } else if (urlAutonav) {
+      setIsNavigating(true);
+      speakText('Starting accessible navigation from your live GPS position.');
+    }
+  }, [isRerouteActive, urlAutonav]);
+
   // Animation and calculation states
   const [isComparing, setIsComparing] = useState<boolean>(false);
   const [hasCompared, setHasCompared] = useState<boolean>(true);
@@ -140,6 +163,27 @@ export default function UnifiedRoutePlanner({ initialMode = 'gps' }: UnifiedRout
   );
 
   const { normal, accessible, whyChanged, summaryText, geojsonNormal, geojsonAccessible, accessibleSteps, normalSteps } = scenarioData;
+
+  // Use adapted steps if rerouted, otherwise fallback to accessibleSteps
+  const effectiveSteps = isRerouteActive && activeHazardAlert?.rerouteResult?.steps && activeHazardAlert.rerouteResult.steps.length > 0
+    ? activeHazardAlert.rerouteResult.steps
+    : accessibleSteps;
+
+  const effectiveRouteGeojson = isRerouteActive && (adaptedRoute || activeHazardAlert?.rerouteResult?.route)
+    ? (adaptedRoute || activeHazardAlert?.rerouteResult?.route)
+    : (preference === 'none' ? geojsonNormal : (geojsonAccessible || geojsonNormal));
+
+  const effectiveOriginalRouteGeojson = isRerouteActive
+    ? (originalRoute || activeHazardAlert?.rerouteResult?.originalRoute || geojsonNormal)
+    : undefined;
+
+  const barrierLocation = isRerouteActive
+    ? {
+        lat: activeHazardAlert?.rerouteResult?.blockedCoords?.lat || 19.0220,
+        lng: activeHazardAlert?.rerouteResult?.blockedCoords?.lng || 72.8400,
+        title: activeHazardAlert?.title || 'Reported Hazard',
+      }
+    : undefined;
 
   // Dynamic Delta Calculations
   const deltaDistance = Number((accessible.distance - normal.distance).toFixed(1));
@@ -460,35 +504,56 @@ export default function UnifiedRoutePlanner({ initialMode = 'gps' }: UnifiedRout
 
           {/* Complete Google Maps Style Interactive Map Component */}
           <div className="relative rounded-3xl overflow-hidden border border-outline-variant/40 shadow-xl h-[540px]">
+            {/* Route updated toast banner */}
+            {routeUpdateToast && (
+              <div className="absolute top-4 left-4 right-4 sm:left-auto sm:right-6 sm:max-w-md z-[1100] p-3.5 rounded-2xl bg-secondary text-white shadow-2xl border-2 border-white/40 flex items-center justify-between gap-3 animate-fade-in" role="status" aria-live="polite">
+                <div className="flex items-center gap-2.5">
+                  <CheckCircle2 className="w-5 h-5 text-white shrink-0" />
+                  <span className="text-xs sm:text-sm font-extrabold">{routeUpdateToast}</span>
+                </div>
+                <button
+                  type="button"
+                  onClick={() => setRouteUpdateToast(null)}
+                  className="p-1 rounded-lg hover:bg-white/20 text-white cursor-pointer"
+                  aria-label="Dismiss toast"
+                >
+                  ✕
+                </button>
+              </div>
+            )}
+
             <LiveMapWrapper
               center={detectedCoordinates}
               destination={destLocation?.coords}
               accuracy={gpsAccuracyMeters}
               zoom={16}
-              routeGeojson={preference === 'none' ? geojsonNormal : (geojsonAccessible || geojsonNormal)}
-              navigationStep={isNavigating && accessibleSteps ? accessibleSteps[currentStepIndex] : undefined}
+              routeGeojson={effectiveRouteGeojson}
+              originalRouteGeojson={effectiveOriginalRouteGeojson}
+              barrierLocation={barrierLocation}
+              isRerouted={isRerouteActive}
+              navigationStep={isNavigating && effectiveSteps ? effectiveSteps[currentStepIndex] : undefined}
               isNavigating={isNavigating}
               onExitNavigation={() => setIsNavigating(false)}
-              totalDistanceKm={accessible?.distance || 3.6}
-              totalMinutes={accessible?.time || 51}
+              totalDistanceKm={isRerouteActive && activeHazardAlert?.rerouteResult?.distance ? activeHazardAlert.rerouteResult.distance : (accessible?.distance || 3.6)}
+              totalMinutes={isRerouteActive && activeHazardAlert?.rerouteResult?.route?.properties?.durationMinutes ? activeHazardAlert.rerouteResult.route.properties.durationMinutes : (accessible?.time || 51)}
               totalSteps={Math.round(((accessible?.distance || 3.6) * 1000) / 0.75)}
               destName={destName}
-              roadName={accessibleSteps?.[currentStepIndex]?.title || 'Juhu Rd / Juhu Tara Rd'}
+              roadName={effectiveSteps?.[currentStepIndex]?.title || 'Juhu Rd / Juhu Tara Rd'}
             />
-            {isNavigating && accessibleSteps && (
+            {isNavigating && effectiveSteps && (
               <div className="absolute top-0 right-0 h-full w-full sm:w-80 md:w-96 bg-surface text-on-surface z-[1000] shadow-xl border-l border-outline-variant/30 flex flex-col overflow-hidden animate-in slide-in-from-right-4 duration-300">
                 <div className="p-4 bg-primary text-on-primary font-black flex items-center justify-between shrink-0 shadow-sm">
                   <div className="flex items-center gap-2">
                     <Navigation className="w-5 h-5" />
                     <span>Turn-by-Turn Navigation</span>
                   </div>
-                  <button onClick={() => setIsNavigating(false)} className="px-3 py-1 bg-white/20 hover:bg-white/30 rounded-lg text-xs transition-colors">
+                  <button onClick={() => setIsNavigating(false)} className="px-3 py-1 bg-white/20 hover:bg-white/30 rounded-lg text-xs transition-colors cursor-pointer">
                     End
                   </button>
                 </div>
                 
                 <div className="flex-1 overflow-y-auto">
-                  {accessibleSteps.map((step, idx) => {
+                  {effectiveSteps.map((step, idx) => {
                     const isPast = idx < currentStepIndex;
                     const isCurrent = idx === currentStepIndex;
                     return (
@@ -501,7 +566,7 @@ export default function UnifiedRoutePlanner({ initialMode = 'gps' }: UnifiedRout
                             {step.title.toLowerCase().includes('left') ? '↰' : 
                              step.title.toLowerCase().includes('right') ? '↱' : '↑'}
                           </div>
-                          {idx < accessibleSteps.length - 1 && (
+                          {idx < effectiveSteps.length - 1 && (
                             <div className="w-1 flex-1 bg-outline-variant/40 rounded-full min-h-[20px]" />
                           )}
                         </div>
@@ -518,7 +583,7 @@ export default function UnifiedRoutePlanner({ initialMode = 'gps' }: UnifiedRout
                   })}
                   
                   {/* Last 50 Meters Context (Core USP) */}
-                  <div className={`p-5 flex gap-4 ${currentStepIndex >= accessibleSteps.length ? 'bg-emerald-50/50 border-l-4 border-emerald-500' : 'bg-surface-container-lowest'}`}>
+                  <div className={`p-5 flex gap-4 ${currentStepIndex >= effectiveSteps.length ? 'bg-emerald-50/50 border-l-4 border-emerald-500' : 'bg-surface-container-lowest'}`}>
                      <div className="w-8 flex flex-col items-center shrink-0">
                         <div className="w-8 h-8 rounded-full bg-emerald-600 text-white flex items-center justify-center shadow-md">
                           <MapPin className="w-4 h-4" />
@@ -545,10 +610,10 @@ export default function UnifiedRoutePlanner({ initialMode = 'gps' }: UnifiedRout
                 <div className="p-4 bg-surface-container border-t border-outline-variant/30 shrink-0">
                   <button
                     onClick={handleSimulateWalk}
-                    disabled={currentStepIndex > accessibleSteps.length}
-                    className="w-full py-3 bg-secondary hover:bg-secondary-container text-white hover:text-on-secondary-container rounded-xl shadow-sm font-black text-sm transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+                    disabled={currentStepIndex > effectiveSteps.length}
+                    className="w-full py-3 bg-secondary hover:bg-secondary-container text-white hover:text-on-secondary-container rounded-xl shadow-sm font-black text-sm transition-colors disabled:opacity-50 disabled:cursor-not-allowed cursor-pointer"
                   >
-                    {currentStepIndex >= accessibleSteps.length ? 'Arrived' : 'Simulate Next Turn'}
+                    {currentStepIndex >= effectiveSteps.length ? 'Arrived' : 'Simulate Next Turn'}
                   </button>
                 </div>
               </div>

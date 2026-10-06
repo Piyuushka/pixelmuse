@@ -2,7 +2,7 @@
 
 import React, { useState, useRef, useEffect, Suspense } from 'react';
 import Link from 'next/link';
-import { useSearchParams } from 'next/navigation';
+import { useSearchParams, useRouter } from 'next/navigation';
 import { useAccessibility } from '@/context/AccessibilityContext';
 import {
   Users,
@@ -28,8 +28,9 @@ import {
 } from 'lucide-react';
 
 function CommunityConfidenceContent() {
+  const router = useRouter();
   const searchParams = useSearchParams();
-  const { barrierReports, addBarrierReport, upvoteReport, downvoteReport, speakText, activeHazardAlert } = useAccessibility();
+  const { barrierReports, addBarrierReport, upvoteReport, downvoteReport, resolveReport, speakText, activeHazardAlert } = useAccessibility();
 
   // View state: 'feed' (default) or 'reportForm'
   const [view, setView] = useState<'feed' | 'reportForm'>('feed');
@@ -160,39 +161,45 @@ function CommunityConfidenceContent() {
     }
   };
 
-  const handleSubmitReport = (e: React.FormEvent) => {
+  const handleSubmitReport = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!title.trim()) return;
 
     setIsSubmitting(true);
     speakText("Submitting accessibility barrier report to community network");
 
-    setTimeout(() => {
-      addBarrierReport({
+    try {
+      const { targetId, rerouteResult } = await addBarrierReport({
         title: title.trim(),
         category,
         severity,
         location: location.trim(),
         microLocation: microLocation.trim() || undefined,
         estimatedResolutionTime: estimatedResolutionTime,
-        affectsActiveRoute: severity === 'critical' || severity === 'high',
+        affectsActiveRoute: true,
         description: description.trim() || 'Reported by community navigator.'
       });
+
       setIsSubmitting(false);
       setSubmitted(true);
 
-      speakText("Barrier report published successfully. Rerouting check initiated. Returning to Community Audit Feed.");
+      const extraMin = rerouteResult?.extraMinutes || 3;
+      speakText(`Barrier reported. Rerouting. New route adds ${extraMin} minutes and is fully step-free.`);
 
+      // Reset form fields
+      setTitle('');
+      setMicroLocation('');
+      setDescription('');
+      setAttachedPhotoName(null);
+
+      // Automatically navigate to Live Alert page with reportId query param
       setTimeout(() => {
-        // Reset form
-        setTitle('');
-        setMicroLocation('');
-        setDescription('');
-        setAttachedPhotoName(null);
-        setSubmitted(false);
-        setView('feed');
-      }, 1200);
-    }, 600);
+        router.push(`/live-adaptation-alert?reportId=${targetId}`);
+      }, 700);
+    } catch (err) {
+      console.error('Failed to submit barrier report:', err);
+      setIsSubmitting(false);
+    }
   };
 
   return (
@@ -427,8 +434,7 @@ function CommunityConfidenceContent() {
                         <button
                           type="button"
                           onClick={() => {
-                            downvoteReport(report.id);
-                            speakText(`Downvoted barrier ${report.title}`);
+                            resolveReport(report.id);
                           }}
                           className="flex items-center gap-1.5 px-3 py-2 rounded-xl bg-error-container/20 hover:bg-error-container/40 text-error font-bold text-xs transition-colors"
                         >

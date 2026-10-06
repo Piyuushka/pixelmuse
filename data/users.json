@@ -254,5 +254,48 @@
     "trips": [],
     "createdAt": "2026-10-04T05:32:26.036Z",
     "updatedAt": "2026-10-04T05:32:41.424Z"
+  },
+  {
+    "id": "usr_1791267353765_5hxy8",
+    "name": "Akanksha ",
+    "email": "akankshaingale06@gmail.com",
+    "passwordHash": "8d969eef6ecad3c29a3a629280e686cf0c3f5d5a86aff3ca12020c923adc6c92",
+    "role": "user",
+    "pairingCode": "726-780",
+    "linkedParentEmail": null,
+    "linkedChildrenEmails": [],
+    "hasCompletedProfile": true,
+    "accessibilityPreferences": {
+      "primaryPersona": "low-vision",
+      "mobilityType": "walker-crutches",
+      "requireStepFree": true,
+      "maxSlopePercent": 5,
+      "preferLowerSlopes": true,
+      "preferReducedDistance": true,
+      "preferSaferCrossings": true,
+      "avoidStairs": true,
+      "needTactilePaving": false,
+      "needAudioPrompts": true,
+      "maxWalkingDistanceMeters": 1000
+    },
+    "emergencyContacts": [],
+    "privacyConsent": {
+      "allowRealtimeLocation": true,
+      "allowTripHistory": true,
+      "allowAlerts": true
+    },
+    "privacySettings": {
+      "allowRealtimeLocation": true,
+      "allowTripHistory": true,
+      "allowAlerts": true,
+      "shareAccessibilityPreferences": true
+    },
+    "activeTrip": null,
+    "tripHistory": [],
+    "parentAlerts": [],
+    "guardianLinks": [],
+    "trips": [],
+    "createdAt": "2026-10-06T06:15:53.765Z",
+    "updatedAt": "2026-10-06T06:19:35.575Z"
   }
 ]

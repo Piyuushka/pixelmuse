@@ -60,6 +60,8 @@ export default function Sidebar() {
     surfaceFilters,
     toggleSurfaceFilter,
     simulatedObstacle,
+    activeHazardAlert,
+    activeAlert,
     speakText,
     user,
     openOnboarding,
@@ -138,8 +140,12 @@ export default function Sidebar() {
         </div>
 
         {navItems.map((item) => {
-          const isActive = pathname === item.href || (item.href === '/gps-precision' && pathname === '/');
+          const isActive =
+            pathname === item.href ||
+            (item.href === '/gps-precision' && pathname === '/') ||
+            (item.href === '/live-adaptation-alert' && pathname === '/live-alert');
           const Icon = item.icon;
+          const hasActiveAlert = Boolean(activeAlert?.active || activeHazardAlert?.active || simulatedObstacle?.active);
           return (
             <Link
               key={item.href}
@@ -161,8 +167,8 @@ export default function Sidebar() {
                 </span>
               )}
 
-              {item.alert && simulatedObstacle.active && (
-                <span className="w-2 h-2 rounded-full bg-tertiary animate-pulse" />
+              {item.alert && hasActiveAlert && (
+                <span className="w-2.5 h-2.5 rounded-full bg-tertiary animate-pulse shadow-[0_0_8px_rgba(250,204,21,0.8)]" title="Active Hazard Reroute Alert" />
               )}
             </Link>
           );
