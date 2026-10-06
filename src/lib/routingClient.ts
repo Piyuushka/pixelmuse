@@ -41,10 +41,6 @@ export async function getRoute(request: RouteRequest): Promise<RouteResponse> {
     },
     metrics: {
       distance: 450,
-      maxSlope: 3.5,
-      stairsAvoided: 0,
-      barriersAvoided: 1,
-      confidence: 85,
       estimatedTime: 6,
     }
   };

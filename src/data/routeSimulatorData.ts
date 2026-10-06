@@ -23,10 +23,10 @@ export interface SchematicStep {
 export interface RouteStats {
   distance: number; // km
   time: number; // mins
-  stairs: number;
-  maxSlope: number; // percentage
-  barriers: number;
-  unsafeCrossings: number;
+  stairs?: number;
+  maxSlope?: number; // percentage
+  barriers?: number;
+  unsafeCrossings?: number;
 }
 
 export interface RouteScenarioData {
@@ -34,8 +34,8 @@ export interface RouteScenarioData {
   accessible: RouteStats;
   normalSteps: SchematicStep[];
   accessibleSteps: SchematicStep[];
-  whyChanged: string[];
-  summaryText: string;
+  whyChanged?: string[];
+  summaryText?: string;
 }
 
 export type AccessibilityPreferenceId = PersonaType | 'none';
@@ -670,7 +670,7 @@ function adjustForPreference(data: RouteScenarioData, prefId: AccessibilityPrefe
         'Prioritized audible signalized crosswalks and tactile paving',
         'Avoided chaotic multi-leg roundabouts and median dashes',
         'Bypassed all low-hanging or ground-level tripping hazards',
-        ...data.whyChanged.slice(3)
+        ...(data.whyChanged ? data.whyChanged.slice(3) : [])
       ]
     };
   }

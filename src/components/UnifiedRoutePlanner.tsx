@@ -3,7 +3,7 @@
 import React, { useState, useRef, useEffect } from 'react';
 import Link from 'next/link';
 import { useSearchParams } from 'next/navigation';
-import { useAccessibility, PersonaType, PERSONAS } from '@/context/AccessibilityContext';
+import { useAccessibility } from '@/context/AccessibilityContext';
 import { useGeolocation } from '@/hooks/useGeolocation';
 import LiveMapWrapper from '@/components/LiveMapWrapper';
 import InteractiveMap from '@/components/InteractiveMap';
@@ -42,31 +42,15 @@ import {
   Crosshair,
   RefreshCw,
   Sliders,
-  Sparkles,
-  Shuffle,
   Volume2,
-  AlertTriangle,
   CheckCircle2,
-  Clock,
-  TrendingUp,
-  TrendingDown,
-  Building,
-  CloudRain,
-  Users,
-  ChevronDown,
-  Info,
-  ThumbsUp,
-  Flame,
-  Accessibility,
   Footprints,
-  UserCheck,
-  Eye,
-  Heart,
-  Radio,
   Lock,
   ArrowDown,
   ChevronLeft,
   ChevronRight,
+  Clock,
+  Building,
   X
 } from 'lucide-react';
 
@@ -79,7 +63,6 @@ export default function UnifiedRoutePlanner({ initialMode = 'gps' }: UnifiedRout
   const searchParams = useSearchParams();
 
   const urlDest = searchParams?.get('dest');
-  const urlPersona = searchParams?.get('persona') as PersonaType | null;
   const urlMode = searchParams?.get('mode') as 'gps' | 'manual' | null;
   const urlAutonav = searchParams?.get('autonav') === '1' || searchParams?.get('autonav') === 'true';
   const urlReroute = searchParams?.get('reroute') === 'active' || Boolean(searchParams?.get('reportId'));
@@ -128,16 +111,6 @@ export default function UnifiedRoutePlanner({ initialMode = 'gps' }: UnifiedRout
   const [destLocation, setDestLocation] = useState<{name: string, coords: any} | null>(
     defaultDest
   );
-  const [preference, setPreference] = useState<PersonaType>(
-    urlPersona && PERSONAS.some(p => p.id === urlPersona) ? urlPersona : (persona || 'wheelchair')
-  );
-
-  // Automatically inherit saved profile persona if updated in session
-  useEffect(() => {
-    if (persona && !urlPersona) {
-      setPreference(persona);
-    }
-  }, [persona, urlPersona]);
 
   // Trigger Reroute Toast & Auto-Navigation
   useEffect(() => {
@@ -179,10 +152,10 @@ export default function UnifiedRoutePlanner({ initialMode = 'gps' }: UnifiedRout
 
   // Compute route scenario data dynamically
   const [scenarioData, setScenarioData] = useState<RouteScenarioData & { geojsonNormal?: any, geojsonAccessible?: any }>(
-    getRouteComparison(effectiveStartName, destName, preference)
+    getRouteComparison(effectiveStartName, destName)
   );
 
-  const { normal, accessible, whyChanged, summaryText, geojsonNormal, geojsonAccessible, accessibleSteps, normalSteps } = scenarioData;
+  const { normal, accessible, geojsonNormal, geojsonAccessible, accessibleSteps, normalSteps } = scenarioData;
 
   // Use adapted steps if rerouted, otherwise fallback to accessibleSteps
   const effectiveSteps = isRerouteActive && activeHazardAlert?.rerouteResult?.steps && activeHazardAlert.rerouteResult.steps.length > 0
@@ -191,7 +164,7 @@ export default function UnifiedRoutePlanner({ initialMode = 'gps' }: UnifiedRout
 
   const effectiveRouteGeojson = isRerouteActive && (adaptedRoute || activeHazardAlert?.rerouteResult?.route)
     ? (adaptedRoute || activeHazardAlert?.rerouteResult?.route)
-    : (preference === 'none' ? geojsonNormal : (geojsonAccessible || geojsonNormal));
+    : (geojsonAccessible || geojsonNormal);
 
   const effectiveOriginalRouteGeojson = isRerouteActive
     ? (originalRoute || activeHazardAlert?.rerouteResult?.originalRoute || geojsonNormal)
@@ -204,14 +177,6 @@ export default function UnifiedRoutePlanner({ initialMode = 'gps' }: UnifiedRout
         title: activeHazardAlert?.title || 'Reported Hazard',
       }
     : undefined;
-
-  // Dynamic Delta Calculations
-  const deltaDistance = Number((accessible.distance - normal.distance).toFixed(1));
-  const deltaTime = accessible.time - normal.time;
-  const stairsAvoided = normal.stairs - accessible.stairs;
-  const slopeReduction = normal.maxSlope - accessible.maxSlope;
-  const barriersAvoided = normal.barriers - accessible.barriers;
-  const unsafeCrossingsAvoided = normal.unsafeCrossings - accessible.unsafeCrossings;
 
   const benchmarkKeys = Object.keys(BENCHMARK_SCENARIOS);
 
@@ -258,13 +223,13 @@ export default function UnifiedRoutePlanner({ initialMode = 'gps' }: UnifiedRout
       }
     }
 
-    const mockData = getRouteComparison(effectiveStartName, targetDestName, preference);
+    const mockData = getRouteComparison(effectiveStartName, targetDestName);
     
     const sCoords = locationMode === 'gps' ? detectedCoordinates : startLocation?.coords;
 
     // 2. Fetch Dynamic Route via OpenRouteService (with Nominatim geocoded coordinates)
     if (sCoords && targetDestCoords) {
-      const liveData = await getLiveRouteScenario(sCoords, targetDestCoords, preference);
+      const liveData = await getLiveRouteScenario(sCoords, targetDestCoords);
       if (liveData) {
         setScenarioData(liveData);
       } else {
@@ -274,7 +239,7 @@ export default function UnifiedRoutePlanner({ initialMode = 'gps' }: UnifiedRout
       setScenarioData(mockData);
     }
 
-    speakText(`Calculating barrier-free route from ${effectiveStartName} to ${targetDestName} for ${preference} profile.`);
+    speakText(`Calculating route from ${effectiveStartName} to ${targetDestName}.`);
     
     setIsComparing(false);
     setHasCompared(true);
@@ -345,7 +310,7 @@ export default function UnifiedRoutePlanner({ initialMode = 'gps' }: UnifiedRout
       const session = createNavigationSession({
         destination: destName,
         steps: navSteps,
-        persona: preference,
+        persona: persona || 'wheelchair',
       });
       navigationSessionStore.setSession(session);
     }
@@ -466,10 +431,9 @@ export default function UnifiedRoutePlanner({ initialMode = 'gps' }: UnifiedRout
     setStartLocation({ name: dadar.name, coords: { lat: dadar.lat!, lng: dadar.lng! } });
     setDestLocation({ name: shivaji.name, coords: { lat: shivaji.lat!, lng: shivaji.lng! } });
     
-    setPreference('wheelchair');
     setSimulatedAccuracy(0.5);
     setIsComparing(true);
-    speakText("Loading unified demo flow: GPS location at Dadar Railway Station to Shivaji Park for wheelchair user.");
+    speakText("Loading unified demo flow: GPS location at Dadar Railway Station to Shivaji Park.");
     setTimeout(() => {
       setIsComparing(false);
       setHasCompared(true);
@@ -509,18 +473,6 @@ export default function UnifiedRoutePlanner({ initialMode = 'gps' }: UnifiedRout
     setHasCompared(false); // require re-comparison
   };
 
-  const getPreferenceIcon = (id: PersonaType) => {
-    switch (id) {
-      case 'wheelchair': return <Accessibility className="w-5 h-5" />;
-      case 'older-adult': return <Footprints className="w-5 h-5" />;
-      case 'low-vision': return <Eye className="w-5 h-5" />;
-      case 'caregiver': return <Heart className="w-5 h-5" />;
-      default: return <Navigation className="w-5 h-5" />;
-    }
-  };
-
-  const selectedPrefObj = PERSONAS.find(p => p.id === preference) || PERSONAS[0];
-
   return (
     <div className="w-full px-4 md:px-8 py-8 flex justify-center bg-surface">
       <div className="w-full max-w-[1150px] flex flex-col gap-8">
@@ -554,7 +506,7 @@ export default function UnifiedRoutePlanner({ initialMode = 'gps' }: UnifiedRout
           <div className="flex items-center gap-2 flex-wrap">
             <button
               type="button"
-              onClick={() => speakText(`Unified Accessible Route Planner active. Location is ${effectiveStartName} with GPS accuracy ±${gpsAccuracyMeters}m. Destination is ${destName} for ${selectedPrefObj.label}.`)}
+              onClick={() => speakText(`Unified Accessible Route Planner active. Location is ${effectiveStartName} with GPS accuracy ±${gpsAccuracyMeters}m. Destination is ${destName}.`)}
               className="p-2.5 rounded-2xl bg-surface-container hover:bg-surface-container-high border border-outline-variant/40 text-primary shadow-xs transition-colors"
               title="Speak page summary"
               aria-label="Read screen aloud"
@@ -1030,72 +982,6 @@ export default function UnifiedRoutePlanner({ initialMode = 'gps' }: UnifiedRout
               </div>
 
             </div>
-
-            {/* Accessibility Preferences Grid */}
-            <div className="flex flex-col gap-3 pt-2">
-              <div className="flex items-center justify-between">
-                <label className="text-xs font-black uppercase tracking-wider text-on-surface-variant">
-                  Accessibility Preference Profile
-                </label>
-                <span className="text-xs font-bold text-primary">
-                  Active: {selectedPrefObj.label}
-                </span>
-              </div>
-
-              <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-2.5">
-                {PERSONAS.map((pref) => {
-                  const isActive = preference === pref.id;
-                  return (
-                    <button
-                      key={pref.id}
-                      type="button"
-                      onClick={() => {
-                        setPreference(pref.id);
-                        speakText(`Accessibility preference set to ${pref.label}`);
-                      }}
-                      className={`p-3 rounded-2xl border-2 flex flex-col items-center text-center gap-2 transition-all ${
-                        isActive
-                          ? 'bg-primary/10 border-primary text-primary shadow-xs'
-                          : 'bg-surface-container-low border-outline-variant/30 hover:border-outline text-on-surface'
-                      }`}
-                    >
-                      <div className={`p-2 rounded-xl ${
-                        isActive ? 'bg-primary text-white' : 'bg-surface-container text-on-surface-variant'
-                      }`}>
-                        {getPreferenceIcon(pref.id)}
-                      </div>
-                      <span className="text-xs font-black leading-tight">
-                        {pref.label}
-                      </span>
-                    </button>
-                  );
-                })}
-              </div>
-
-              {/* Priorities Bar */}
-              <div className="p-4 rounded-2xl bg-surface-container-low border border-outline-variant/30 flex flex-col sm:flex-row sm:items-center justify-between gap-3">
-                <div className="flex items-center gap-2">
-                  <span className="text-xs font-extrabold uppercase text-on-surface-variant">
-                    Priority Focus:
-                  </span>
-                  <div className="flex flex-wrap gap-1.5">
-                    {selectedPrefObj.priorities.map((item, idx) => (
-                      <span
-                        key={idx}
-                        className="px-2.5 py-0.5 rounded-full bg-surface-container-lowest border border-outline-variant/30 text-[11px] font-bold text-on-surface"
-                      >
-                        ✓ {item}
-                      </span>
-                    ))}
-                  </div>
-                </div>
-
-                <span className="text-xs text-on-surface-variant italic sm:max-w-[280px]">
-                  {selectedPrefObj.description}
-                </span>
-              </div>
-
-            </div>
           </div>
         </section>
 
@@ -1123,78 +1009,38 @@ export default function UnifiedRoutePlanner({ initialMode = 'gps' }: UnifiedRout
             </span>
           </div>
 
-          {/* Route Change Animation / Transition Summary Banner */}
+          {/* Route Status & Navigation CTA Banner */}
           {hasCompared && (
-            <div className={`p-6 rounded-3xl border-2 transition-all duration-500 shadow-sm ${
+            <div className={`p-6 rounded-3xl border transition-all duration-500 shadow-sm ${
               isComparing
                 ? 'opacity-60 scale-[0.99] bg-surface-container'
-                : 'bg-emerald-50/50 dark:bg-emerald-950/20 border-emerald-500/40 text-on-surface'
+                : 'bg-surface-container-lowest border-outline-variant/40 text-on-surface'
             }`}>
               <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
                 <div className="flex items-start gap-3.5">
-                  <div className="w-12 h-12 rounded-2xl bg-emerald-600 text-white flex items-center justify-center flex-shrink-0 shadow-md">
-                    <ShieldCheck className="w-7 h-7" />
+                  <div className="w-12 h-12 rounded-2xl bg-primary text-white flex items-center justify-center flex-shrink-0 shadow-md">
+                    <Navigation className="w-6 h-6" />
                   </div>
                   <div>
-                    <div className="flex items-center gap-2">
-                      <span className="text-xs font-black uppercase tracking-widest text-emerald-700 dark:text-emerald-400">
-                        Route Modified & Verified
-                      </span>
-                      <span className="w-2 h-2 rounded-full bg-emerald-500 animate-pulse" />
-                    </div>
-                    <h3 className="text-xl font-black text-on-surface mt-0.5">
-                      Accessibility improvement: {barriersAvoided + stairsAvoided} barriers removed
+                    <h3 className="text-xl font-black text-on-surface">
+                      Route Calculated Successfully
                     </h3>
-                    
-                    <div className="flex flex-wrap gap-x-4 gap-y-1 mt-2 text-xs font-bold text-on-surface-variant">
-                      {stairsAvoided > 0 && (
-                        <span className="text-emerald-700 dark:text-emerald-400">
-                          ✓ {stairsAvoided} stairs avoided
-                        </span>
-                      )}
-                      {barriersAvoided > 0 && (
-                        <span className="text-emerald-700 dark:text-emerald-400">
-                          ✓ {barriersAvoided} barriers avoided
-                        </span>
-                      )}
-                      {slopeReduction > 0 && (
-                        <span className="text-emerald-700 dark:text-emerald-400">
-                          ✓ Maximum slope reduced from {normal.maxSlope}% → {accessible.maxSlope}%
-                        </span>
-                      )}
-                      {unsafeCrossingsAvoided > 0 && (
-                        <span className="text-emerald-700 dark:text-emerald-400">
-                          ✓ {unsafeCrossingsAvoided} unsafe crossings avoided
-                        </span>
-                      )}
-                      {/* Start Navigation Floating CTA */}
-                      {hasCompared && !isNavigating && (
-                        <div className="mt-8 mb-4 border-t border-outline-variant/30 pt-8 flex justify-center">
-                          <button
-                            onClick={handleStartNavigation}
-                            className="bg-primary hover:bg-primary-container text-white px-10 py-4 rounded-3xl font-black text-lg shadow-xl hover:-translate-y-1 transition-all flex items-center gap-3"
-                          >
-                            <Navigation className="w-6 h-6" />
-                            Start Live Navigation
-                          </button>
-                        </div>
-                      )}
-
-                    </div>
+                    <p className="text-xs text-on-surface-variant font-medium mt-1">
+                      Distance: <strong>{accessible.distance} km</strong> • Walking time: <strong>{accessible.time} min</strong>
+                    </p>
                   </div>
                 </div>
 
-                <div className="p-3.5 rounded-2xl bg-surface-container-lowest border border-outline-variant/30 flex flex-col items-start md:items-end">
-                  <span className="text-[11px] font-extrabold uppercase text-on-surface-variant tracking-wider">
-                    Accessibility Trade-off
-                  </span>
-                  <span className="text-sm font-black text-primary">
-                    {deltaDistance >= 0 ? `+${deltaDistance} km` : `${deltaDistance} km`} / +{deltaTime} min
-                  </span>
-                  <span className="text-[10px] text-on-surface-variant font-medium">
-                    Negligible cost for continuous step-free safety
-                  </span>
-                </div>
+                {!isNavigating && (
+                  <button
+                    type="button"
+                    onClick={handleStartNavigation}
+                    className="bg-primary hover:bg-primary-container text-white px-8 py-3.5 rounded-2xl font-black text-sm shadow-md hover:-translate-y-0.5 transition-all flex items-center justify-center gap-2 cursor-pointer"
+                  >
+                    <Navigation className="w-4 h-4" />
+                    <span>Start Live Navigation</span>
+                  </button>
+                )}
               </div>
             </div>
           )}
@@ -1217,7 +1063,7 @@ export default function UnifiedRoutePlanner({ initialMode = 'gps' }: UnifiedRout
                   </span>
                 </div>
 
-                <div className="grid grid-cols-2 sm:grid-cols-3 gap-3">
+                <div className="grid grid-cols-2 gap-3">
                   <div className="p-3 rounded-xl bg-surface-container-low">
                     <span className="text-[10px] font-extrabold uppercase text-on-surface-variant block">Distance</span>
                     <span className="text-lg font-black text-on-surface">{normal.distance} km</span>
@@ -1226,27 +1072,11 @@ export default function UnifiedRoutePlanner({ initialMode = 'gps' }: UnifiedRout
                     <span className="text-[10px] font-extrabold uppercase text-on-surface-variant block">Walking Time</span>
                     <span className="text-lg font-black text-on-surface">{normal.time} min</span>
                   </div>
-                  <div className="p-3 rounded-xl bg-rose-50 dark:bg-rose-950/40 border border-rose-200 dark:border-rose-900/40">
-                    <span className="text-[10px] font-extrabold uppercase text-rose-700 dark:text-rose-300 block">Stairs</span>
-                    <span className="text-lg font-black text-rose-700 dark:text-rose-300">{normal.stairs}</span>
-                  </div>
-                  <div className="p-3 rounded-xl bg-rose-50 dark:bg-rose-950/40 border border-rose-200 dark:border-rose-900/40">
-                    <span className="text-[10px] font-extrabold uppercase text-rose-700 dark:text-rose-300 block">Maximum Slope</span>
-                    <span className="text-lg font-black text-rose-700 dark:text-rose-300">{normal.maxSlope}%</span>
-                  </div>
-                  <div className="p-3 rounded-xl bg-rose-50 dark:bg-rose-950/40 border border-rose-200 dark:border-rose-900/40">
-                    <span className="text-[10px] font-extrabold uppercase text-rose-700 dark:text-rose-300 block">Barriers</span>
-                    <span className="text-lg font-black text-rose-700 dark:text-rose-300">{normal.barriers}</span>
-                  </div>
-                  <div className="p-3 rounded-xl bg-rose-50 dark:bg-rose-950/40 border border-rose-200 dark:border-rose-900/40">
-                    <span className="text-[10px] font-extrabold uppercase text-rose-700 dark:text-rose-300 block">Unsafe Crossings</span>
-                    <span className="text-lg font-black text-rose-700 dark:text-rose-300">{normal.unsafeCrossings}</span>
-                  </div>
                 </div>
               </div>
 
               <div className="p-3 rounded-xl bg-surface-container-low border border-outline-variant/30 text-xs text-on-surface-variant">
-                ⚠️ Optimized strictly for minimal distance. Ignores wheelchair stairs, broken footpaths, and dangerous highway crossings.
+                Standard direct walking route based on distance.
               </div>
             </div>
 
@@ -1264,11 +1094,11 @@ export default function UnifiedRoutePlanner({ initialMode = 'gps' }: UnifiedRout
                   </div>
                   <span className="text-xs font-bold px-2.5 py-0.5 rounded-full bg-emerald-100 dark:bg-emerald-900/50 text-emerald-800 dark:text-emerald-200 flex items-center gap-1">
                     <ShieldCheck className="w-3.5 h-3.5" />
-                    Accessibility-Aware
+                    Optimized Route
                   </span>
                 </div>
 
-                <div className="grid grid-cols-2 sm:grid-cols-3 gap-3">
+                <div className="grid grid-cols-2 gap-3">
                   <div className="p-3 rounded-xl bg-surface-container-low">
                     <span className="text-[10px] font-extrabold uppercase text-on-surface-variant block">Distance</span>
                     <span className="text-lg font-black text-on-surface">{accessible.distance} km</span>
@@ -1277,27 +1107,11 @@ export default function UnifiedRoutePlanner({ initialMode = 'gps' }: UnifiedRout
                     <span className="text-[10px] font-extrabold uppercase text-on-surface-variant block">Walking Time</span>
                     <span className="text-lg font-black text-on-surface">{accessible.time} min</span>
                   </div>
-                  <div className="p-3 rounded-xl bg-emerald-50 dark:bg-emerald-950/40 border border-emerald-200 dark:border-emerald-900/40">
-                    <span className="text-[10px] font-extrabold uppercase text-emerald-800 dark:text-emerald-300 block">Stairs</span>
-                    <span className="text-lg font-black text-emerald-800 dark:text-emerald-300">{accessible.stairs}</span>
-                  </div>
-                  <div className="p-3 rounded-xl bg-emerald-50 dark:bg-emerald-950/40 border border-emerald-200 dark:border-emerald-900/40">
-                    <span className="text-[10px] font-extrabold uppercase text-emerald-800 dark:text-emerald-300 block">Maximum Slope</span>
-                    <span className="text-lg font-black text-emerald-800 dark:text-emerald-300">{accessible.maxSlope}%</span>
-                  </div>
-                  <div className="p-3 rounded-xl bg-emerald-50 dark:bg-emerald-950/40 border border-emerald-200 dark:border-emerald-900/40">
-                    <span className="text-[10px] font-extrabold uppercase text-emerald-800 dark:text-emerald-300 block">Barriers</span>
-                    <span className="text-lg font-black text-emerald-800 dark:text-emerald-300">{accessible.barriers}</span>
-                  </div>
-                  <div className="p-3 rounded-xl bg-emerald-50 dark:bg-emerald-950/40 border border-emerald-200 dark:border-emerald-900/40">
-                    <span className="text-[10px] font-extrabold uppercase text-emerald-800 dark:text-emerald-300 block">Unsafe Crossings</span>
-                    <span className="text-lg font-black text-emerald-800 dark:text-emerald-300">{accessible.unsafeCrossings}</span>
-                  </div>
                 </div>
               </div>
 
               <div className="p-3.5 rounded-xl bg-emerald-500/10 border border-emerald-500/30 text-xs font-bold text-emerald-900 dark:text-emerald-200 relative z-10">
-                💡 <strong>UX Principle:</strong> &ldquo;Accessible routes may be slightly longer, but can significantly reduce accessibility barriers.&rdquo;
+                Optimized navigation path prepared for navigation.
               </div>
             </div>
 
@@ -1313,255 +1127,6 @@ export default function UnifiedRoutePlanner({ initialMode = 'gps' }: UnifiedRout
             activeView={visualizerView}
             onViewChange={setVisualizerView}
           />
-        </section>
-
-        {/* ========================================================================= */}
-        {/* SECTION 4: "ACCESSIBILITY IMPROVEMENTS" (DYNAMIC DELTA METRICS)            */}
-        {/* ========================================================================= */}
-        <section aria-labelledby="section-metrics" className="flex flex-col gap-6 pt-4 border-t border-outline-variant/30">
-          <div className="flex items-center gap-3">
-            <div className="w-9 h-9 rounded-xl bg-primary/10 text-primary flex items-center justify-center font-black text-sm">
-              4
-            </div>
-            <div>
-              <h2 id="section-metrics" className="text-xl md:text-2xl font-black text-on-surface">
-                Accessibility Improvements & Metric Changes
-              </h2>
-              <p className="text-xs text-on-surface-variant font-medium">
-                Quantifiable reductions in hazards achieved by accessibility-aware routing.
-              </p>
-            </div>
-          </div>
-
-          <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-3.5">
-            
-            {/* Distance Delta */}
-            <div className="p-4 rounded-2xl bg-surface-container-lowest border border-outline-variant/40 shadow-xs flex flex-col justify-between">
-              <div className="flex items-center justify-between text-xs font-bold text-on-surface-variant">
-                <span>Distance</span>
-                <TrendingUp className="w-3.5 h-3.5 text-primary" />
-              </div>
-              <div className="my-2">
-                <div className="text-2xl font-black text-on-surface">
-                  {deltaDistance >= 0 ? `+${deltaDistance}` : deltaDistance} <span className="text-xs font-normal">km</span>
-                </div>
-                <div className="text-[10px] text-on-surface-variant font-semibold">
-                  {normal.distance} km → {accessible.distance} km
-                </div>
-              </div>
-              <span className="text-[10px] font-bold px-2 py-0.5 rounded bg-surface-container text-on-surface-variant text-center">
-                Small additional path
-              </span>
-            </div>
-
-            {/* Time Delta */}
-            <div className="p-4 rounded-2xl bg-surface-container-lowest border border-outline-variant/40 shadow-xs flex flex-col justify-between">
-              <div className="flex items-center justify-between text-xs font-bold text-on-surface-variant">
-                <span>Time</span>
-                <Clock className="w-3.5 h-3.5 text-primary" />
-              </div>
-              <div className="my-2">
-                <div className="text-2xl font-black text-on-surface">
-                  +{deltaTime} <span className="text-xs font-normal">min</span>
-                </div>
-                <div className="text-[10px] text-on-surface-variant font-semibold">
-                  {normal.time} min → {accessible.time} min
-                </div>
-              </div>
-              <span className="text-[10px] font-bold px-2 py-0.5 rounded bg-surface-container text-on-surface-variant text-center">
-                Safe walking pace
-              </span>
-            </div>
-
-            {/* Stairs Avoided */}
-            <div className="p-4 rounded-2xl bg-emerald-500/10 border border-emerald-500/30 shadow-xs flex flex-col justify-between text-emerald-950 dark:text-emerald-200">
-              <div className="flex items-center justify-between text-xs font-bold">
-                <span>Stairs Avoided</span>
-                <CheckCircle2 className="w-3.5 h-3.5 text-emerald-600" />
-              </div>
-              <div className="my-2">
-                <div className="text-2xl font-black text-emerald-700 dark:text-emerald-300">
-                  {stairsAvoided} <span className="text-xs font-normal">flights</span>
-                </div>
-                <div className="text-[10px] text-on-surface-variant font-semibold">
-                  {normal.stairs} → {accessible.stairs}
-                </div>
-              </div>
-              <span className="text-[10px] font-extrabold px-2 py-0.5 rounded bg-emerald-600/20 text-emerald-800 dark:text-emerald-300 text-center">
-                {accessible.stairs === 0 ? '100% Step-Free' : 'Major reduction'}
-              </span>
-            </div>
-
-            {/* Max Slope Reduction */}
-            <div className="p-4 rounded-2xl bg-emerald-500/10 border border-emerald-500/30 shadow-xs flex flex-col justify-between text-emerald-950 dark:text-emerald-200">
-              <div className="flex items-center justify-between text-xs font-bold">
-                <span>Max Slope</span>
-                <TrendingDown className="w-3.5 h-3.5 text-emerald-600" />
-              </div>
-              <div className="my-2">
-                <div className="text-2xl font-black text-emerald-700 dark:text-emerald-300">
-                  -{slopeReduction}%
-                </div>
-                <div className="text-[10px] text-on-surface-variant font-semibold">
-                  {normal.maxSlope}% → {accessible.maxSlope}%
-                </div>
-              </div>
-              <span className="text-[10px] font-extrabold px-2 py-0.5 rounded bg-emerald-600/20 text-emerald-800 dark:text-emerald-300 text-center">
-                ≤ 5% ADA Standard
-              </span>
-            </div>
-
-            {/* Barriers Avoided */}
-            <div className="p-4 rounded-2xl bg-emerald-500/10 border border-emerald-500/30 shadow-xs flex flex-col justify-between text-emerald-950 dark:text-emerald-200">
-              <div className="flex items-center justify-between text-xs font-bold">
-                <span>Barriers Avoided</span>
-                <ShieldCheck className="w-3.5 h-3.5 text-emerald-600" />
-              </div>
-              <div className="my-2">
-                <div className="text-2xl font-black text-emerald-700 dark:text-emerald-300">
-                  {barriersAvoided}
-                </div>
-                <div className="text-[10px] text-on-surface-variant font-semibold">
-                  {normal.barriers} → {accessible.barriers}
-                </div>
-              </div>
-              <span className="text-[10px] font-extrabold px-2 py-0.5 rounded bg-emerald-600/20 text-emerald-800 dark:text-emerald-300 text-center">
-                Obstacles cleared
-              </span>
-            </div>
-
-            {/* Crossings Safe */}
-            <div className="p-4 rounded-2xl bg-emerald-500/10 border border-emerald-500/30 shadow-xs flex flex-col justify-between text-emerald-950 dark:text-emerald-200">
-              <div className="flex items-center justify-between text-xs font-bold">
-                <span>Crossings Safe</span>
-                <CheckCircle2 className="w-3.5 h-3.5 text-emerald-600" />
-              </div>
-              <div className="my-2">
-                <div className="text-2xl font-black text-emerald-700 dark:text-emerald-300">
-                  {unsafeCrossingsAvoided}
-                </div>
-                <div className="text-[10px] text-on-surface-variant font-semibold">
-                  {normal.unsafeCrossings} → {accessible.unsafeCrossings}
-                </div>
-              </div>
-              <span className="text-[10px] font-extrabold px-2 py-0.5 rounded bg-emerald-600/20 text-emerald-800 dark:text-emerald-300 text-center">
-                Signalized crossings
-              </span>
-            </div>
-
-          </div>
-        </section>
-
-        {/* ========================================================================= */}
-        {/* SECTION 5: "WHY DID THE ROUTE CHANGE?" & CORE PHILOSOPHY                  */}
-        {/* ========================================================================= */}
-        <section aria-labelledby="section-why-changed" className="flex flex-col gap-6 pt-4 border-t border-outline-variant/30">
-          <div className="flex items-center gap-3">
-            <div className="w-9 h-9 rounded-xl bg-primary/10 text-primary flex items-center justify-center font-black text-sm">
-              5
-            </div>
-            <div>
-              <h2 id="section-why-changed" className="text-xl md:text-2xl font-black text-on-surface">
-                Why Did the Route Change?
-              </h2>
-              <p className="text-xs text-on-surface-variant font-medium">
-                Detailed reasoning behind the accessibility routing decisions.
-              </p>
-            </div>
-          </div>
-
-          <div className="grid grid-cols-1 md:grid-cols-12 gap-6">
-            
-            {/* Why did we change the route? Panel */}
-            <div className="md:col-span-7 p-6 md:p-7 rounded-3xl bg-surface-container-lowest border border-outline-variant/40 shadow-sm flex flex-col gap-4">
-              <div className="flex items-center gap-2">
-                <CheckCircle2 className="w-5 h-5 text-emerald-600" />
-                <h3 className="text-lg font-black text-on-surface">
-                  Routing Decision Log
-                </h3>
-              </div>
-
-              <div className="space-y-2.5">
-                {whyChanged.map((reason, idx) => (
-                  <div key={idx} className="flex items-start gap-3 p-3 rounded-xl bg-surface-container-low text-xs font-bold text-on-surface">
-                    <span className="w-5 h-5 rounded-full bg-emerald-600 text-white flex items-center justify-center flex-shrink-0 text-[11px]">
-                      ✓
-                    </span>
-                    <span className="mt-0.5 leading-relaxed">{reason}</span>
-                  </div>
-                ))}
-              </div>
-
-              <p className="text-xs text-on-surface-variant font-semibold pt-2 border-t border-outline-variant/30 leading-relaxed">
-                &ldquo;The accessible route prioritizes accessibility constraints instead of only minimizing distance.&rdquo;
-              </p>
-            </div>
-
-            {/* Quick Transition Table */}
-            <div className="md:col-span-5 p-6 md:p-7 rounded-3xl bg-surface-container-low border border-outline-variant/40 shadow-sm flex flex-col justify-between gap-4">
-              <div>
-                <div className="flex items-center gap-2">
-                  <Navigation className="w-5 h-5 text-primary" />
-                  <h3 className="text-lg font-black text-on-surface">
-                    Route Transition Summary
-                  </h3>
-                </div>
-                <span className="text-xs font-bold text-on-surface-variant block mt-1">
-                  Normal Route → Accessibility-Aware Route
-                </span>
-
-                <div className="space-y-2 mt-4 text-xs font-black">
-                  <div className="flex items-center justify-between p-2 rounded-lg bg-surface-container-lowest">
-                    <span className="text-on-surface-variant">Distance:</span>
-                    <span className="text-on-surface">{normal.distance} km → {accessible.distance} km</span>
-                  </div>
-                  <div className="flex items-center justify-between p-2 rounded-lg bg-surface-container-lowest">
-                    <span className="text-on-surface-variant">Time:</span>
-                    <span className="text-on-surface">{normal.time} min → {accessible.time} min</span>
-                  </div>
-                  <div className="flex items-center justify-between p-2 rounded-lg bg-surface-container-lowest text-emerald-800 dark:text-emerald-300">
-                    <span>Stairs:</span>
-                    <span>{normal.stairs} → {accessible.stairs}</span>
-                  </div>
-                  <div className="flex items-center justify-between p-2 rounded-lg bg-surface-container-lowest text-emerald-800 dark:text-emerald-300">
-                    <span>Max Slope:</span>
-                    <span>{normal.maxSlope}% → {accessible.maxSlope}%</span>
-                  </div>
-                  <div className="flex items-center justify-between p-2 rounded-lg bg-surface-container-lowest text-emerald-800 dark:text-emerald-300">
-                    <span>Barriers:</span>
-                    <span>{normal.barriers} → {accessible.barriers}</span>
-                  </div>
-                  <div className="flex items-center justify-between p-2 rounded-lg bg-surface-container-lowest text-emerald-800 dark:text-emerald-300">
-                    <span>Unsafe Crossings:</span>
-                    <span>{normal.unsafeCrossings} → {accessible.unsafeCrossings}</span>
-                  </div>
-                </div>
-              </div>
-
-              <div className="p-3.5 rounded-2xl bg-emerald-500/15 border border-emerald-500/30 text-xs font-extrabold text-emerald-900 dark:text-emerald-200">
-                <p className="mb-1 leading-snug">{summaryText}</p>
-                <span className="block font-bold text-emerald-800 dark:text-emerald-300">
-                  Result: The route is slightly longer, but avoids major accessibility barriers.
-                </span>
-              </div>
-            </div>
-
-          </div>
-
-          {/* Hackathon Centerpiece Quote */}
-          <div className="p-8 rounded-3xl bg-gradient-to-r from-primary to-primary-container text-white shadow-lg flex flex-col items-center text-center gap-3 relative overflow-hidden mt-2">
-            <div className="absolute top-0 right-0 w-64 h-64 bg-white/10 rounded-full blur-3xl" />
-            <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-white/20 text-xs font-black uppercase tracking-widest">
-              <Flame className="w-4 h-4 text-amber-300" />
-              Core Routing Philosophy
-            </div>
-            <h2 className="text-2xl md:text-3xl font-black max-w-[750px] leading-tight mt-1">
-              &ldquo;Accessibility-aware routing doesn&apos;t always mean the shortest route. It means the route that better fits the user&apos;s needs.&rdquo;
-            </h2>
-            <p className="text-white/80 text-sm font-semibold max-w-[600px] mt-1">
-              Standard routers penalize distance over dignity. PathFinder calculates pedestrian routes that ensure everyone reaches their destination safely.
-            </p>
-          </div>
         </section>
 
       </div>

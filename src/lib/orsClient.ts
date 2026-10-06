@@ -132,43 +132,17 @@ export async function getLiveRouteScenario(
     return mapORSInstructionToStep(step.instruction, step.type, i, true, coords, step.distance);
   });
 
-  // Count artificial metrics for UI based on string matching since ORS doesn't provide exact barrier counts easily
-  const normalStairs = normalSteps.filter(s => s.type === 'stair').length;
-  const accStairs = accessibleSteps.filter(s => s.type === 'stair').length;
-
-  const normalCrossings = normalSteps.filter(s => s.type === 'unsafe_crossing').length;
-  const accCrossings = accessibleSteps.filter(s => s.type === 'unsafe_crossing').length;
-
-  const normalBarriers = normalSteps.filter(s => s.type === 'barrier').length;
-  const accBarriers = accessibleSteps.filter(s => s.type === 'barrier').length;
-
-  const distanceDiff = (accSummary.distance - normalSummary.distance) / 1000;
-
   return {
     normal: {
       distance: Number((normalSummary.distance / 1000).toFixed(2)),
       time: Math.round(normalSummary.duration / 60),
-      stairs: normalStairs,
-      maxSlope: 8, // Estimated
-      barriers: normalBarriers,
-      unsafeCrossings: normalCrossings
     },
     accessible: {
       distance: Number((accSummary.distance / 1000).toFixed(2)),
       time: Math.round(accSummary.duration / 60),
-      stairs: accStairs,
-      maxSlope: 4, // Estimated
-      barriers: accBarriers,
-      unsafeCrossings: accCrossings
     },
     normalSteps,
     accessibleSteps,
-    whyChanged: [
-      `Avoided ${Math.max(0, normalStairs - accStairs)} stair sections by using wheelchair routing.`,
-      `Adjusted path to avoid steep inclines and major road barriers.`,
-      distanceDiff > 0 ? `Added ${(distanceDiff * 1000).toFixed(0)} meters to ensure step-free passage.` : 'Found a more direct accessible path.'
-    ],
-    summaryText: `The accessible route prioritizes safety and step-free convenience based on live OpenRouteService data.`,
     geojsonNormal: normalFeature,
     geojsonAccessible: accFeature
   };

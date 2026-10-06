@@ -15,10 +15,6 @@ export interface RouteRequest {
 
 export interface RouteMetrics {
   distance: number;       // meters
-  maxSlope: number;       // percentage
-  stairsAvoided: number;
-  barriersAvoided: number;
-  confidence: number;     // percentage (0-100)
   estimatedTime: number;  // minutes
 }
 
