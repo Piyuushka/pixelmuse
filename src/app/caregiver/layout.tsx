@@ -5,12 +5,16 @@ import CaregiverSidebar from '@/components/CaregiverSidebar';
 import { useDependentTracking } from '@/hooks/useDependentTracking';
 import { AlertOctagon, PhoneCall, CheckCircle, Navigation, ShieldAlert, Volume2 } from 'lucide-react';
 import Link from 'next/link';
+import { usePathname } from 'next/navigation';
 
 export default function CaregiverPortalLayout({
   children,
 }: {
   children: React.ReactNode;
 }) {
+  const pathname = usePathname();
+  const isProfileSetup = pathname === '/caregiver/profile-setup';
+
   const { activeSOS, acknowledgeSOS, resolveSOS } = useDependentTracking();
   const [sirenPlaying, setSirenPlaying] = useState(false);
 
@@ -21,6 +25,15 @@ export default function CaregiverPortalLayout({
       setSirenPlaying(false);
     }
   }, [activeSOS]);
+
+  // Focus wizard view without distracting sidebars during mandatory onboarding
+  if (isProfileSetup) {
+    return (
+      <main className="w-full min-h-screen bg-surface text-on-surface">
+        {children}
+      </main>
+    );
+  }
 
   return (
     <div className="flex w-full min-h-screen bg-surface text-on-surface relative">

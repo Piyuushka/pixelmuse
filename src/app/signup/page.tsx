@@ -48,8 +48,26 @@ export default function SignupPage() {
       const data = await res.json();
       if (!res.ok) throw new Error(data.error || 'Registration failed');
 
-      speakText(`Account created for ${data.user.name}. Proceeding to onboarding.`);
-      setStep('onboarding');
+      speakText(`Account created for ${data.user.name}. Proceeding to profile setup.`);
+      
+      if (typeof window !== 'undefined') {
+        localStorage.setItem(
+          'pathfinder_user',
+          JSON.stringify({
+            name: data.user.name,
+            email: data.user.email,
+            isLoggedIn: true,
+            hasCompletedProfile: false,
+            role,
+          })
+        );
+      }
+
+      if (role === 'CAREGIVER') {
+        router.replace('/caregiver/profile-setup');
+      } else {
+        router.replace('/user/profile-setup');
+      }
     } catch (err: any) {
       setErrorMessage(err.message || 'Registration failed.');
     } finally {

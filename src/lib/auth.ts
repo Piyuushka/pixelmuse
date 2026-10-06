@@ -18,6 +18,7 @@ export interface TokenPayload extends JWTPayload {
   email: string;
   role: 'USER' | 'CAREGIVER' | 'ADMIN';
   name: string;
+  onboarding_complete?: boolean;
 }
 
 // ─── SIGN ─────────────────────────────────────────────────────────────────────

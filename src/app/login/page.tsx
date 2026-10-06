@@ -44,17 +44,24 @@ export default function LoginPage() {
   const [errorMessage, setErrorMessage] = useState('');
   const [successMessage, setSuccessMessage] = useState('');
 
+  const isDemoMode = process.env.NEXT_PUBLIC_DEMO_MODE === 'true';
+
   const handleRoleSelect = (selectedRole: 'CAREGIVER' | 'USER') => {
     setRole(selectedRole);
     setErrorMessage('');
     setSuccessMessage('');
+    if (isDemoMode) {
+      if (selectedRole === 'USER') {
+        setEmail('navigator@local.internal');
+        setPassword('demo1234');
+      } else {
+        setEmail('guardian@local.internal');
+        setPassword('demo1234');
+      }
+    }
     if (selectedRole === 'USER') {
-      setEmail('demo.user@pathfinder.app');
-      setPassword('demo1234');
       speakText('Selected Navigator User Portal');
     } else {
-      setEmail('demo.caregiver@pathfinder.app');
-      setPassword('demo1234');
       speakText('Selected Parent and Caregiver Guardian Portal');
     }
   };
@@ -67,8 +74,15 @@ export default function LoginPage() {
 
     try {
       if (authMethod === 'password') {
-        const loginEmail = email || (role === 'USER' ? 'demo.user@pathfinder.app' : 'demo.caregiver@pathfinder.app');
-        const loginPassword = password || 'demo1234';
+        const loginEmail = email.trim();
+        const loginPassword = password;
+
+        if (!loginEmail) {
+          throw new Error('Please enter your email address');
+        }
+        if (!loginPassword) {
+          throw new Error('Please enter your password');
+        }
 
         const res = await fetch('/api/auth/login', {
           method: 'POST',
@@ -81,10 +95,11 @@ export default function LoginPage() {
         await loginUser(loginEmail, loginPassword);
         speakText(`Welcome back ${data.user?.name || 'User'}.`);
 
+        const isOnboarded = Boolean(data.onboarding_complete);
         if (data.role === 'CAREGIVER') {
-          router.push('/caregiver/map');
+          router.push(isOnboarded ? '/caregiver/map' : '/caregiver/profile-setup');
         } else {
-          router.push('/user/map');
+          router.push(isOnboarded ? '/user/map' : '/user/profile-setup');
         }
       } else if (authMethod === 'otp') {
         if (!phone) throw new Error('Please enter a valid mobile number');
@@ -99,7 +114,7 @@ export default function LoginPage() {
           if (!res.ok) throw new Error(data.error || 'Failed to send OTP');
 
           setOtpSent(true);
-          setSuccessMessage(data.demoOtp ? `Demo OTP code: ${data.demoOtp}` : 'OTP sent to mobile phone.');
+          setSuccessMessage(data.devOtp && isDemoMode ? `Code: ${data.devOtp}` : 'OTP sent to mobile phone.');
           speakText('OTP code sent');
         } else {
           if (!otpCode) throw new Error('Please enter the 6-digit OTP code');
@@ -114,10 +129,11 @@ export default function LoginPage() {
 
           speakText(`Welcome ${data.user?.name || 'User'}. Authenticated.`);
 
+          const isOnboarded = Boolean(data.onboarding_complete);
           if (data.role === 'CAREGIVER') {
-            router.push('/caregiver/map');
+            router.push(isOnboarded ? '/caregiver/map' : '/caregiver/profile-setup');
           } else {
-            router.push('/user/map');
+            router.push(isOnboarded ? '/user/map' : '/user/profile-setup');
           }
         }
       }
@@ -131,7 +147,7 @@ export default function LoginPage() {
   const handleQuickDemoLogin = async (demoRole: 'USER' | 'CAREGIVER') => {
     setIsSubmitting(true);
     setErrorMessage('');
-    const demoEmail = demoRole === 'USER' ? 'demo.user@pathfinder.app' : 'demo.caregiver@pathfinder.app';
+    const demoEmail = demoRole === 'USER' ? 'navigator@local.internal' : 'guardian@local.internal';
     const demoPass = 'demo1234';
 
     try {
@@ -206,16 +222,18 @@ export default function LoginPage() {
                 <MapPin className="w-4 h-4" />
                 <span>GPS & Mobility Core</span>
               </div>
-              <button
-                type="button"
-                onClick={(e) => {
-                  e.stopPropagation();
-                  handleQuickDemoLogin('USER');
-                }}
-                className="px-3.5 py-1.5 rounded-xl bg-secondary text-on-secondary text-xs font-extrabold shadow-sm hover:opacity-95 transition-opacity"
-              >
-                1-Click Demo User →
-              </button>
+              {isDemoMode && (
+                <button
+                  type="button"
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    handleQuickDemoLogin('USER');
+                  }}
+                  className="px-3.5 py-1.5 rounded-xl bg-secondary text-on-secondary text-xs font-extrabold shadow-sm hover:opacity-95 transition-opacity"
+                >
+                  Quick Sign-In →
+                </button>
+              )}
             </div>
           </div>
 
@@ -253,16 +271,18 @@ export default function LoginPage() {
                 <Radio className="w-4 h-4" />
                 <span>Real-Time Guardian Stream</span>
               </div>
-              <button
-                type="button"
-                onClick={(e) => {
-                  e.stopPropagation();
-                  handleQuickDemoLogin('CAREGIVER');
-                }}
-                className="px-3.5 py-1.5 rounded-xl bg-primary text-on-primary text-xs font-extrabold shadow-sm hover:opacity-95 transition-opacity"
-              >
-                1-Click Demo Caregiver →
-              </button>
+              {isDemoMode && (
+                <button
+                  type="button"
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    handleQuickDemoLogin('CAREGIVER');
+                  }}
+                  className="px-3.5 py-1.5 rounded-xl bg-primary text-on-primary text-xs font-extrabold shadow-sm hover:opacity-95 transition-opacity"
+                >
+                  Quick Sign-In →
+                </button>
+              )}
             </div>
           </div>
         </div>
@@ -323,7 +343,7 @@ export default function LoginPage() {
                   <input
                     type="email"
                     value={email}
-                    placeholder={role === 'USER' ? 'demo.user@pathfinder.app' : 'demo.caregiver@pathfinder.app'}
+                    placeholder="name@example.com"
                     onChange={(e) => setEmail(e.target.value)}
                     className="w-full h-11 pl-10 pr-4 rounded-xl bg-surface-container-low border border-outline-variant/40 text-xs font-semibold text-on-surface focus:outline-none focus:ring-2 focus:ring-primary"
                   />

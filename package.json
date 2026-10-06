@@ -14,7 +14,8 @@
     "cap:ios": "npx cap open ios",
     "cap:android": "npx cap open android",
     "mobile:build": "npx cap sync",
-    "mobile:dev": "npx cap sync && npx cap open android"
+    "mobile:dev": "npx cap sync && npx cap open android",
+    "check:demo-strings": "node scripts/check-demo-strings.mjs"
   },
   "dependencies": {
     "@capacitor/android": "^8.5.2",
@@ -43,6 +44,7 @@
     "zod": "^4.6.5"
   },
   "devDependencies": {
+    "@playwright/test": "^1.63.0",
     "@tailwindcss/postcss": "^4",
     "@types/leaflet": "^1.9.22",
     "@types/node": "^20",

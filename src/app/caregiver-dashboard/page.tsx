@@ -39,9 +39,9 @@ export default function CaregiverDashboardPage() {
   const [dependents, setDependents] = useState<DependentData[]>([]);
   const [selectedDependentEmail, setSelectedDependentEmail] = useState<string>('');
   const [currentCoords, setCurrentCoords] = useState<{ lat: number; lng: number } | null>(null);
-  const [battery, setBattery] = useState<number>(88);
-  const [accuracy, setAccuracy] = useState<number>(4);
-  const [speed, setSpeed] = useState<number>(1.2);
+  const [battery, setBattery] = useState<number | null>(null);
+  const [accuracy, setAccuracy] = useState<number | null>(null);
+  const [speed, setSpeed] = useState<number | null>(null);
 
   const [sseConnected, setSseConnected] = useState<boolean>(false);
   const [historyPings, setHistoryPings] = useState<LocationPing[]>([]);
@@ -249,8 +249,8 @@ export default function CaregiverDashboardPage() {
               <div className="absolute inset-0 flex items-center justify-center pointer-events-none">
                 <DependentMapMarker
                   name={activeDependent?.name || 'Dependent'}
-                  battery={battery}
-                  accuracy={accuracy}
+                  battery={battery ?? 0}
+                  accuracy={accuracy ?? 0}
                   isSosActive={!!activeSosEvent}
                 />
               </div>
@@ -263,12 +263,12 @@ export default function CaregiverDashboardPage() {
                 </div>
                 <div className="flex items-center gap-3 text-[11px] text-slate-300">
                   <span className="flex items-center gap-1 font-semibold">
-                    <Battery className="w-3.5 h-3.5 text-emerald-400" /> {battery}%
+                    <Battery className="w-3.5 h-3.5 text-emerald-400" /> {battery !== null ? `${battery}%` : '—'}
                   </span>
                   <span className="text-slate-500">•</span>
-                  <span>Accuracy: ±{accuracy}m</span>
+                  <span>Accuracy: {accuracy !== null ? `±${accuracy}m` : '—'}</span>
                   <span className="text-slate-500">•</span>
-                  <span>Speed: {speed} km/h</span>
+                  <span>Speed: {speed !== null ? `${speed} km/h` : '—'}</span>
                 </div>
               </div>
 
@@ -311,11 +311,11 @@ export default function CaregiverDashboardPage() {
                 <div className="grid grid-cols-2 gap-2">
                   <div className="p-3 bg-surface-container-low rounded-2xl border border-outline-variant/30">
                     <span className="text-[10px] font-bold text-on-surface-variant uppercase">Battery</span>
-                    <p className="font-bold text-emerald-600 text-sm">{battery}%</p>
+                    <p className="font-bold text-emerald-600 text-sm">{battery !== null ? `${battery}%` : '—'}</p>
                   </div>
                   <div className="p-3 bg-surface-container-low rounded-2xl border border-outline-variant/30">
                     <span className="text-[10px] font-bold text-on-surface-variant uppercase">GPS Precision</span>
-                    <p className="font-bold text-primary text-sm">±{accuracy}m</p>
+                    <p className="font-bold text-primary text-sm">{accuracy !== null ? `±${accuracy}m` : '—'}</p>
                   </div>
                 </div>
               </div>

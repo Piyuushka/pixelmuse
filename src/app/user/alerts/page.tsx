@@ -56,20 +56,22 @@ export default function UserAlertsPage() {
               </div>
             </div>
 
-            <button
-              onClick={() => {
-                toggleSimulatedObstacle();
-                speakText(
-                  simulatedObstacle.active
-                    ? 'Hazard cleared. Returning to standard accessible route.'
-                    : 'Obstacle detected ahead. Calculating step-free detour.'
-                );
-              }}
-              className="px-4 py-2.5 rounded-xl bg-surface-container-high hover:bg-surface-container text-on-surface text-xs font-bold transition-colors flex items-center gap-2 self-start sm:self-auto cursor-pointer"
-            >
-              <RefreshCw className="w-4 h-4" />
-              <span>{simulatedObstacle.active ? 'Clear Obstacle' : 'Simulate Obstacle'}</span>
-            </button>
+            {process.env.NEXT_PUBLIC_DEMO_MODE === 'true' && (
+              <button
+                onClick={() => {
+                  toggleSimulatedObstacle();
+                  speakText(
+                    simulatedObstacle.active
+                      ? 'Hazard cleared. Returning to standard accessible route.'
+                      : 'Obstacle detected ahead. Calculating step-free detour.'
+                  );
+                }}
+                className="px-4 py-2.5 rounded-xl bg-surface-container-high hover:bg-surface-container text-on-surface text-xs font-bold transition-colors flex items-center gap-2 self-start sm:self-auto cursor-pointer"
+              >
+                <RefreshCw className="w-4 h-4" />
+                <span>{simulatedObstacle.active ? 'Clear Hazard' : 'Simulate Detour'}</span>
+              </button>
+            )}
           </div>
 
           {/* Status Details */}

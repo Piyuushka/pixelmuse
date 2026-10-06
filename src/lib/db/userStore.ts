@@ -115,6 +115,12 @@ export interface ParentAlert {
   locationCoords?: { lat: number; lng: number };
 }
 
+export interface CaregiverAlertPreferences {
+  push: boolean;
+  sms: boolean;
+  email: boolean;
+}
+
 export interface UserRecord {
   id: string;
   name: string;
@@ -126,6 +132,12 @@ export interface UserRecord {
   linkedParentEmail: string | null;
   linkedChildrenEmails: string[];
   hasCompletedProfile: boolean;
+  onboarding_complete?: boolean;
+  phone?: string;
+  relationship?: string;
+  preferredLanguage?: string;
+  alertPreferences?: CaregiverAlertPreferences;
+  photoUrl?: string;
   accessibilityPreferences: AccessibilityPreferences;
   emergencyContacts: EmergencyContact[];
   privacyConsent: PrivacyConsent;
@@ -220,9 +232,9 @@ function getInitialUsers(): UserRecord[] {
   const demoLink: GuardianLink = {
     id: 'gl_seed_demo_pair',
     guardianId: 'usr_demo_caregiver',
-    guardianEmail: 'demo.caregiver@pathfinder.app',
+    guardianEmail: 'guardian@local.internal',
     dependentId: 'usr_demo_user',
-    dependentEmail: 'demo.user@pathfinder.app',
+    dependentEmail: 'navigator@local.internal',
     status: 'ACCEPTED',
     consentGrantedAt: now,
     revokedAt: null,
@@ -311,13 +323,13 @@ function getInitialUsers(): UserRecord[] {
     },
     {
       id: 'usr_demo_user',
-      name: 'Demo User (Dependent)',
-      email: 'demo.user@pathfinder.app',
+      name: 'Dependent User',
+      email: 'navigator@local.internal',
       passwordHash: hashPassword('demo1234'),
       role: 'user',
       pairingCode: '852-963',
       pairingCodeExpiresAt: expiresAt,
-      linkedParentEmail: 'demo.caregiver@pathfinder.app',
+      linkedParentEmail: 'guardian@local.internal',
       linkedChildrenEmails: [],
       hasCompletedProfile: true,
       accessibilityPreferences: {
@@ -328,7 +340,7 @@ function getInitialUsers(): UserRecord[] {
       emergencyContacts: [
         {
           id: 'c_demo_1',
-          name: 'Demo Caregiver',
+          name: 'Primary Caregiver',
           phone: '+91 98765 00000',
           relationship: 'Primary Caregiver',
           notifyOnSOS: true,
@@ -355,14 +367,14 @@ function getInitialUsers(): UserRecord[] {
     },
     {
       id: 'usr_demo_caregiver',
-      name: 'Demo Caregiver (Parent)',
-      email: 'demo.caregiver@pathfinder.app',
+      name: 'Caregiver Guardian',
+      email: 'guardian@local.internal',
       passwordHash: hashPassword('demo1234'),
       role: 'parent',
       pairingCode: '963-852',
       pairingCodeExpiresAt: expiresAt,
       linkedParentEmail: null,
-      linkedChildrenEmails: ['demo.user@pathfinder.app'],
+      linkedChildrenEmails: ['navigator@local.internal'],
       hasCompletedProfile: true,
       accessibilityPreferences: { ...DEFAULT_PREFERENCES },
       emergencyContacts: [],
@@ -386,7 +398,7 @@ function ensureDbExists(): UserRecord[] {
       fs.mkdirSync(DATA_DIR, { recursive: true });
     }
     if (!fs.existsSync(DB_FILE)) {
-      const initialUsers = getInitialUsers();
+      const initialUsers = process.env.DEMO_MODE === 'true' ? getInitialUsers() : [];
       fs.writeFileSync(DB_FILE, JSON.stringify(initialUsers, null, 2), 'utf-8');
       return initialUsers;
     }
@@ -396,18 +408,20 @@ function ensureDbExists(): UserRecord[] {
     // Auto-patch any missing demo accounts & missing fields
     let modified = false;
 
-    // Check if demo users exist
-    const hasDemoUser = users.some(u => u.email.toLowerCase() === 'demo.user@pathfinder.app');
-    const hasDemoCaregiver = users.some(u => u.email.toLowerCase() === 'demo.caregiver@pathfinder.app');
-    if (!hasDemoUser || !hasDemoCaregiver) {
-      const initial = getInitialUsers();
-      if (!hasDemoUser) {
-        const u = initial.find(x => x.email === 'demo.user@pathfinder.app');
-        if (u) { users.push(u); modified = true; }
-      }
-      if (!hasDemoCaregiver) {
-        const c = initial.find(x => x.email === 'demo.caregiver@pathfinder.app');
-        if (c) { users.push(c); modified = true; }
+    // Check if demo users exist (ONLY when DEMO_MODE=true)
+    if (process.env.DEMO_MODE === 'true') {
+      const hasDemoUser = users.some(u => u.email.toLowerCase() === 'navigator@local.internal');
+      const hasDemoCaregiver = users.some(u => u.email.toLowerCase() === 'guardian@local.internal');
+      if (!hasDemoUser || !hasDemoCaregiver) {
+        const initial = getInitialUsers();
+        if (!hasDemoUser) {
+          const u = initial.find(x => x.email === 'navigator@local.internal');
+          if (u) { users.push(u); modified = true; }
+        }
+        if (!hasDemoCaregiver) {
+          const c = initial.find(x => x.email === 'guardian@local.internal');
+          if (c) { users.push(c); modified = true; }
+        }
       }
     }
 
@@ -419,6 +433,18 @@ function ensureDbExists(): UserRecord[] {
       }
       if (u.linkedParentEmail === undefined) { u.linkedParentEmail = null; modified = true; }
       if (!u.linkedChildrenEmails) { u.linkedChildrenEmails = []; modified = true; }
+      if (u.onboarding_complete === undefined) {
+        u.onboarding_complete = Boolean(u.hasCompletedProfile);
+        modified = true;
+      }
+      if (u.alertPreferences === undefined) {
+        u.alertPreferences = { push: true, sms: true, email: true };
+        modified = true;
+      }
+      if (u.phone === undefined) { u.phone = ''; modified = true; }
+      if (u.relationship === undefined) { u.relationship = u.role === 'parent' ? 'parent' : ''; modified = true; }
+      if (u.preferredLanguage === undefined) { u.preferredLanguage = 'en'; modified = true; }
+      if (u.photoUrl === undefined) { u.photoUrl = ''; modified = true; }
       if (!u.emergencyContacts) { u.emergencyContacts = []; modified = true; }
       if (!u.privacyConsent) { u.privacyConsent = { ...DEFAULT_PRIVACY }; modified = true; }
       if (!u.privacySettings) { u.privacySettings = { ...DEFAULT_PRIVACY_SETTINGS }; modified = true; }
@@ -429,35 +455,37 @@ function ensureDbExists(): UserRecord[] {
       if (!u.trips) { u.trips = []; modified = true; }
     });
 
-    // Ensure demo links are connected
-    const demoUser = users.find(u => u.email.toLowerCase() === 'demo.user@pathfinder.app');
-    const demoCaregiver = users.find(u => u.email.toLowerCase() === 'demo.caregiver@pathfinder.app');
-    if (demoUser && demoCaregiver) {
-      const linkExists = (demoCaregiver.guardianLinks || []).some(
-        l => l.dependentEmail.toLowerCase() === demoUser.email.toLowerCase() && l.status === 'ACCEPTED'
-      );
-      if (!linkExists) {
-        const now = new Date().toISOString();
-        const demoLink: GuardianLink = {
-          id: 'gl_seed_demo_pair',
-          guardianId: demoCaregiver.id,
-          guardianEmail: demoCaregiver.email,
-          dependentId: demoUser.id,
-          dependentEmail: demoUser.email,
-          status: 'ACCEPTED',
-          consentGrantedAt: now,
-          revokedAt: null,
-          createdAt: now,
-        };
-        demoCaregiver.guardianLinks = demoCaregiver.guardianLinks || [];
-        demoUser.guardianLinks = demoUser.guardianLinks || [];
-        demoCaregiver.guardianLinks.push(demoLink);
-        demoUser.guardianLinks.push(demoLink);
-        if (!demoCaregiver.linkedChildrenEmails.includes(demoUser.email)) {
-          demoCaregiver.linkedChildrenEmails.push(demoUser.email);
+    // Ensure demo links are connected (ONLY when DEMO_MODE=true)
+    if (process.env.DEMO_MODE === 'true') {
+      const demoUser = users.find(u => u.email.toLowerCase() === 'navigator@local.internal');
+      const demoCaregiver = users.find(u => u.email.toLowerCase() === 'guardian@local.internal');
+      if (demoUser && demoCaregiver) {
+        const linkExists = (demoCaregiver.guardianLinks || []).some(
+          l => l.dependentEmail.toLowerCase() === demoUser.email.toLowerCase() && l.status === 'ACCEPTED'
+        );
+        if (!linkExists) {
+          const now = new Date().toISOString();
+          const demoLink: GuardianLink = {
+            id: 'gl_seed_demo_pair',
+            guardianId: demoCaregiver.id,
+            guardianEmail: demoCaregiver.email,
+            dependentId: demoUser.id,
+            dependentEmail: demoUser.email,
+            status: 'ACCEPTED',
+            consentGrantedAt: now,
+            revokedAt: null,
+            createdAt: now,
+          };
+          demoCaregiver.guardianLinks = demoCaregiver.guardianLinks || [];
+          demoUser.guardianLinks = demoUser.guardianLinks || [];
+          demoCaregiver.guardianLinks.push(demoLink);
+          demoUser.guardianLinks.push(demoLink);
+          if (!demoCaregiver.linkedChildrenEmails.includes(demoUser.email)) {
+            demoCaregiver.linkedChildrenEmails.push(demoUser.email);
+          }
+          demoUser.linkedParentEmail = demoCaregiver.email;
+          modified = true;
         }
-        demoUser.linkedParentEmail = demoCaregiver.email;
-        modified = true;
       }
     }
 
@@ -542,6 +570,12 @@ export function createUser(
     linkedParentEmail: null,
     linkedChildrenEmails: [],
     hasCompletedProfile: false,
+    onboarding_complete: false,
+    phone: '',
+    relationship: normalizedRole === 'parent' ? 'parent' : '',
+    preferredLanguage: 'en',
+    alertPreferences: { push: true, sms: true, email: true },
+    photoUrl: '',
     accessibilityPreferences: { ...DEFAULT_PREFERENCES },
     emergencyContacts: [],
     privacyConsent: { ...DEFAULT_PRIVACY },
@@ -558,6 +592,81 @@ export function createUser(
   users.push(newUser);
   saveDb(users);
   return newUser;
+}
+
+export function updateCaregiverProfile(
+  email: string,
+  data: {
+    name?: string;
+    phone: string;
+    relationship: string;
+    preferredLanguage: string;
+    alertPreferences: CaregiverAlertPreferences;
+    photoUrl?: string;
+  }
+): UserRecord {
+  const users = ensureDbExists();
+  const index = users.findIndex(u => u.email.toLowerCase() === email.toLowerCase());
+  if (index === -1) {
+    throw new Error('Caregiver account not found');
+  }
+
+  const user = users[index];
+  const updatedUser: UserRecord = {
+    ...user,
+    name: data.name && data.name.trim() ? data.name.trim() : user.name,
+    phone: data.phone.trim(),
+    relationship: data.relationship,
+    preferredLanguage: data.preferredLanguage || 'en',
+    alertPreferences: data.alertPreferences,
+    photoUrl: data.photoUrl || user.photoUrl || '',
+    hasCompletedProfile: true,
+    onboarding_complete: true,
+    updatedAt: new Date().toISOString(),
+  };
+
+  users[index] = updatedUser;
+  saveDb(users);
+  return updatedUser;
+}
+
+export function updateUserOnboardingProfile(
+  email: string,
+  data: {
+    name?: string;
+    mobilityPersona?: AccessibilityPreferences['primaryPersona'];
+    mobilityType?: string;
+    emergencyContacts?: EmergencyContact[];
+    preferredLanguage?: string;
+  }
+): UserRecord {
+  const users = ensureDbExists();
+  const index = users.findIndex(u => u.email.toLowerCase() === email.toLowerCase());
+  if (index === -1) {
+    throw new Error('User account not found');
+  }
+
+  const user = users[index];
+  const updatedPreferences: AccessibilityPreferences = {
+    ...user.accessibilityPreferences,
+    ...(data.mobilityPersona ? { primaryPersona: data.mobilityPersona } : {}),
+    ...(data.mobilityType ? { mobilityType: data.mobilityType } : {}),
+  };
+
+  const updatedUser: UserRecord = {
+    ...user,
+    name: data.name && data.name.trim() ? data.name.trim() : user.name,
+    preferredLanguage: data.preferredLanguage || user.preferredLanguage || 'en',
+    accessibilityPreferences: updatedPreferences,
+    emergencyContacts: data.emergencyContacts || user.emergencyContacts || [],
+    hasCompletedProfile: true,
+    onboarding_complete: true,
+    updatedAt: new Date().toISOString(),
+  };
+
+  users[index] = updatedUser;
+  saveDb(users);
+  return updatedUser;
 }
 
 export function updateUserPreferences(

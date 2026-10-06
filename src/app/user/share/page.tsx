@@ -30,7 +30,7 @@ interface PendingRequest {
 export default function UserShareLocationPage() {
   const { user, speakText } = useAccessibility();
 
-  const [pairingCode, setPairingCode] = useState('852-963');
+  const [pairingCode, setPairingCode] = useState('');
   const [expiresAt, setExpiresAt] = useState<string>('');
   const [timeLeftSec, setTimeLeftSec] = useState<number>(600);
   const [pendingRequests, setPendingRequests] = useState<PendingRequest[]>([]);
@@ -45,7 +45,20 @@ export default function UserShareLocationPage() {
       const res = await fetch('/api/pairing/consent-status');
       const data = await res.json();
       if (res.ok && data.success) {
-        if (data.pairingCode) setPairingCode(data.pairingCode);
+        if (data.pairingCode) {
+          setPairingCode(data.pairingCode);
+        } else {
+          // If no code exists, generate one
+          const genRes = await fetch('/api/pairing/code', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ userId: user?.email }),
+          });
+          if (genRes.ok) {
+            const genData = await genRes.json();
+            if (genData.code) setPairingCode(genData.code);
+          }
+        }
         if (data.pairingCodeExpiresAt) {
           setExpiresAt(data.pairingCodeExpiresAt);
           const diff = Math.max(0, Math.floor((new Date(data.pairingCodeExpiresAt).getTime() - Date.now()) / 1000));
@@ -57,7 +70,7 @@ export default function UserShareLocationPage() {
     } catch (err) {
       console.error('Error polling consent status:', err);
     }
-  }, []);
+  }, [user?.email]);
 
   useEffect(() => {
     fetchStatus();
@@ -259,13 +272,23 @@ export default function UserShareLocationPage() {
 
             {/* Code Box */}
             <div className="py-6 px-4 rounded-2xl bg-surface-container-low border-2 border-primary/30 flex flex-col items-center justify-center gap-2">
-              <span className="text-4xl md:text-5xl font-black text-primary tracking-widest font-mono select-all">
-                {pairingCode}
-              </span>
-              <div className="flex items-center gap-1.5 text-xs text-on-surface-variant font-bold">
-                <Clock className="w-3.5 h-3.5 text-secondary" />
-                <span>Expires in {formatTime(timeLeftSec)}</span>
-              </div>
+              {pairingCode ? (
+                <>
+                  <span className="text-4xl md:text-5xl font-black text-primary tracking-widest font-mono select-all">
+                    {pairingCode}
+                  </span>
+                  <div className="flex items-center gap-1.5 text-xs text-on-surface-variant font-bold">
+                    <Clock className="w-3.5 h-3.5 text-secondary" />
+                    <span>Expires in {formatTime(timeLeftSec)}</span>
+                  </div>
+                </>
+              ) : (
+                <div className="py-3 flex flex-col items-center gap-2 animate-pulse">
+                  <span className="text-base font-bold text-on-surface-variant font-mono">
+                    Generating 6-digit code...
+                  </span>
+                </div>
+              )}
             </div>
 
             <button
@@ -293,8 +316,14 @@ export default function UserShareLocationPage() {
               </p>
             </div>
 
-            <div className="p-3 bg-white rounded-2xl shadow-sm border border-outline-variant/30">
-              <QRCodeDisplay text={`pathfinder:pair:${pairingCode}`} size={160} />
+            <div className="p-3 bg-white rounded-2xl shadow-sm border border-outline-variant/30 min-h-[160px] flex items-center justify-center">
+              {pairingCode ? (
+                <QRCodeDisplay text={`pathfinder:pair:${pairingCode}`} size={160} />
+              ) : (
+                <div className="w-40 h-40 bg-surface-container-low rounded-xl animate-pulse flex items-center justify-center text-xs text-on-surface-variant font-bold">
+                  Loading QR...
+                </div>
+              )}
             </div>
 
             <span className="text-[11px] text-on-surface-variant font-bold">

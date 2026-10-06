@@ -38,7 +38,7 @@ export async function POST(request: Request) {
       return NextResponse.json({
         success: true,
         message: 'OTP sent successfully',
-        demoOtp: process.env.NODE_ENV === 'development' ? generatedCode : undefined,
+        devOtp: (process.env.NODE_ENV === 'development' && process.env.DEMO_MODE === 'true') ? generatedCode : undefined,
       });
     }
 
@@ -86,18 +86,21 @@ export async function POST(request: Request) {
       }
 
       const tokenRole = (user.role?.toUpperCase() as 'USER' | 'CAREGIVER' | 'ADMIN') || assignedRole;
+      const onboarding_complete = Boolean(user.onboarding_complete ?? user.hasCompletedProfile);
 
       const token = await signToken({
         userId: user.id,
         email: user.email,
         role: tokenRole,
         name: user.name,
+        onboarding_complete,
       });
 
       const response = NextResponse.json({
         success: true,
-        user: sanitizeUser(user),
+        user: { ...sanitizeUser(user), onboarding_complete },
         role: tokenRole,
+        onboarding_complete,
         pairingCode: user.pairingCode,
       });
 

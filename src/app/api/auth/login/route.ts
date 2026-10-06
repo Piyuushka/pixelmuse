@@ -38,19 +38,23 @@ export async function POST(request: Request) {
     }
 
     const role = normaliseRole(user.role);
-    const safeUser = { ...sanitizeUser(user), role };
+    const onboarding_complete = Boolean(user.onboarding_complete ?? user.hasCompletedProfile);
+    const safeUser = { ...sanitizeUser(user), role, onboarding_complete };
 
-    // Issue signed JWT.
+    // Issue signed JWT with onboarding_complete.
     const token = await signToken({
       userId: user.id,
       email: user.email,
       role,
       name: user.name,
+      onboarding_complete,
     });
 
     const response = NextResponse.json({
       message: 'Login successful',
       user: safeUser,
+      role,
+      onboarding_complete,
       // Legacy plain token kept for backward compat with AccessibilityContext.
       token: `token_${user.id}_${Date.now()}`,
     });

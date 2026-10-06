@@ -293,7 +293,7 @@ export default function OnboardingFlowModal({
               <button
                 type="button"
                 onClick={() => {
-                  loginUser('Guest Navigator', 'guest@community.org');
+                  loginUser('Guest Navigator', 'guest@pathfinder.internal');
                   setStep(3);
                 }}
                 className="text-xs text-on-surface-variant font-semibold hover:text-primary underline underline-offset-4 cursor-pointer"
@@ -363,7 +363,7 @@ export default function OnboardingFlowModal({
                     <input
                       id="auth-name"
                       type="text"
-                      placeholder="e.g. Alex Rivera"
+                      placeholder="Your full name"
                       value={name}
                       onChange={e => setName(e.target.value)}
                       className="w-full h-11 pl-10 pr-4 rounded-xl bg-surface-container-low border border-outline-variant/40 text-xs font-semibold text-on-surface focus:outline-none focus:ring-2 focus:ring-primary"
@@ -381,7 +381,7 @@ export default function OnboardingFlowModal({
                   <input
                     id="auth-email"
                     type="email"
-                    placeholder="e.g. alex.rivera@community.org"
+                    placeholder="name@example.com"
                     value={email}
                     onChange={e => setEmail(e.target.value)}
                     className="w-full h-11 pl-10 pr-4 rounded-xl bg-surface-container-low border border-outline-variant/40 text-xs font-semibold text-on-surface focus:outline-none focus:ring-2 focus:ring-primary"
@@ -675,7 +675,7 @@ export default function OnboardingFlowModal({
                 <span>Active Profile Summary</span>
                 <Sparkles className="w-3.5 h-3.5" />
               </div>
-              <div>👤 User: <strong>{user.name || 'Alex Rivera'}</strong></div>
+              <div>👤 User: <strong>{user.name || 'Navigator User'}</strong></div>
               <div>♿ Mobility: <strong>{selectedPersona.toUpperCase()}</strong> ({mobilityType})</div>
               <div>📐 Slope Tolerance: <strong>≤ {maxSlopePercent}% grade</strong></div>
               <div>🚶 Constraints: <strong>{requireStepFree ? 'Step-Free Only' : 'Ramp Preferred'}</strong> · {preferSaferCrossings ? 'Safer Crossings' : 'Direct Path'}</div>

@@ -6,9 +6,9 @@ import type { LocationPing, SOSEvent, BreadcrumbPoint } from '@/lib/locationBroa
 export interface DependentTrackState {
   dependentEmail: string | null;
   dependentName: string | null;
-  lat: number;
-  lng: number;
-  accuracy: number;
+  lat: number | null;
+  lng: number | null;
+  accuracy: number | null;
   speed: number | null;
   heading: number | null;
   battery: number | null;
@@ -17,6 +17,7 @@ export interface DependentTrackState {
   history: BreadcrumbPoint[];
   activeSOS: SOSEvent | null;
   connected: boolean;
+  loading: boolean;
   error: string | null;
 }
 
@@ -24,29 +25,31 @@ export function useDependentTracking(dependentEmail?: string | null) {
   const [state, setState] = useState<DependentTrackState>({
     dependentEmail: dependentEmail || null,
     dependentName: null,
-    lat: 18.9398,
-    lng: 72.8355,
-    accuracy: 5,
+    lat: null,
+    lng: null,
+    accuracy: null,
     speed: null,
     heading: null,
-    battery: 95,
+    battery: null,
     lastPingAt: null,
     isOnline: false,
     history: [],
     activeSOS: null,
     connected: false,
+    loading: true,
     error: null,
   });
 
   const eventSourceRef = useRef<EventSource | null>(null);
   const reconnectTimeoutRef = useRef<NodeJS.Timeout | null>(null);
+  const pollIntervalRef = useRef<NodeJS.Timeout | null>(null);
 
-  // Check online status (>45 seconds without ping = offline)
+  // Check online status: if no update arrives for 30s, mark dependent offline
   useEffect(() => {
     const timer = setInterval(() => {
       if (state.lastPingAt) {
         const diffMs = Date.now() - new Date(state.lastPingAt).getTime();
-        const online = diffMs < 45000;
+        const online = diffMs < 30000; // 30 seconds threshold
         if (online !== state.isOnline) {
           setState(prev => ({ ...prev, isOnline: online }));
         }
@@ -55,9 +58,39 @@ export function useDependentTracking(dependentEmail?: string | null) {
           setState(prev => ({ ...prev, isOnline: false }));
         }
       }
-    }, 5000);
+    }, 2000);
     return () => clearInterval(timer);
   }, [state.lastPingAt, state.isOnline]);
+
+  // Initial and fallback polling function (queries last known location from database)
+  const pollLatestLocation = useCallback(async () => {
+    if (!dependentEmail) return;
+    try {
+      const res = await fetch(`/api/location?userId=${encodeURIComponent(dependentEmail)}`);
+      if (res.ok) {
+        const data = await res.json();
+        if (data.currentCoords) {
+          const recordedAt = data.lastPingAt || data.updatedAt || null;
+          const isFresh = recordedAt ? Date.now() - new Date(recordedAt).getTime() < 30000 : false;
+          setState(prev => ({
+            ...prev,
+            dependentEmail: dependentEmail,
+            lat: data.currentCoords.lat,
+            lng: data.currentCoords.lng,
+            accuracy: data.accuracy ?? prev.accuracy,
+            speed: data.speed ?? prev.speed,
+            heading: data.heading ?? prev.heading,
+            battery: data.battery ?? prev.battery,
+            lastPingAt: recordedAt,
+            isOnline: isFresh,
+            loading: false,
+          }));
+        }
+      }
+    } catch {
+      // Quiet fallback
+    }
+  }, [dependentEmail]);
 
   const connect = useCallback(() => {
     if (typeof window === 'undefined') return;
@@ -66,15 +99,17 @@ export function useDependentTracking(dependentEmail?: string | null) {
       eventSourceRef.current.close();
     }
 
-    const url = dependentEmail
-      ? `/api/location/stream?dependentEmail=${encodeURIComponent(dependentEmail)}`
-      : '/api/location/stream';
+    if (!dependentEmail) {
+      setState(prev => ({ ...prev, loading: false }));
+      return;
+    }
 
+    const url = `/api/location/stream?dependentEmail=${encodeURIComponent(dependentEmail)}`;
     const es = new EventSource(url);
     eventSourceRef.current = es;
 
     es.onopen = () => {
-      setState(prev => ({ ...prev, connected: true, error: null }));
+      setState(prev => ({ ...prev, connected: true, loading: false, error: null }));
     };
 
     es.addEventListener('location', (evt: MessageEvent) => {
@@ -101,6 +136,7 @@ export function useDependentTracking(dependentEmail?: string | null) {
               lastPingAt: loc.timestamp,
               isOnline: true,
               history: newHistory,
+              loading: false,
             };
           });
         }
@@ -136,8 +172,8 @@ export function useDependentTracking(dependentEmail?: string | null) {
               id: event.id,
               userEmail: event.dependentEmail,
               userName: event.dependentName,
-              lat: event.payload.coords?.lat || prev.lat,
-              lng: event.payload.coords?.lng || prev.lng,
+              lat: event.payload.coords?.lat || prev.lat || 0,
+              lng: event.payload.coords?.lng || prev.lng || 0,
               status: 'TRIGGERED',
               triggeredAt: event.timestamp,
               message: event.message,
@@ -148,10 +184,11 @@ export function useDependentTracking(dependentEmail?: string | null) {
             ...prev,
             lat: event.payload.coords.lat,
             lng: event.payload.coords.lng,
-            accuracy: event.payload.accuracy || prev.accuracy,
-            battery: event.payload.battery || prev.battery,
+            accuracy: event.payload.accuracy ?? prev.accuracy,
+            battery: event.payload.battery ?? prev.battery,
             lastPingAt: event.timestamp,
             isOnline: true,
+            loading: false,
           }));
         }
       } catch (err) {
@@ -163,16 +200,27 @@ export function useDependentTracking(dependentEmail?: string | null) {
       setState(prev => ({ ...prev, connected: false }));
       es.close();
 
-      // Attempt reconnect after 5s
+      // Trigger immediate fallback poll and schedule reconnection after 5s
+      pollLatestLocation();
       if (reconnectTimeoutRef.current) clearTimeout(reconnectTimeoutRef.current);
       reconnectTimeoutRef.current = setTimeout(() => {
         connect();
       }, 5000);
     };
-  }, [dependentEmail]);
+  }, [dependentEmail, pollLatestLocation]);
 
   useEffect(() => {
+    // 1. Fetch initial location from server
+    pollLatestLocation();
+
+    // 2. Connect live stream
     connect();
+
+    // 3. Keep 5s fallback polling active in case socket drops
+    pollIntervalRef.current = setInterval(() => {
+      pollLatestLocation();
+    }, 5000);
+
     return () => {
       if (eventSourceRef.current) {
         eventSourceRef.current.close();
@@ -180,8 +228,11 @@ export function useDependentTracking(dependentEmail?: string | null) {
       if (reconnectTimeoutRef.current) {
         clearTimeout(reconnectTimeoutRef.current);
       }
+      if (pollIntervalRef.current) {
+        clearInterval(pollIntervalRef.current);
+      }
     };
-  }, [connect]);
+  }, [connect, pollLatestLocation]);
 
   // Acknowledge SOS
   const acknowledgeSOS = useCallback(async () => {

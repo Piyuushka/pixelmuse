@@ -56,7 +56,7 @@ export default function ParentDashboardPage() {
 
   // Selected child state
   const [parentData, setParentData] = useState<any>(null);
-  const [selectedChildEmail, setSelectedChildEmail] = useState<string>('alex.rivera@community.org');
+  const [selectedChildEmail, setSelectedChildEmail] = useState<string>('');
   const [loading, setLoading] = useState(true);
   const [errorMsg, setErrorMsg] = useState('');
   const [successMsg, setSuccessMsg] = useState('');
@@ -112,7 +112,7 @@ export default function ParentDashboardPage() {
   const fetchDashboardData = useCallback(async () => {
     try {
       setLoading(true);
-      const emailToFetch = user.email || 'parent@community.org';
+      const emailToFetch = user.email || '';
       const res = await fetch(`/api/parental/dashboard?email=${encodeURIComponent(emailToFetch)}`);
       const data = await res.json();
       if (res.ok) {
@@ -150,7 +150,7 @@ export default function ParentDashboardPage() {
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           action: 'link_account',
-          parentEmail: user.email || 'parent@community.org',
+          parentEmail: user.email || '',
           pairingCode: inputPairingCode,
         }),
       });
@@ -181,7 +181,7 @@ export default function ParentDashboardPage() {
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           action: 'unlink_account',
-          parentEmail: user.email || 'parent@community.org',
+          parentEmail: user.email || '',
           childEmail,
         }),
       });
@@ -883,7 +883,7 @@ export default function ParentDashboardPage() {
                 <input
                   id="contact-name"
                   type="text"
-                  placeholder="e.g. Dr. Sarah Rivera"
+                  placeholder="Contact full name"
                   value={contactName}
                   onChange={e => setContactName(e.target.value)}
                   className="w-full h-11 px-4 rounded-xl bg-surface-container-low border border-outline-variant/40 text-xs font-semibold text-on-surface"

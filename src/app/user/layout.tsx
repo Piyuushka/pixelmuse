@@ -1,4 +1,7 @@
+'use client';
+
 import React from 'react';
+import { usePathname } from 'next/navigation';
 import UserSidebar from '@/components/UserSidebar';
 import TalkToAssistantButton from '@/components/TalkToAssistantButton';
 
@@ -7,6 +10,17 @@ export default function UserPortalLayout({
 }: {
   children: React.ReactNode;
 }) {
+  const pathname = usePathname();
+  const isProfileSetup = pathname === '/user/profile-setup';
+
+  if (isProfileSetup) {
+    return (
+      <main className="w-full min-h-screen bg-surface text-on-surface">
+        {children}
+      </main>
+    );
+  }
+
   return (
     <div className="flex w-full min-h-screen bg-surface text-on-surface">
       <UserSidebar />

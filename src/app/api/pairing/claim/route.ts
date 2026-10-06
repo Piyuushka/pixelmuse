@@ -1,40 +1,57 @@
-import { NextRequest } from 'next/server';
+import { NextRequest, NextResponse } from 'next/server';
 import { getSessionFromRequest } from '@/lib/auth';
-import { requestPairingByCode, findUserById } from '@/lib/db/userStore';
-import { pairingClaimSchema } from '@/lib/validations/schemas';
-import { apiSuccess, apiError, handleApiError } from '@/lib/apiResponse';
+import { claimPairingCode } from '@/lib/db/pairingStore';
 
+/**
+ * POST /api/pairing/claim
+ *
+ * Body: { code: string }
+ *
+ * Caregiver submits the 6-digit code shown on the dependent's phone.
+ * Creates a PENDING caregiver_link and returns it — the dependent must approve
+ * on their "Share My Location" screen before the link becomes ACTIVE.
+ */
 export async function POST(request: NextRequest) {
   try {
     const session = await getSessionFromRequest(request);
     if (!session) {
-      return apiError('Unauthorized', 'UNAUTHORIZED', 401);
+      return NextResponse.json({ success: false, error: 'Unauthorized' }, { status: 401 });
     }
 
     if (session.role !== 'CAREGIVER') {
-      return apiError('Only caregivers can claim a pairing code.', 'FORBIDDEN', 403);
-    }
-
-    const caregiver = findUserById(session.userId);
-    if (!caregiver) {
-      return apiError('Caregiver account not found.', 'NOT_FOUND', 404);
+      return NextResponse.json(
+        { success: false, error: 'Only caregivers can claim a pairing code.' },
+        { status: 403 }
+      );
     }
 
     const body = await request.json();
-    const validated = pairingClaimSchema.parse(body);
+    const rawCode: string = (body.code ?? body.pairingCode ?? '').toString().replace(/\D/g, '');
 
-    const result = requestPairingByCode(caregiver.email, validated.code);
+    if (rawCode.length < 6) {
+      return NextResponse.json(
+        { success: false, error: 'A valid 6-digit pairing code is required.' },
+        { status: 400 }
+      );
+    }
 
-    return apiSuccess({
+    const result = await claimPairingCode(session.userId, session.email, rawCode);
+
+    return NextResponse.json({
       success: true,
-      linkId: result.link.id,
-      status: result.link.status,
+      linkId: result.linkId,
+      status: result.status,
       dependent: result.dependent,
-      message: result.link.status === 'ACCEPTED'
-        ? 'Already paired with this dependent.'
-        : 'Connection request sent. Awaiting dependent approval on their device.',
+      message:
+        result.status === 'ACTIVE'
+          ? 'Already paired with this dependent.'
+          : 'Connection request sent. Awaiting dependent approval on their device.',
     });
-  } catch (err) {
-    return handleApiError(err);
+  } catch (err: any) {
+    console.error('Pairing claim error:', err);
+    return NextResponse.json(
+      { success: false, error: err.message || 'Failed to claim pairing code' },
+      { status: 400 }
+    );
   }
 }

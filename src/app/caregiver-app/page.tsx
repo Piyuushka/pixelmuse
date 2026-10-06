@@ -35,14 +35,14 @@ export default function CaregiverAppPage() {
 
   // Backend state
   const [parentData, setParentData] = useState<any>(null);
-  const [selectedChildEmail, setSelectedChildEmail] = useState<string>('alex.rivera@community.org');
+  const [selectedChildEmail, setSelectedChildEmail] = useState<string>('');
   const [loading, setLoading] = useState(true);
   const [errorMsg, setErrorMsg] = useState('');
   const [successMsg, setSuccessMsg] = useState('');
 
   // Live Ride Tracking State
-  const [isSimulatingTrip, setIsSimulatingTrip] = useState(true);
-  const [tripProgress, setTripProgress] = useState(55);
+  const [isSimulatingTrip, setIsSimulatingTrip] = useState(false);
+  const [tripProgress, setTripProgress] = useState(0);
   const [copiedLink, setCopiedLink] = useState(false);
 
   // Pairing Modal state
@@ -54,7 +54,7 @@ export default function CaregiverAppPage() {
   const fetchTelemetryData = useCallback(async () => {
     try {
       setLoading(true);
-      const emailToFetch = user?.email || 'parent@community.org';
+      const emailToFetch = user?.email || '';
       const res = await fetch(`/api/parental/dashboard?email=${encodeURIComponent(emailToFetch)}`);
       const data = await res.json();
       if (res.ok) {
@@ -111,7 +111,7 @@ export default function CaregiverAppPage() {
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           action: 'link_account',
-          parentEmail: user?.email || 'parent@community.org',
+          parentEmail: user?.email || '',
           pairingCode: pairingCodeInput,
         }),
       });
@@ -514,7 +514,7 @@ export default function CaregiverAppPage() {
             <form onSubmit={handlePairAccount} className="flex flex-col gap-4">
               <input
                 type="text"
-                placeholder="e.g. 849201 or PL-884920"
+                placeholder="Enter 6-digit pairing code"
                 value={pairingCodeInput}
                 onChange={(e) => setPairingCodeInput(e.target.value)}
                 className="w-full h-12 text-center text-lg font-black rounded-2xl bg-surface-container-high border border-outline-variant/40 text-on-surface uppercase tracking-widest focus:outline-none focus:ring-2 focus:ring-primary"

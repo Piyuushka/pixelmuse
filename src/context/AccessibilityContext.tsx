@@ -430,8 +430,12 @@ export function AccessibilityProvider({ children }: { children: React.ReactNode 
     return dbUser;
   };
 
-  const logoutUser = () => {
-    fetch('/api/auth/logout', { method: 'POST' }).catch((err) => console.error('Logout API failed:', err));
+  const logoutUser = async () => {
+    try {
+      await fetch('/api/auth/logout', { method: 'POST' });
+    } catch (err) {
+      console.error('Logout API failed:', err);
+    }
     const resetUser: UserProfile = {
       name: '',
       email: '',
@@ -443,12 +447,13 @@ export function AccessibilityProvider({ children }: { children: React.ReactNode 
       localStorage.removeItem('pathfinder_user');
       localStorage.removeItem('pathfinder_token');
       localStorage.removeItem('pathfinder_preferences');
+      window.location.href = '/login';
     }
   };
 
   const saveAccessibilityProfile = async (newPrefs: Partial<AccessibilityPreferences>): Promise<UserProfile> => {
     const updatedPrefs = { ...accessibilityPreferences, ...newPrefs };
-    const targetEmail = user.email || 'user@community.org';
+    const targetEmail = user.email || 'guest@pathfinder.internal';
 
     const res = await fetch('/api/user/profile', {
       method: 'POST',

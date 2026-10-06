@@ -57,20 +57,25 @@ export async function POST(request: Request) {
       pairingCode,
     );
 
-    const safeUser = sanitizeUser(user);
+    const onboarding_complete = Boolean(user.onboarding_complete ?? user.hasCompletedProfile);
+    const safeUser = { ...sanitizeUser(user), role, onboarding_complete };
 
-    // Issue signed JWT.
+    // Issue signed JWT with onboarding_complete.
     const token = await signToken({
       userId: user.id,
       email: user.email,
       role,
       name: user.name,
+      onboarding_complete,
     });
 
     const response = NextResponse.json(
       {
         message: 'Registration successful.',
-        user: { ...safeUser, role },
+        user: safeUser,
+        role,
+        onboarding_complete,
+        token: `token_${user.id}_${Date.now()}`,
       },
       { status: 201 }
     );

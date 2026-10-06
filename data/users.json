@@ -54,7 +54,17 @@
     ],
     "guardianLinks": [],
     "trips": [],
-    "pairingCodeExpiresAt": "2026-10-06T06:42:03.563Z"
+    "pairingCodeExpiresAt": "2026-10-06T06:42:03.563Z",
+    "onboarding_complete": true,
+    "alertPreferences": {
+      "push": true,
+      "sms": true,
+      "email": true
+    },
+    "phone": "",
+    "relationship": "",
+    "preferredLanguage": "en",
+    "photoUrl": ""
   },
   {
     "id": "usr_1789984709808_h6ez1",
@@ -97,7 +107,17 @@
     "parentAlerts": [],
     "guardianLinks": [],
     "trips": [],
-    "pairingCodeExpiresAt": "2026-10-06T06:42:03.563Z"
+    "pairingCodeExpiresAt": "2026-10-06T06:42:03.563Z",
+    "onboarding_complete": true,
+    "alertPreferences": {
+      "push": true,
+      "sms": true,
+      "email": true
+    },
+    "phone": "",
+    "relationship": "",
+    "preferredLanguage": "en",
+    "photoUrl": ""
   },
   {
     "id": "usr_1790012626125_h387d",
@@ -141,7 +161,17 @@
     "trips": [],
     "createdAt": "2026-09-21T17:43:46.125Z",
     "updatedAt": "2026-09-21T17:44:03.957Z",
-    "pairingCodeExpiresAt": "2026-10-06T06:42:03.563Z"
+    "pairingCodeExpiresAt": "2026-10-06T06:42:03.563Z",
+    "onboarding_complete": true,
+    "alertPreferences": {
+      "push": true,
+      "sms": true,
+      "email": true
+    },
+    "phone": "",
+    "relationship": "",
+    "preferredLanguage": "en",
+    "photoUrl": ""
   },
   {
     "id": "usr_1790087490784_6srfh",
@@ -185,7 +215,17 @@
     "trips": [],
     "createdAt": "2026-09-22T14:31:30.785Z",
     "updatedAt": "2026-09-22T14:31:44.758Z",
-    "pairingCodeExpiresAt": "2026-10-06T06:42:03.563Z"
+    "pairingCodeExpiresAt": "2026-10-06T06:42:03.563Z",
+    "onboarding_complete": true,
+    "alertPreferences": {
+      "push": true,
+      "sms": true,
+      "email": true
+    },
+    "phone": "",
+    "relationship": "",
+    "preferredLanguage": "en",
+    "photoUrl": ""
   },
   {
     "id": "usr_1791020634593_ntnzq",
@@ -229,7 +269,17 @@
     "trips": [],
     "createdAt": "2026-10-03T09:43:54.593Z",
     "updatedAt": "2026-10-04T14:15:34.220Z",
-    "pairingCodeExpiresAt": "2026-10-06T06:42:03.563Z"
+    "pairingCodeExpiresAt": "2026-10-06T06:42:03.563Z",
+    "onboarding_complete": true,
+    "alertPreferences": {
+      "push": true,
+      "sms": true,
+      "email": true
+    },
+    "phone": "",
+    "relationship": "",
+    "preferredLanguage": "en",
+    "photoUrl": ""
   },
   {
     "id": "usr_1791091946036_g1fxv",
@@ -272,7 +322,18 @@
     "guardianLinks": [],
     "trips": [],
     "createdAt": "2026-10-04T05:32:26.036Z",
-    "updatedAt": "2026-10-04T05:32:41.424Z"
+    "updatedAt": "2026-10-04T05:32:41.424Z",
+    "pairingCodeExpiresAt": "2026-10-06T10:18:46.533Z",
+    "onboarding_complete": true,
+    "alertPreferences": {
+      "push": true,
+      "sms": true,
+      "email": true
+    },
+    "phone": "",
+    "relationship": "",
+    "preferredLanguage": "en",
+    "photoUrl": ""
   },
   {
     "id": "usr_1791267353765_5hxy8",
@@ -315,7 +376,18 @@
     "guardianLinks": [],
     "trips": [],
     "createdAt": "2026-10-06T06:15:53.765Z",
-    "updatedAt": "2026-10-06T06:19:35.575Z"
+    "updatedAt": "2026-10-06T06:19:35.575Z",
+    "pairingCodeExpiresAt": "2026-10-06T10:18:46.533Z",
+    "onboarding_complete": true,
+    "alertPreferences": {
+      "push": true,
+      "sms": true,
+      "email": true
+    },
+    "phone": "",
+    "relationship": "",
+    "preferredLanguage": "en",
+    "photoUrl": ""
   },
   {
     "id": "usr_1791185422120_0dtfq",
@@ -361,7 +433,17 @@
     "trips": [],
     "createdAt": "2026-10-05T07:30:22.120Z",
     "updatedAt": "2026-10-05T09:29:29.816Z",
-    "pairingCodeExpiresAt": "2026-10-06T06:42:03.563Z"
+    "pairingCodeExpiresAt": "2026-10-06T06:42:03.563Z",
+    "onboarding_complete": false,
+    "alertPreferences": {
+      "push": true,
+      "sms": true,
+      "email": true
+    },
+    "phone": "",
+    "relationship": "parent",
+    "preferredLanguage": "en",
+    "photoUrl": ""
   },
   {
     "id": "usr_1791266325817_hndcf",
@@ -405,7 +487,17 @@
     "trips": [],
     "createdAt": "2026-10-06T05:58:45.817Z",
     "updatedAt": "2026-10-06T05:58:45.817Z",
-    "pairingCodeExpiresAt": "2026-10-06T06:42:03.563Z"
+    "pairingCodeExpiresAt": "2026-10-06T06:42:03.563Z",
+    "onboarding_complete": false,
+    "alertPreferences": {
+      "push": true,
+      "sms": true,
+      "email": true
+    },
+    "phone": "",
+    "relationship": "",
+    "preferredLanguage": "en",
+    "photoUrl": ""
   },
   {
     "id": "usr_1791266779313_j1pwf",
@@ -449,7 +541,17 @@
     "trips": [],
     "createdAt": "2026-10-06T06:06:19.313Z",
     "updatedAt": "2026-10-06T06:06:19.313Z",
-    "pairingCodeExpiresAt": "2026-10-06T06:42:03.563Z"
+    "pairingCodeExpiresAt": "2026-10-06T06:42:03.563Z",
+    "onboarding_complete": false,
+    "alertPreferences": {
+      "push": true,
+      "sms": true,
+      "email": true
+    },
+    "phone": "",
+    "relationship": "parent",
+    "preferredLanguage": "en",
+    "photoUrl": ""
   },
   {
     "id": "usr_1791266848395_ll0lv",
@@ -493,7 +595,17 @@
     "trips": [],
     "createdAt": "2026-10-06T06:07:28.395Z",
     "updatedAt": "2026-10-06T06:07:28.395Z",
-    "pairingCodeExpiresAt": "2026-10-06T06:42:03.563Z"
+    "pairingCodeExpiresAt": "2026-10-06T06:42:03.563Z",
+    "onboarding_complete": false,
+    "alertPreferences": {
+      "push": true,
+      "sms": true,
+      "email": true
+    },
+    "phone": "",
+    "relationship": "parent",
+    "preferredLanguage": "en",
+    "photoUrl": ""
   },
   {
     "id": "usr_demo_user",
@@ -503,7 +615,7 @@
     "role": "user",
     "pairingCode": "852-963",
     "pairingCodeExpiresAt": "2026-10-06T06:42:03.562Z",
-    "linkedParentEmail": "demo.caregiver@pathfinder.app",
+    "linkedParentEmail": "pranjal10@gmail.com",
     "linkedChildrenEmails": [],
     "hasCompletedProfile": true,
     "accessibilityPreferences": {
@@ -645,7 +757,17 @@
       }
     ],
     "createdAt": "2026-10-06T06:32:03.562Z",
-    "updatedAt": "2026-10-06T07:51:31.351Z"
+    "updatedAt": "2026-10-06T12:22:19.267Z",
+    "onboarding_complete": true,
+    "alertPreferences": {
+      "push": true,
+      "sms": true,
+      "email": true
+    },
+    "phone": "",
+    "relationship": "",
+    "preferredLanguage": "en",
+    "photoUrl": ""
   },
   {
     "id": "usr_demo_caregiver",
@@ -756,7 +878,17 @@
       }
     ],
     "createdAt": "2026-10-06T06:32:03.562Z",
-    "updatedAt": "2026-10-06T07:50:39.038Z"
+    "updatedAt": "2026-10-06T07:50:39.038Z",
+    "onboarding_complete": true,
+    "alertPreferences": {
+      "push": true,
+      "sms": true,
+      "email": true
+    },
+    "phone": "",
+    "relationship": "parent",
+    "preferredLanguage": "en",
+    "photoUrl": ""
   },
   {
     "id": "usr_1791272161718_vnkjv",
@@ -814,7 +946,17 @@
     "trips": [],
     "createdAt": "2026-10-06T07:36:01.718Z",
     "updatedAt": "2026-10-06T07:36:09.467Z",
-    "pairingCodeExpiresAt": "2026-10-06T07:46:03.352Z"
+    "pairingCodeExpiresAt": "2026-10-06T07:46:03.352Z",
+    "onboarding_complete": false,
+    "alertPreferences": {
+      "push": true,
+      "sms": true,
+      "email": true
+    },
+    "phone": "",
+    "relationship": "",
+    "preferredLanguage": "en",
+    "photoUrl": ""
   },
   {
     "id": "usr_1791272162057_tm2my",
@@ -872,6 +1014,396 @@
     "trips": [],
     "createdAt": "2026-10-06T07:36:02.057Z",
     "updatedAt": "2026-10-06T07:36:06.178Z",
-    "pairingCodeExpiresAt": "2026-10-06T07:46:03.348Z"
+    "pairingCodeExpiresAt": "2026-10-06T07:46:03.348Z",
+    "onboarding_complete": false,
+    "alertPreferences": {
+      "push": true,
+      "sms": true,
+      "email": true
+    },
+    "phone": "",
+    "relationship": "parent",
+    "preferredLanguage": "en",
+    "photoUrl": ""
+  },
+  {
+    "id": "usr_1791285003641_l4oji",
+    "name": "Pranjal Devmane",
+    "email": "pranjudevmane@gmail.com",
+    "passwordHash": "ef92b778bafe771e89245b89ecbc08a44a4e166c06659911881f383d4473e94f",
+    "role": "parent",
+    "pairingCode": "286662",
+    "linkedParentEmail": null,
+    "linkedChildrenEmails": [],
+    "hasCompletedProfile": true,
+    "accessibilityPreferences": {
+      "primaryPersona": "wheelchair",
+      "mobilityType": "hearing",
+      "requireStepFree": true,
+      "maxSlopePercent": 5,
+      "preferLowerSlopes": true,
+      "preferReducedDistance": true,
+      "preferSaferCrossings": true,
+      "avoidStairs": true,
+      "needTactilePaving": false,
+      "needAudioPrompts": false,
+      "maxWalkingDistanceMeters": 1000
+    },
+    "emergencyContacts": [],
+    "privacyConsent": {
+      "allowRealtimeLocation": true,
+      "allowTripHistory": true,
+      "allowAlerts": true
+    },
+    "privacySettings": {
+      "allowRealtimeLocation": true,
+      "allowTripHistory": true,
+      "allowAlerts": true,
+      "shareAccessibilityPreferences": true
+    },
+    "activeTrip": null,
+    "tripHistory": [],
+    "parentAlerts": [],
+    "guardianLinks": [],
+    "trips": [],
+    "createdAt": "2026-10-06T11:10:03.641Z",
+    "updatedAt": "2026-10-06T11:13:19.535Z",
+    "pairingCodeExpiresAt": "2026-10-06T11:23:19.533Z",
+    "onboarding_complete": true,
+    "alertPreferences": {
+      "push": true,
+      "sms": true,
+      "email": true
+    },
+    "phone": "",
+    "relationship": "parent",
+    "preferredLanguage": "en",
+    "photoUrl": ""
+  },
+  {
+    "id": "usr_1791287560842_ic4ph",
+    "name": "Aarav Mehta 6098",
+    "email": "caregiver_1791287556098@testdomain.internal",
+    "passwordHash": "a109e36947ad56de1dca1cc49f0ef8ac9ad9a7b1aa0df41fb3c4cb73c1ff01ea",
+    "role": "parent",
+    "pairingCode": "302899",
+    "linkedParentEmail": null,
+    "linkedChildrenEmails": [],
+    "hasCompletedProfile": true,
+    "onboarding_complete": true,
+    "phone": "9876543210",
+    "relationship": "guardian",
+    "preferredLanguage": "en",
+    "alertPreferences": {
+      "push": true,
+      "sms": true,
+      "email": true
+    },
+    "photoUrl": "",
+    "accessibilityPreferences": {
+      "primaryPersona": "wheelchair",
+      "mobilityType": "electric-wheelchair",
+      "requireStepFree": true,
+      "maxSlopePercent": 5,
+      "preferLowerSlopes": true,
+      "preferReducedDistance": true,
+      "preferSaferCrossings": true,
+      "avoidStairs": true,
+      "needTactilePaving": false,
+      "needAudioPrompts": true,
+      "maxWalkingDistanceMeters": 1000
+    },
+    "emergencyContacts": [],
+    "privacyConsent": {
+      "allowRealtimeLocation": true,
+      "allowTripHistory": true,
+      "allowAlerts": true
+    },
+    "privacySettings": {
+      "allowRealtimeLocation": true,
+      "allowTripHistory": true,
+      "allowAlerts": true,
+      "shareAccessibilityPreferences": true
+    },
+    "activeTrip": null,
+    "tripHistory": [],
+    "parentAlerts": [],
+    "guardianLinks": [],
+    "trips": [],
+    "createdAt": "2026-10-06T11:52:40.842Z",
+    "updatedAt": "2026-10-06T11:52:42.359Z",
+    "pairingCodeExpiresAt": "2026-10-06T12:02:41.465Z"
+  },
+  {
+    "id": "usr_1791288148953_ylk9v",
+    "name": "Aarav Mehta 7501",
+    "email": "caregiver_1791288147501@testdomain.internal",
+    "passwordHash": "a109e36947ad56de1dca1cc49f0ef8ac9ad9a7b1aa0df41fb3c4cb73c1ff01ea",
+    "role": "parent",
+    "pairingCode": "590807",
+    "linkedParentEmail": null,
+    "linkedChildrenEmails": [],
+    "hasCompletedProfile": true,
+    "onboarding_complete": true,
+    "phone": "9876543210",
+    "relationship": "guardian",
+    "preferredLanguage": "en",
+    "alertPreferences": {
+      "push": true,
+      "sms": true,
+      "email": true
+    },
+    "photoUrl": "",
+    "accessibilityPreferences": {
+      "primaryPersona": "wheelchair",
+      "mobilityType": "electric-wheelchair",
+      "requireStepFree": true,
+      "maxSlopePercent": 5,
+      "preferLowerSlopes": true,
+      "preferReducedDistance": true,
+      "preferSaferCrossings": true,
+      "avoidStairs": true,
+      "needTactilePaving": false,
+      "needAudioPrompts": true,
+      "maxWalkingDistanceMeters": 1000
+    },
+    "emergencyContacts": [],
+    "privacyConsent": {
+      "allowRealtimeLocation": true,
+      "allowTripHistory": true,
+      "allowAlerts": true
+    },
+    "privacySettings": {
+      "allowRealtimeLocation": true,
+      "allowTripHistory": true,
+      "allowAlerts": true,
+      "shareAccessibilityPreferences": true
+    },
+    "activeTrip": null,
+    "tripHistory": [],
+    "parentAlerts": [],
+    "guardianLinks": [],
+    "trips": [],
+    "createdAt": "2026-10-06T12:02:28.953Z",
+    "updatedAt": "2026-10-06T12:02:30.193Z",
+    "pairingCodeExpiresAt": "2026-10-06T12:12:29.508Z"
+  },
+  {
+    "id": "usr_1791288348372_d1mkj",
+    "name": "Aarav Mehta 5867",
+    "email": "caregiver_1791288345867@testdomain.internal",
+    "passwordHash": "a109e36947ad56de1dca1cc49f0ef8ac9ad9a7b1aa0df41fb3c4cb73c1ff01ea",
+    "role": "parent",
+    "pairingCode": "888176",
+    "linkedParentEmail": null,
+    "linkedChildrenEmails": [],
+    "hasCompletedProfile": true,
+    "onboarding_complete": true,
+    "phone": "9876543210",
+    "relationship": "guardian",
+    "preferredLanguage": "en",
+    "alertPreferences": {
+      "push": true,
+      "sms": true,
+      "email": true
+    },
+    "photoUrl": "",
+    "accessibilityPreferences": {
+      "primaryPersona": "wheelchair",
+      "mobilityType": "electric-wheelchair",
+      "requireStepFree": true,
+      "maxSlopePercent": 5,
+      "preferLowerSlopes": true,
+      "preferReducedDistance": true,
+      "preferSaferCrossings": true,
+      "avoidStairs": true,
+      "needTactilePaving": false,
+      "needAudioPrompts": true,
+      "maxWalkingDistanceMeters": 1000
+    },
+    "emergencyContacts": [],
+    "privacyConsent": {
+      "allowRealtimeLocation": true,
+      "allowTripHistory": true,
+      "allowAlerts": true
+    },
+    "privacySettings": {
+      "allowRealtimeLocation": true,
+      "allowTripHistory": true,
+      "allowAlerts": true,
+      "shareAccessibilityPreferences": true
+    },
+    "activeTrip": null,
+    "tripHistory": [],
+    "parentAlerts": [],
+    "guardianLinks": [],
+    "trips": [],
+    "createdAt": "2026-10-06T12:05:48.372Z",
+    "updatedAt": "2026-10-06T12:05:49.557Z",
+    "pairingCodeExpiresAt": "2026-10-06T12:15:48.827Z"
+  },
+  {
+    "id": "usr_1791288599807_xxgyk",
+    "name": "Aarav Mehta 8487",
+    "email": "caregiver_1791288598487@testdomain.internal",
+    "passwordHash": "a109e36947ad56de1dca1cc49f0ef8ac9ad9a7b1aa0df41fb3c4cb73c1ff01ea",
+    "role": "parent",
+    "pairingCode": "300447",
+    "linkedParentEmail": null,
+    "linkedChildrenEmails": [],
+    "hasCompletedProfile": true,
+    "onboarding_complete": true,
+    "phone": "9876543210",
+    "relationship": "guardian",
+    "preferredLanguage": "en",
+    "alertPreferences": {
+      "push": true,
+      "sms": true,
+      "email": true
+    },
+    "photoUrl": "",
+    "accessibilityPreferences": {
+      "primaryPersona": "wheelchair",
+      "mobilityType": "electric-wheelchair",
+      "requireStepFree": true,
+      "maxSlopePercent": 5,
+      "preferLowerSlopes": true,
+      "preferReducedDistance": true,
+      "preferSaferCrossings": true,
+      "avoidStairs": true,
+      "needTactilePaving": false,
+      "needAudioPrompts": true,
+      "maxWalkingDistanceMeters": 1000
+    },
+    "emergencyContacts": [],
+    "privacyConsent": {
+      "allowRealtimeLocation": true,
+      "allowTripHistory": true,
+      "allowAlerts": true
+    },
+    "privacySettings": {
+      "allowRealtimeLocation": true,
+      "allowTripHistory": true,
+      "allowAlerts": true,
+      "shareAccessibilityPreferences": true
+    },
+    "activeTrip": null,
+    "tripHistory": [],
+    "parentAlerts": [],
+    "guardianLinks": [],
+    "trips": [],
+    "createdAt": "2026-10-06T12:09:59.807Z",
+    "updatedAt": "2026-10-06T12:10:01.188Z",
+    "pairingCodeExpiresAt": "2026-10-06T12:20:00.387Z"
+  },
+  {
+    "id": "usr_1791288670645_8snb0",
+    "name": "Aarav Mehta 9338",
+    "email": "caregiver_1791288669338@testdomain.internal",
+    "passwordHash": "a109e36947ad56de1dca1cc49f0ef8ac9ad9a7b1aa0df41fb3c4cb73c1ff01ea",
+    "role": "parent",
+    "pairingCode": "356715",
+    "linkedParentEmail": null,
+    "linkedChildrenEmails": [],
+    "hasCompletedProfile": true,
+    "onboarding_complete": true,
+    "phone": "9876543210",
+    "relationship": "guardian",
+    "preferredLanguage": "en",
+    "alertPreferences": {
+      "push": true,
+      "sms": true,
+      "email": true
+    },
+    "photoUrl": "",
+    "accessibilityPreferences": {
+      "primaryPersona": "wheelchair",
+      "mobilityType": "electric-wheelchair",
+      "requireStepFree": true,
+      "maxSlopePercent": 5,
+      "preferLowerSlopes": true,
+      "preferReducedDistance": true,
+      "preferSaferCrossings": true,
+      "avoidStairs": true,
+      "needTactilePaving": false,
+      "needAudioPrompts": true,
+      "maxWalkingDistanceMeters": 1000
+    },
+    "emergencyContacts": [],
+    "privacyConsent": {
+      "allowRealtimeLocation": true,
+      "allowTripHistory": true,
+      "allowAlerts": true
+    },
+    "privacySettings": {
+      "allowRealtimeLocation": true,
+      "allowTripHistory": true,
+      "allowAlerts": true,
+      "shareAccessibilityPreferences": true
+    },
+    "activeTrip": null,
+    "tripHistory": [],
+    "parentAlerts": [],
+    "guardianLinks": [],
+    "trips": [],
+    "createdAt": "2026-10-06T12:11:10.645Z",
+    "updatedAt": "2026-10-06T12:11:11.827Z",
+    "pairingCodeExpiresAt": "2026-10-06T12:21:11.101Z"
+  },
+  {
+    "id": "usr_1791289085909_lilju",
+    "name": "Pranjal Devmane",
+    "email": "pranjal10@gmail.com",
+    "passwordHash": "ef797c8118f02dfb649607dd5d3f8c7623048c9c063d532cc95c5ed7a898a64f",
+    "role": "parent",
+    "pairingCode": "535273",
+    "linkedParentEmail": null,
+    "linkedChildrenEmails": [
+      "demo.user@pathfinder.app"
+    ],
+    "hasCompletedProfile": true,
+    "onboarding_complete": true,
+    "phone": "9819399161",
+    "relationship": "professional_caregiver",
+    "preferredLanguage": "en",
+    "alertPreferences": {
+      "push": true,
+      "sms": true,
+      "email": true
+    },
+    "photoUrl": "",
+    "accessibilityPreferences": {
+      "primaryPersona": "wheelchair",
+      "mobilityType": "electric-wheelchair",
+      "requireStepFree": true,
+      "maxSlopePercent": 5,
+      "preferLowerSlopes": true,
+      "preferReducedDistance": true,
+      "preferSaferCrossings": true,
+      "avoidStairs": true,
+      "needTactilePaving": false,
+      "needAudioPrompts": true,
+      "maxWalkingDistanceMeters": 1000
+    },
+    "emergencyContacts": [],
+    "privacyConsent": {
+      "allowRealtimeLocation": true,
+      "allowTripHistory": true,
+      "allowAlerts": true
+    },
+    "privacySettings": {
+      "allowRealtimeLocation": true,
+      "allowTripHistory": true,
+      "allowAlerts": true,
+      "shareAccessibilityPreferences": true
+    },
+    "activeTrip": null,
+    "tripHistory": [],
+    "parentAlerts": [],
+    "guardianLinks": [],
+    "trips": [],
+    "createdAt": "2026-10-06T12:18:05.909Z",
+    "updatedAt": "2026-10-06T12:22:19.267Z",
+    "pairingCodeExpiresAt": "2026-10-06T12:28:06.384Z"
   }
 ]

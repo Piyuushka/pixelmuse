@@ -49,18 +49,18 @@ export default function LocationSearchInput({
   const commitLocation = (text: string, preferredCoords?: Coordinates) => {
     if (!text.trim()) return;
     
-    // Check demo locations for matching name
+    // Check preset locations for matching name
     const norm = text.toLowerCase().trim();
-    const demo = DEMO_LOCATIONS.find(l => 
+    const matchedLoc = DEMO_LOCATIONS.find(l => 
       l.name.toLowerCase() === norm || 
       norm.includes(l.name.toLowerCase()) || 
       l.name.toLowerCase().includes(norm)
     );
 
-    const coords = preferredCoords || (demo?.lat && demo?.lng ? { lat: demo.lat, lng: demo.lng } : { lat: 19.0760, lng: 72.8777 });
+    const coords = preferredCoords || (matchedLoc?.lat && matchedLoc?.lng ? { lat: matchedLoc.lat, lng: matchedLoc.lng } : { lat: 19.0760, lng: 72.8777 });
 
     onLocationSelect({
-      name: demo ? demo.name : text,
+      name: matchedLoc ? matchedLoc.name : text,
       coords
     });
   };

@@ -345,7 +345,7 @@ function AlertModal({
 
 export default function GuardianDashboardPage() {
   const { user } = useAccessibility();
-  const guardianEmail = user.email || 'parent@community.org';
+  const guardianEmail = user.email || '';
 
   // Dashboard data state
   const [dashboardData, setDashboardData] = useState<any>(null);

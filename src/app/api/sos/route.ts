@@ -21,7 +21,7 @@ export async function POST(request: NextRequest) {
     const body = await request.json();
     const validated = sosTriggerSchema.parse(body);
 
-    const isTest = process.env.DEMO_MODE === 'false' ? validated.is_test : true;
+    const isTest = Boolean(validated.is_test);
     const sosId = `sos_${Date.now()}_${Math.random().toString(36).substring(2, 6)}`;
     const now = new Date().toISOString();
 
@@ -33,9 +33,10 @@ export async function POST(request: NextRequest) {
       lng: validated.lng,
       accuracy: validated.accuracy_m,
       status: 'TRIGGERED' as const,
+      isTest,
       triggeredAt: now,
       message: isTest
-        ? `[TEST MODE] Emergency panic alert triggered by ${user.name}`
+        ? `[TEST ALERT] Safety drill alert triggered by ${user.name}`
         : `EMERGENCY SOS! ${user.name} triggered panic alert at (${validated.lat.toFixed(4)}, ${validated.lng.toFixed(4)})`,
     };
 

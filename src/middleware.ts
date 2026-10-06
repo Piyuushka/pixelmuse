@@ -91,22 +91,66 @@ export async function middleware(request: NextRequest) {
   const session = await getSessionFromRequest(request);
 
   if (!session) {
+    if (pathname.startsWith('/api/')) {
+      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+    }
     // Not authenticated → redirect to login with return URL.
     const loginUrl = new URL('/login', request.url);
     loginUrl.searchParams.set('from', pathname);
     return NextResponse.redirect(loginUrl);
   }
 
+  const isOnboardingComplete = Boolean(session.onboarding_complete);
+
   // Role guard — CAREGIVER-only routes.
   if (isCaregiverOnly(pathname) && session.role === 'USER') {
-    // USER trying to access CAREGIVER page → send to their user map.
-    return NextResponse.redirect(new URL('/user/map', request.url));
+    const dest = isOnboardingComplete ? '/user/map' : '/user/profile-setup';
+    return NextResponse.redirect(new URL(dest, request.url));
   }
 
   // Role guard — USER-only routes.
   if (isUserOnly(pathname) && session.role === 'CAREGIVER') {
-    // CAREGIVER trying to access USER page → send to their caregiver map.
-    return NextResponse.redirect(new URL('/caregiver/map', request.url));
+    const dest = isOnboardingComplete ? '/caregiver/map' : '/caregiver/profile-setup';
+    return NextResponse.redirect(new URL(dest, request.url));
+  }
+
+  // Handle /user/home alias
+  if (pathname === '/user/home') {
+    const dest = isOnboardingComplete ? '/user/map' : '/user/profile-setup';
+    return NextResponse.redirect(new URL(dest, request.url));
+  }
+
+  // ─── ONBOARDING ENFORCEMENT FOR UI ROUTES ─────────────────────────────────
+  if (!pathname.startsWith('/api/')) {
+    const isEditMode = request.nextUrl.searchParams.get('edit') === 'true';
+
+    // Caregiver portal onboarding
+    if (session.role === 'CAREGIVER') {
+      if (!isOnboardingComplete) {
+        if (pathname !== '/caregiver/profile-setup') {
+          return NextResponse.redirect(new URL('/caregiver/profile-setup', request.url));
+        }
+      } else {
+        // Completed caregiver trying to open profile-setup without edit mode
+        if (pathname === '/caregiver/profile-setup' && !isEditMode) {
+          return NextResponse.redirect(new URL('/caregiver/map', request.url));
+        }
+      }
+    }
+
+    // User portal onboarding
+    if (session.role === 'USER') {
+      if (!isOnboardingComplete) {
+        if (pathname !== '/user/profile-setup') {
+          return NextResponse.redirect(new URL('/user/profile-setup', request.url));
+        }
+      } else {
+        // Completed user trying to open profile-setup without edit mode
+        if (pathname === '/user/profile-setup' && !isEditMode) {
+          return NextResponse.redirect(new URL('/user/map', request.url));
+        }
+      }
+    }
   }
 
   // Inject session headers for downstream API routes (avoids re-parsing JWT).

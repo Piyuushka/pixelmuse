@@ -565,8 +565,10 @@ function buildRoute(
   };
 }
 
-export const DEMO_ROUTES: RouteWithSafety[] = [
+export const DEFAULT_ROUTES: RouteWithSafety[] = [
   buildRoute('route-a', 'Central Concourse Route', 'primary', 300, 6, ['seg-a1', 'seg-a2']),
   buildRoute('route-b', 'South Ramp C & Lift 4',  'secondary', 370, 8, ['seg-b1', 'seg-b2']),
   buildRoute('route-c', 'Flyover & Service Road',  'tertiary',  480, 11, ['seg-c1', 'seg-c2']),
 ];
+
+export const DEMO_ROUTES: RouteWithSafety[] = DEFAULT_ROUTES;

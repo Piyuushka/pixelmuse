@@ -115,7 +115,7 @@ export default function UserProfilePage() {
             </div>
             <div className="flex flex-col">
               <span className="text-lg font-black text-on-surface">{user.name || 'Navigator User'}</span>
-              <span className="text-xs text-on-surface-variant font-medium">{user.email || 'demo.user@pathfinder.app'}</span>
+              <span className="text-xs text-on-surface-variant font-medium">{user.email || '—'}</span>
               <span className="text-[11px] text-secondary font-black uppercase mt-0.5">Role: Dependent Navigator</span>
             </div>
           </div>

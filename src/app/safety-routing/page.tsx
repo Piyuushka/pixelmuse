@@ -28,7 +28,7 @@ import {
   TrendingUp,
 } from 'lucide-react';
 import {
-  DEMO_ROUTES,
+  DEFAULT_ROUTES,
   rankRoutesForPersona,
   getSafetyLabel,
   RouteWithSafety,
@@ -414,7 +414,7 @@ export default function SafetyRoutingPage() {
   const [expandedRoute, setExpandedRoute] = useState<string | null>('route-a');
 
   const rankedRoutes = useMemo(
-    () => rankRoutesForPersona(DEMO_ROUTES, persona, nightMode, surfaceFilters, activeHazardAlert),
+    () => rankRoutesForPersona(DEFAULT_ROUTES, persona, nightMode, surfaceFilters, activeHazardAlert),
     [persona, nightMode, surfaceFilters, activeHazardAlert],
   );
 

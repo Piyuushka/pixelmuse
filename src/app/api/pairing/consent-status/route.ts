@@ -1,6 +1,6 @@
 import { NextResponse, type NextRequest } from 'next/server';
 import { getSessionFromRequest } from '@/lib/auth';
-import { getPendingConsentRequests, findUserById } from '@/lib/db/userStore';
+import { getConsentStatus, generatePairingCode } from '@/lib/db/pairingStore';
 
 export async function GET(request: NextRequest) {
   try {
@@ -9,19 +9,28 @@ export async function GET(request: NextRequest) {
       return NextResponse.json({ success: false, error: 'Unauthorized' }, { status: 401 });
     }
 
-    const user = findUserById(session.userId);
-    if (!user) {
-      return NextResponse.json({ success: false, error: 'User not found' }, { status: 404 });
-    }
+    let status = await getConsentStatus(session.userId, session.email);
 
-    const pendingRequests = getPendingConsentRequests(user.email);
+    // If no active code exists, generate one automatically
+    if (!status.pairingCode) {
+      try {
+        const generated = await generatePairingCode(session.userId);
+        status = {
+          ...status,
+          pairingCode: generated.code,
+          pairingCodeExpiresAt: generated.expiresAt,
+        };
+      } catch {
+        // Non-fatal: UI will show Regenerate button
+      }
+    }
 
     return NextResponse.json({
       success: true,
-      pendingRequests,
-      activeGuardian: user.linkedParentEmail || null,
-      pairingCode: user.pairingCode,
-      pairingCodeExpiresAt: user.pairingCodeExpiresAt,
+      pairingCode: status.pairingCode,
+      pairingCodeExpiresAt: status.pairingCodeExpiresAt,
+      pendingRequests: status.pendingRequests,
+      activeGuardian: status.activeCaregiver,
     });
   } catch (error: any) {
     console.error('Error fetching consent status:', error);

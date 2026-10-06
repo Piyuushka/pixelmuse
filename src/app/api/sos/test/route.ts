@@ -35,7 +35,7 @@ export async function POST(request: NextRequest) {
     return NextResponse.json({
       success: true,
       isTest: true,
-      message: 'Test SOS trigger successfully evaluated. No real SMS or emergency dispatch performed.',
+      message: 'Safety drill trigger successfully evaluated. No real SMS or emergency dispatch performed.',
     });
   } catch (error: any) {
     return NextResponse.json({ success: false, error: 'Failed to run SOS test' }, { status: 500 });

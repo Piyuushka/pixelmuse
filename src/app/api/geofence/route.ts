@@ -18,7 +18,7 @@ export async function GET(request: NextRequest) {
 
     const zones = geofenceStore.get(linkId) || [
       {
-        id: 'zone_home_demo',
+        id: 'zone_home_default',
         linkId,
         name: 'Home Safe Zone',
         center: { lat: 19.0760, lng: 72.8777 },
@@ -29,7 +29,7 @@ export async function GET(request: NextRequest) {
         createdAt: new Date().toISOString(),
       },
       {
-        id: 'zone_school_demo',
+        id: 'zone_school_default',
         linkId,
         name: 'School / College Zone',
         center: { lat: 19.0820, lng: 72.8830 },

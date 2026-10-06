@@ -217,7 +217,7 @@ function TripProgressBar({ status }: { status: TripStatus }) {
 export default function UberStyleTripTracker() {
   const [trip, setTrip] = useState<TripState>({
     status:           'waiting',
-    childName:        'Alex Rivera',
+    childName:        'Active Dependent',
     origin:           'Connaught Place Metro',
     destination:      'India Gate',
     startTime:        new Date().toISOString(),
@@ -494,7 +494,7 @@ export default function UberStyleTripTracker() {
             className="flex-1 h-12 rounded-xl bg-primary text-on-primary font-bold text-sm flex items-center justify-center gap-2 shadow-md hover:opacity-95 transition-opacity"
           >
             <Navigation className="w-4.5 h-4.5 fill-current" />
-            {trip.status === 'waiting' ? 'Start Demo Trip' : 'Restart Trip'}
+            {trip.status === 'waiting' ? 'Start Live Trip' : 'Restart Trip'}
           </button>
         )}
         {isSimulating && (

@@ -41,10 +41,10 @@ import type { NavInstruction, NavWaypoint } from '@/lib/multiSensoryNav/types';
 import type { Coordinates } from '@/lib/spatial';
 
 // ─────────────────────────────────────────────
-// DEMO WAYPOINTS  (replace with real route data)
+// Initial fallback waypoints (replace with real route data)
 // ─────────────────────────────────────────────
 
-function buildDemoWaypoints(origin: Coordinates): NavWaypoint[] {
+function buildInitialWaypoints(origin: Coordinates): NavWaypoint[] {
   // Simulated 4-waypoint route: Straight → Left → Right → Arrived
   const offsets: [number, number, NavInstruction][] = [
     [0.0001,  0,       'straight'  ],
@@ -55,7 +55,7 @@ function buildDemoWaypoints(origin: Coordinates): NavWaypoint[] {
 
   return offsets.map(([dLat, dLng, instr], i) =>
     NavQueueManager.createWaypoint(
-      `demo-wp-${i}`,
+      `nav-wp-${i}`,
       { lat: origin.lat + dLat, lng: origin.lng + dLng },
       instr,
       instr === 'turn_left'  ? 'Turn left ahead' :
@@ -140,7 +140,7 @@ export default function MultiSensoryNavPanel({
   // ── Start handler ────────────────────────────────────────────────────────
   const handleStart = useCallback(async () => {
     const origin = userCoord ?? { lat: 19.076, lng: 72.877 }; // Mumbai default
-    const wps = waypoints ?? buildDemoWaypoints(origin);
+    const wps = waypoints ?? buildInitialWaypoints(origin);
     await startNavigation(wps);
   }, [userCoord, waypoints, startNavigation]);
 

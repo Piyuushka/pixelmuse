@@ -25,6 +25,8 @@ import {
   Contrast,
   Volume2,
   VolumeX,
+  Loader2,
+  AlertCircle,
 } from 'lucide-react';
 
 const userNavItems = [
@@ -37,6 +39,8 @@ const userNavItems = [
 
 export default function UserSidebar() {
   const pathname = usePathname();
+  const [isLogoutModalOpen, setIsLogoutModalOpen] = React.useState(false);
+  const [isLoggingOut, setIsLoggingOut] = React.useState(false);
   const {
     isDarkMode,
     toggleDarkMode,
@@ -252,50 +256,114 @@ export default function UserSidebar() {
         {/* User Account */}
         <div className="p-3 rounded-2xl bg-surface-container-low border border-outline-variant/30 flex flex-col gap-2">
           <div className="flex items-center justify-between">
-            <div className="flex items-center gap-2">
-              <div className="w-8 h-8 rounded-full bg-primary flex items-center justify-center text-on-primary text-xs font-black">
+            <div className="flex items-center gap-2 min-w-0 flex-1">
+              <div className="w-8 h-8 rounded-full bg-primary flex items-center justify-center text-on-primary text-xs font-black flex-shrink-0">
                 {user.name ? user.name.charAt(0).toUpperCase() : <User className="w-4 h-4" />}
               </div>
               <div className="flex flex-col min-w-0">
-                <span className="text-xs font-extrabold text-on-surface truncate max-w-[110px]">
-                  {user.isLoggedIn ? (user.name || 'Navigator') : 'Navigator User'}
+                <span className="text-xs font-black text-on-surface truncate">
+                  {user.name || 'Navigator'}
                 </span>
-                <span className="text-[10px] text-secondary font-bold truncate">
-                  User Session
+                <span className="text-[10px] text-on-surface-variant font-bold truncate">
+                  User (Dependent)
                 </span>
               </div>
             </div>
 
-            <button
-              type="button"
-              onClick={openOnboarding}
+            <Link
+              href="/user/profile-setup?edit=true"
               aria-label="Edit accessibility profile"
-              className="p-1.5 rounded-xl bg-surface-container-high hover:bg-surface-container text-primary transition-colors cursor-pointer"
+              title="Edit Profile"
+              className="p-1.5 rounded-xl bg-surface-container-high hover:bg-surface-container text-primary transition-colors cursor-pointer flex-shrink-0"
             >
               <Sliders className="w-4 h-4" />
-            </button>
+            </Link>
           </div>
 
           <div className="flex items-center gap-1.5 pt-1">
-            <button
-              type="button"
-              onClick={openOnboarding}
-              className="flex-1 py-1.5 rounded-xl bg-primary/10 text-primary text-[11px] font-extrabold hover:bg-primary/20 transition-colors text-center cursor-pointer"
+            <Link
+              href="/user/profile-setup?edit=true"
+              className="flex-1 py-2 px-2.5 rounded-xl bg-primary/10 text-primary text-[11px] font-extrabold hover:bg-primary/20 transition-colors text-center cursor-pointer"
             >
               Profile Settings
-            </button>
+            </Link>
+
             <button
               type="button"
-              onClick={logoutUser}
-              aria-label="Log out"
-              className="p-1.5 rounded-xl bg-surface-container-high hover:bg-error/10 text-on-surface-variant hover:text-error transition-colors cursor-pointer"
+              onClick={() => setIsLogoutModalOpen(true)}
+              aria-label="Log out of User Portal"
+              title="Log out"
+              className="min-w-[48px] min-h-[48px] w-12 h-12 rounded-xl bg-surface-container-high hover:bg-error/15 text-on-surface-variant hover:text-error flex items-center justify-center transition-colors cursor-pointer flex-shrink-0"
             >
-              <LogOut className="w-3.5 h-3.5" />
+              <LogOut className="w-4 h-4" />
             </button>
           </div>
         </div>
 
       </div>
+
+      {/* Accessible Logout Confirmation Modal */}
+      {isLogoutModalOpen && (
+        <div className="fixed inset-0 z-[9999] flex items-center justify-center bg-black/60 backdrop-blur-xs p-4">
+          <div
+            role="alertdialog"
+            aria-modal="true"
+            aria-labelledby="logout-title"
+            aria-describedby="logout-desc"
+            className="w-full max-w-sm bg-surface-container-lowest border border-outline-variant/40 rounded-3xl p-6 shadow-2xl flex flex-col gap-4 animate-in fade-in zoom-in-95 duration-150"
+          >
+            <div className="flex items-center gap-3">
+              <div className="w-11 h-11 rounded-2xl bg-error/15 text-error flex items-center justify-center flex-shrink-0">
+                <AlertCircle className="w-6 h-6" />
+              </div>
+              <div className="flex flex-col">
+                <h2 id="logout-title" className="text-base font-black text-on-surface">
+                  Log out of PathFinder?
+                </h2>
+                <span className="text-[11px] text-error font-bold uppercase tracking-wider">
+                  Live Sharing Will Stop
+                </span>
+              </div>
+            </div>
+
+            <p id="logout-desc" className="text-xs text-on-surface-variant font-medium leading-relaxed">
+              Logging out will stop live location sharing with your caregiver and pause active telemetry updates.
+            </p>
+
+            <div className="flex items-center gap-2 pt-2">
+              <button
+                type="button"
+                onClick={() => setIsLogoutModalOpen(false)}
+                disabled={isLoggingOut}
+                className="flex-1 h-11 rounded-xl bg-surface-container-high hover:bg-surface-container text-on-surface font-extrabold text-xs cursor-pointer transition-colors"
+              >
+                Cancel
+              </button>
+              <button
+                type="button"
+                disabled={isLoggingOut}
+                onClick={async () => {
+                  setIsLoggingOut(true);
+                  await logoutUser();
+                }}
+                className="flex-1 h-11 rounded-xl bg-error text-white font-extrabold text-xs flex items-center justify-center gap-1.5 cursor-pointer hover:bg-error/90 transition-colors disabled:opacity-50"
+              >
+                {isLoggingOut ? (
+                  <>
+                    <Loader2 className="w-4 h-4 animate-spin" />
+                    <span>Signing out...</span>
+                  </>
+                ) : (
+                  <>
+                    <LogOut className="w-4 h-4" />
+                    <span>Confirm Logout</span>
+                  </>
+                )}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
 
     </aside>
   );

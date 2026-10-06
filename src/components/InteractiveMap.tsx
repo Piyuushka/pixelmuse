@@ -50,8 +50,8 @@ export default function InteractiveMap({
   const [selectedWaypoint, setSelectedWaypoint] = useState<number | null>(null);
   const [mapStyle, setMapStyle] = useState<'standard' | 'satellite' | 'accessibility'>('accessibility');
 
-  const userLocationMock = { lat: 40.7126, lng: -74.0055 };
-  const entranceSelection = selectEntrance(entrances, persona, userLocationMock);
+  const defaultUserLocation = { lat: 40.7126, lng: -74.0055 };
+  const entranceSelection = selectEntrance(entrances, persona, defaultUserLocation);
 
   const waypoints = [
     {

@@ -19,8 +19,8 @@ interface GeofenceRecord {
 const geofencesStore: GeofenceRecord[] = [
   {
     id: 'geo_1',
-    owner_caregiver_id: 'usr_demo_caregiver',
-    dependent_id: 'usr_demo_user',
+    owner_caregiver_id: 'usr_caregiver_1',
+    dependent_id: 'usr_dependent_1',
     name: 'Home & Neighborhood Safe Zone',
     center_lat: 18.9322,
     center_lng: 72.8264,
@@ -30,8 +30,8 @@ const geofencesStore: GeofenceRecord[] = [
   },
   {
     id: 'geo_2',
-    owner_caregiver_id: 'usr_demo_caregiver',
-    dependent_id: 'usr_demo_user',
+    owner_caregiver_id: 'usr_caregiver_1',
+    dependent_id: 'usr_dependent_1',
     name: 'School / Therapy Center',
     center_lat: 18.9398,
     center_lng: 72.8355,
