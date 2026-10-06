@@ -53,7 +53,8 @@
       }
     ],
     "guardianLinks": [],
-    "trips": []
+    "trips": [],
+    "pairingCodeExpiresAt": "2026-10-06T06:42:03.563Z"
   },
   {
     "id": "usr_1789984709808_h6ez1",
@@ -95,7 +96,8 @@
     "tripHistory": [],
     "parentAlerts": [],
     "guardianLinks": [],
-    "trips": []
+    "trips": [],
+    "pairingCodeExpiresAt": "2026-10-06T06:42:03.563Z"
   },
   {
     "id": "usr_1790012626125_h387d",
@@ -138,7 +140,8 @@
     "guardianLinks": [],
     "trips": [],
     "createdAt": "2026-09-21T17:43:46.125Z",
-    "updatedAt": "2026-09-21T17:44:03.957Z"
+    "updatedAt": "2026-09-21T17:44:03.957Z",
+    "pairingCodeExpiresAt": "2026-10-06T06:42:03.563Z"
   },
   {
     "id": "usr_1790087490784_6srfh",
@@ -181,7 +184,8 @@
     "guardianLinks": [],
     "trips": [],
     "createdAt": "2026-09-22T14:31:30.785Z",
-    "updatedAt": "2026-09-22T14:31:44.758Z"
+    "updatedAt": "2026-09-22T14:31:44.758Z",
+    "pairingCodeExpiresAt": "2026-10-06T06:42:03.563Z"
   },
   {
     "id": "usr_1791020634593_ntnzq",
@@ -224,7 +228,8 @@
     "guardianLinks": [],
     "trips": [],
     "createdAt": "2026-10-03T09:43:54.593Z",
-    "updatedAt": "2026-10-04T14:15:34.220Z"
+    "updatedAt": "2026-10-04T14:15:34.220Z",
+    "pairingCodeExpiresAt": "2026-10-06T06:42:03.563Z"
   },
   {
     "id": "usr_1791185422120_0dtfq",
@@ -269,6 +274,518 @@
     "guardianLinks": [],
     "trips": [],
     "createdAt": "2026-10-05T07:30:22.120Z",
-    "updatedAt": "2026-10-05T09:29:29.816Z"
+    "updatedAt": "2026-10-05T09:29:29.816Z",
+    "pairingCodeExpiresAt": "2026-10-06T06:42:03.563Z"
+  },
+  {
+    "id": "usr_1791266325817_hndcf",
+    "name": "Dependent User",
+    "email": "dependent.google@community.org",
+    "passwordHash": "3589e93537131fb5553f4d09e0bacd34f28bb7d3f2de4d5ae45c92f631222c0e",
+    "role": "user",
+    "pairingCode": "595963",
+    "linkedParentEmail": null,
+    "linkedChildrenEmails": [],
+    "hasCompletedProfile": false,
+    "accessibilityPreferences": {
+      "primaryPersona": "wheelchair",
+      "mobilityType": "electric-wheelchair",
+      "requireStepFree": true,
+      "maxSlopePercent": 5,
+      "preferLowerSlopes": true,
+      "preferReducedDistance": true,
+      "preferSaferCrossings": true,
+      "avoidStairs": true,
+      "needTactilePaving": false,
+      "needAudioPrompts": true,
+      "maxWalkingDistanceMeters": 1000
+    },
+    "emergencyContacts": [],
+    "privacyConsent": {
+      "allowRealtimeLocation": true,
+      "allowTripHistory": true,
+      "allowAlerts": true
+    },
+    "privacySettings": {
+      "allowRealtimeLocation": true,
+      "allowTripHistory": true,
+      "allowAlerts": true,
+      "shareAccessibilityPreferences": true
+    },
+    "activeTrip": null,
+    "tripHistory": [],
+    "parentAlerts": [],
+    "guardianLinks": [],
+    "trips": [],
+    "createdAt": "2026-10-06T05:58:45.817Z",
+    "updatedAt": "2026-10-06T05:58:45.817Z",
+    "pairingCodeExpiresAt": "2026-10-06T06:42:03.563Z"
+  },
+  {
+    "id": "usr_1791266779313_j1pwf",
+    "name": "Pranjal Devmane",
+    "email": "pranjal@gmail.com",
+    "passwordHash": "ff111659c34424421190a9153c0d552c33c53566f4ec02ce6521d4af00b76e49",
+    "role": "parent",
+    "pairingCode": "652022",
+    "linkedParentEmail": null,
+    "linkedChildrenEmails": [],
+    "hasCompletedProfile": false,
+    "accessibilityPreferences": {
+      "primaryPersona": "wheelchair",
+      "mobilityType": "electric-wheelchair",
+      "requireStepFree": true,
+      "maxSlopePercent": 5,
+      "preferLowerSlopes": true,
+      "preferReducedDistance": true,
+      "preferSaferCrossings": true,
+      "avoidStairs": true,
+      "needTactilePaving": false,
+      "needAudioPrompts": true,
+      "maxWalkingDistanceMeters": 1000
+    },
+    "emergencyContacts": [],
+    "privacyConsent": {
+      "allowRealtimeLocation": true,
+      "allowTripHistory": true,
+      "allowAlerts": true
+    },
+    "privacySettings": {
+      "allowRealtimeLocation": true,
+      "allowTripHistory": true,
+      "allowAlerts": true,
+      "shareAccessibilityPreferences": true
+    },
+    "activeTrip": null,
+    "tripHistory": [],
+    "parentAlerts": [],
+    "guardianLinks": [],
+    "trips": [],
+    "createdAt": "2026-10-06T06:06:19.313Z",
+    "updatedAt": "2026-10-06T06:06:19.313Z",
+    "pairingCodeExpiresAt": "2026-10-06T06:42:03.563Z"
+  },
+  {
+    "id": "usr_1791266848395_ll0lv",
+    "name": "Pranjal Devmane",
+    "email": "2pranjal@gmail.com",
+    "passwordHash": "ff111659c34424421190a9153c0d552c33c53566f4ec02ce6521d4af00b76e49",
+    "role": "parent",
+    "pairingCode": "293458",
+    "linkedParentEmail": null,
+    "linkedChildrenEmails": [],
+    "hasCompletedProfile": false,
+    "accessibilityPreferences": {
+      "primaryPersona": "wheelchair",
+      "mobilityType": "electric-wheelchair",
+      "requireStepFree": true,
+      "maxSlopePercent": 5,
+      "preferLowerSlopes": true,
+      "preferReducedDistance": true,
+      "preferSaferCrossings": true,
+      "avoidStairs": true,
+      "needTactilePaving": false,
+      "needAudioPrompts": true,
+      "maxWalkingDistanceMeters": 1000
+    },
+    "emergencyContacts": [],
+    "privacyConsent": {
+      "allowRealtimeLocation": true,
+      "allowTripHistory": true,
+      "allowAlerts": true
+    },
+    "privacySettings": {
+      "allowRealtimeLocation": true,
+      "allowTripHistory": true,
+      "allowAlerts": true,
+      "shareAccessibilityPreferences": true
+    },
+    "activeTrip": null,
+    "tripHistory": [],
+    "parentAlerts": [],
+    "guardianLinks": [],
+    "trips": [],
+    "createdAt": "2026-10-06T06:07:28.395Z",
+    "updatedAt": "2026-10-06T06:07:28.395Z",
+    "pairingCodeExpiresAt": "2026-10-06T06:42:03.563Z"
+  },
+  {
+    "id": "usr_demo_user",
+    "name": "Demo User (Dependent)",
+    "email": "demo.user@pathfinder.app",
+    "passwordHash": "0ead2060b65992dca4769af601a1b3a35ef38cfad2c2c465bb160ea764157c5d",
+    "role": "user",
+    "pairingCode": "852-963",
+    "pairingCodeExpiresAt": "2026-10-06T06:42:03.562Z",
+    "linkedParentEmail": "demo.caregiver@pathfinder.app",
+    "linkedChildrenEmails": [],
+    "hasCompletedProfile": true,
+    "accessibilityPreferences": {
+      "primaryPersona": "wheelchair",
+      "mobilityType": "manual-wheelchair",
+      "requireStepFree": true,
+      "maxSlopePercent": 5,
+      "preferLowerSlopes": true,
+      "preferReducedDistance": true,
+      "preferSaferCrossings": true,
+      "avoidStairs": true,
+      "needTactilePaving": false,
+      "needAudioPrompts": true,
+      "maxWalkingDistanceMeters": 1000
+    },
+    "emergencyContacts": [
+      {
+        "id": "c_demo_1",
+        "name": "Demo Caregiver",
+        "phone": "+91 98765 00000",
+        "relationship": "Primary Caregiver",
+        "notifyOnSOS": true
+      }
+    ],
+    "privacyConsent": {
+      "allowRealtimeLocation": true,
+      "allowTripHistory": true,
+      "allowAlerts": true
+    },
+    "privacySettings": {
+      "allowRealtimeLocation": true,
+      "allowTripHistory": true,
+      "allowAlerts": true,
+      "shareAccessibilityPreferences": true
+    },
+    "guardianLinks": [
+      {
+        "id": "gl_seed_demo_pair",
+        "guardianId": "usr_demo_caregiver",
+        "guardianEmail": "demo.caregiver@pathfinder.app",
+        "dependentId": "usr_demo_user",
+        "dependentEmail": "demo.user@pathfinder.app",
+        "status": "ACCEPTED",
+        "consentGrantedAt": "2026-10-06T06:32:03.562Z",
+        "revokedAt": null,
+        "createdAt": "2026-10-06T06:32:03.562Z"
+      }
+    ],
+    "trips": [],
+    "activeTrip": {
+      "tripId": "trip_demo_1",
+      "source": "Chhatrapati Shivaji Maharaj Terminus",
+      "destination": "Marine Drive Promenade",
+      "status": "SOS_ACTIVE",
+      "currentCoords": {
+        "lat": 19.229208413160094,
+        "lng": 73.08915145202782
+      },
+      "startedAt": "2026-10-06T06:27:03.562Z",
+      "estimatedArrival": "2026-10-06T06:47:03.562Z",
+      "detourMeters": 0
+    },
+    "tripHistory": [
+      {
+        "id": "trip_prev_101",
+        "source": "Dadar Railway Station",
+        "destination": "Shivaji Park Ground Gate 3",
+        "startedAt": "2026-10-05T06:32:03.556Z",
+        "completedAt": "2026-10-05T06:52:03.556Z",
+        "status": "COMPLETED",
+        "distanceMeters": 1450,
+        "durationMinutes": 20,
+        "alertsTriggeredCount": 0
+      },
+      {
+        "id": "trip_prev_102",
+        "source": "Bandra West Junction",
+        "destination": "BKC Concourse Plaza",
+        "startedAt": "2026-10-04T06:32:03.556Z",
+        "completedAt": "2026-10-04T07:02:03.556Z",
+        "status": "COMPLETED",
+        "distanceMeters": 2800,
+        "durationMinutes": 30,
+        "alertsTriggeredCount": 1
+      }
+    ],
+    "parentAlerts": [
+      {
+        "id": "alt_1791273039037_e3ef",
+        "childEmail": "demo.user@pathfinder.app",
+        "childName": "Demo User (Dependent)",
+        "type": "SOS",
+        "message": "[TEST MODE] Emergency panic test triggered by Demo User (Dependent)",
+        "timestamp": "2026-10-06T07:50:39.037Z",
+        "read": false,
+        "locationCoords": {
+          "lat": 19.076,
+          "lng": 72.8777
+        }
+      },
+      {
+        "id": "alt_1791273036691_x17l",
+        "childEmail": "demo.user@pathfinder.app",
+        "childName": "Demo User (Dependent)",
+        "type": "SOS",
+        "message": "[TEST MODE] Emergency panic test triggered by Demo User (Dependent)",
+        "timestamp": "2026-10-06T07:50:36.691Z",
+        "read": false,
+        "locationCoords": {
+          "lat": 19.076,
+          "lng": 72.8777
+        }
+      },
+      {
+        "id": "alt_1791273032514_s2ev",
+        "childEmail": "demo.user@pathfinder.app",
+        "childName": "Demo User (Dependent)",
+        "type": "SOS",
+        "message": "[TEST MODE] Emergency panic test triggered by Demo User (Dependent)",
+        "timestamp": "2026-10-06T07:50:32.514Z",
+        "read": false,
+        "locationCoords": {
+          "lat": 19.076,
+          "lng": 72.8777
+        }
+      },
+      {
+        "id": "alt_1791269061950_4nj2",
+        "childEmail": "demo.user@pathfinder.app",
+        "childName": "Demo User (Dependent)",
+        "type": "SOS",
+        "message": "[TEST MODE] Emergency panic test triggered by Demo User (Dependent)",
+        "timestamp": "2026-10-06T06:44:21.950Z",
+        "read": false,
+        "locationCoords": {
+          "lat": 19.076,
+          "lng": 72.8777
+        }
+      }
+    ],
+    "createdAt": "2026-10-06T06:32:03.562Z",
+    "updatedAt": "2026-10-06T07:51:31.351Z"
+  },
+  {
+    "id": "usr_demo_caregiver",
+    "name": "Demo Caregiver (Parent)",
+    "email": "demo.caregiver@pathfinder.app",
+    "passwordHash": "0ead2060b65992dca4769af601a1b3a35ef38cfad2c2c465bb160ea764157c5d",
+    "role": "parent",
+    "pairingCode": "963-852",
+    "pairingCodeExpiresAt": "2026-10-06T06:42:03.562Z",
+    "linkedParentEmail": null,
+    "linkedChildrenEmails": [
+      "demo.user@pathfinder.app"
+    ],
+    "hasCompletedProfile": true,
+    "accessibilityPreferences": {
+      "primaryPersona": "wheelchair",
+      "mobilityType": "electric-wheelchair",
+      "requireStepFree": true,
+      "maxSlopePercent": 5,
+      "preferLowerSlopes": true,
+      "preferReducedDistance": true,
+      "preferSaferCrossings": true,
+      "avoidStairs": true,
+      "needTactilePaving": false,
+      "needAudioPrompts": true,
+      "maxWalkingDistanceMeters": 1000
+    },
+    "emergencyContacts": [],
+    "privacyConsent": {
+      "allowRealtimeLocation": true,
+      "allowTripHistory": true,
+      "allowAlerts": true
+    },
+    "privacySettings": {
+      "allowRealtimeLocation": true,
+      "allowTripHistory": true,
+      "allowAlerts": true,
+      "shareAccessibilityPreferences": true
+    },
+    "guardianLinks": [
+      {
+        "id": "gl_seed_demo_pair",
+        "guardianId": "usr_demo_caregiver",
+        "guardianEmail": "demo.caregiver@pathfinder.app",
+        "dependentId": "usr_demo_user",
+        "dependentEmail": "demo.user@pathfinder.app",
+        "status": "ACCEPTED",
+        "consentGrantedAt": "2026-10-06T06:32:03.562Z",
+        "revokedAt": null,
+        "createdAt": "2026-10-06T06:32:03.562Z"
+      }
+    ],
+    "trips": [],
+    "activeTrip": null,
+    "tripHistory": [],
+    "parentAlerts": [
+      {
+        "id": "alt_1791273039037_e3ef",
+        "childEmail": "demo.user@pathfinder.app",
+        "childName": "Demo User (Dependent)",
+        "type": "SOS",
+        "message": "[TEST MODE] Emergency panic test triggered by Demo User (Dependent)",
+        "timestamp": "2026-10-06T07:50:39.037Z",
+        "read": false,
+        "locationCoords": {
+          "lat": 19.076,
+          "lng": 72.8777
+        }
+      },
+      {
+        "id": "alt_1791273036691_x17l",
+        "childEmail": "demo.user@pathfinder.app",
+        "childName": "Demo User (Dependent)",
+        "type": "SOS",
+        "message": "[TEST MODE] Emergency panic test triggered by Demo User (Dependent)",
+        "timestamp": "2026-10-06T07:50:36.691Z",
+        "read": false,
+        "locationCoords": {
+          "lat": 19.076,
+          "lng": 72.8777
+        }
+      },
+      {
+        "id": "alt_1791273032514_s2ev",
+        "childEmail": "demo.user@pathfinder.app",
+        "childName": "Demo User (Dependent)",
+        "type": "SOS",
+        "message": "[TEST MODE] Emergency panic test triggered by Demo User (Dependent)",
+        "timestamp": "2026-10-06T07:50:32.514Z",
+        "read": false,
+        "locationCoords": {
+          "lat": 19.076,
+          "lng": 72.8777
+        }
+      },
+      {
+        "id": "alt_1791269061950_4nj2",
+        "childEmail": "demo.user@pathfinder.app",
+        "childName": "Demo User (Dependent)",
+        "type": "SOS",
+        "message": "[TEST MODE] Emergency panic test triggered by Demo User (Dependent)",
+        "timestamp": "2026-10-06T06:44:21.950Z",
+        "read": false,
+        "locationCoords": {
+          "lat": 19.076,
+          "lng": 72.8777
+        }
+      }
+    ],
+    "createdAt": "2026-10-06T06:32:03.562Z",
+    "updatedAt": "2026-10-06T07:50:39.038Z"
+  },
+  {
+    "id": "usr_1791272161718_vnkjv",
+    "name": "Test Dependent",
+    "email": "test.user.1791272158647@pathfinder.app",
+    "passwordHash": "ef92b778bafe771e89245b89ecbc08a44a4e166c06659911881f383d4473e94f",
+    "role": "user",
+    "pairingCode": "728-116",
+    "linkedParentEmail": null,
+    "linkedChildrenEmails": [],
+    "hasCompletedProfile": false,
+    "accessibilityPreferences": {
+      "primaryPersona": "wheelchair",
+      "mobilityType": "electric-wheelchair",
+      "requireStepFree": true,
+      "maxSlopePercent": 5,
+      "preferLowerSlopes": true,
+      "preferReducedDistance": true,
+      "preferSaferCrossings": true,
+      "avoidStairs": true,
+      "needTactilePaving": false,
+      "needAudioPrompts": true,
+      "maxWalkingDistanceMeters": 1000
+    },
+    "emergencyContacts": [],
+    "privacyConsent": {
+      "allowRealtimeLocation": true,
+      "allowTripHistory": true,
+      "allowAlerts": true
+    },
+    "privacySettings": {
+      "allowRealtimeLocation": true,
+      "allowTripHistory": true,
+      "allowAlerts": true,
+      "shareAccessibilityPreferences": true
+    },
+    "activeTrip": null,
+    "tripHistory": [],
+    "parentAlerts": [
+      {
+        "id": "alt_1791272169467_ntii",
+        "childEmail": "test.user.1791272158647@pathfinder.app",
+        "childName": "Test Dependent",
+        "type": "SOS",
+        "message": "[TEST MODE] Emergency panic alert triggered by Test Dependent",
+        "timestamp": "2026-10-06T07:36:09.467Z",
+        "read": false,
+        "locationCoords": {
+          "lat": 18.9398,
+          "lng": 72.8355
+        }
+      }
+    ],
+    "guardianLinks": [],
+    "trips": [],
+    "createdAt": "2026-10-06T07:36:01.718Z",
+    "updatedAt": "2026-10-06T07:36:09.467Z",
+    "pairingCodeExpiresAt": "2026-10-06T07:46:03.352Z"
+  },
+  {
+    "id": "usr_1791272162057_tm2my",
+    "name": "Test Caregiver",
+    "email": "test.cg.1791272161878@pathfinder.app",
+    "passwordHash": "ef92b778bafe771e89245b89ecbc08a44a4e166c06659911881f383d4473e94f",
+    "role": "parent",
+    "pairingCode": "299-637",
+    "linkedParentEmail": "test.cg.1791272161878@pathfinder.app",
+    "linkedChildrenEmails": [
+      "test.user.1791272158647@pathfinder.app"
+    ],
+    "hasCompletedProfile": false,
+    "accessibilityPreferences": {
+      "primaryPersona": "wheelchair",
+      "mobilityType": "electric-wheelchair",
+      "requireStepFree": true,
+      "maxSlopePercent": 5,
+      "preferLowerSlopes": true,
+      "preferReducedDistance": true,
+      "preferSaferCrossings": true,
+      "avoidStairs": true,
+      "needTactilePaving": false,
+      "needAudioPrompts": true,
+      "maxWalkingDistanceMeters": 1000
+    },
+    "emergencyContacts": [],
+    "privacyConsent": {
+      "allowRealtimeLocation": true,
+      "allowTripHistory": true,
+      "allowAlerts": true
+    },
+    "privacySettings": {
+      "allowRealtimeLocation": true,
+      "allowTripHistory": true,
+      "allowAlerts": true,
+      "shareAccessibilityPreferences": true
+    },
+    "activeTrip": null,
+    "tripHistory": [],
+    "parentAlerts": [],
+    "guardianLinks": [
+      {
+        "id": "gl_1791272164089_b0ukl",
+        "guardianId": "usr_1791272162057_tm2my",
+        "guardianEmail": "test.cg.1791272161878@pathfinder.app",
+        "dependentId": "usr_1791272161718_vnkjv",
+        "dependentEmail": "test.user.1791272158647@pathfinder.app",
+        "status": "ACCEPTED",
+        "consentGrantedAt": "2026-10-06T07:36:06.178Z",
+        "revokedAt": null,
+        "createdAt": "2026-10-06T07:36:04.089Z"
+      }
+    ],
+    "trips": [],
+    "createdAt": "2026-10-06T07:36:02.057Z",
+    "updatedAt": "2026-10-06T07:36:06.178Z",
+    "pairingCodeExpiresAt": "2026-10-06T07:46:03.348Z"
   }
 ]

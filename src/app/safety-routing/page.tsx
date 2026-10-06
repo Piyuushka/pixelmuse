@@ -20,22 +20,15 @@ import {
   Accessibility,
   Heart,
   Navigation,
-  Info,
   Users,
-  User,
   Plus,
   Unlink,
   RefreshCw,
   Bell,
   SlidersHorizontal,
-  Phone,
-  Clock,
-  Radio,
-  ExternalLink,
-  Lock,
   Sparkles,
-  MapPin,
   AlertTriangle,
+  Lock,
 } from 'lucide-react';
 import {
   DEMO_ROUTES,
@@ -104,6 +97,14 @@ function SegmentDrawer({ seg }: { seg: SegmentSafetyProfile }) {
   const label = getSafetyLabel(seg.totalScore);
   const colors = SCORE_COLORS[label];
 
+  // A segment with crossingType 'none' that has no steps (i.e. indoor corridor)
+  // should show N/A for crossing rather than a penalised score.
+  const crossingIsNA = seg.crossingType === 'none' && !seg.hasSteps;
+
+  const crossingDisplay = crossingIsNA
+    ? 'N/A – no road crossing'
+    : seg.crossingType;
+
   return (
     <div className={`mt-2 p-4 rounded-xl border ${colors.border} ${colors.bg} flex flex-col gap-3 text-sm`}>
       <div className="flex items-center justify-between">
@@ -113,10 +114,20 @@ function SegmentDrawer({ seg }: { seg: SegmentSafetyProfile }) {
         </span>
       </div>
       <p className="text-xs text-on-surface-variant font-medium leading-relaxed">
-        Surface: {seg.footpathSurface} • Crossings: {seg.crossingType} • Slope: {seg.maxSlopePercent}%
+        Surface: {seg.footpathSurface} • Crossings: {crossingDisplay} • Slope: {seg.maxSlopePercent}%
       </p>
       <div className="grid grid-cols-5 gap-2">
         {SUB_SCORE_META.map(({ key, label: subLabel, emoji }) => {
+          // Show N/A for crossing score when the segment has no road crossing
+          if (key === 'crossingScore' && crossingIsNA) {
+            return (
+              <div key={key} className="flex flex-col items-center gap-1 p-2 rounded-lg bg-surface-container/60 text-center">
+                <span className="text-base" aria-hidden>{emoji}</span>
+                <span className="text-xs font-bold text-on-surface-variant">N/A</span>
+                <span className="text-[10px] text-on-surface-variant font-medium">{subLabel}</span>
+              </div>
+            );
+          }
           const val = seg[key];
           const subLabel2 = getSafetyLabel(val >= 14 ? 80 : val >= 10 ? 60 : 40);
           return (
@@ -351,28 +362,6 @@ export default function SafetyRoutingPage() {
     }
   };
 
-  // Handle Trigger Test Alert
-  const handleTriggerTestAlert = async () => {
-    try {
-      const res = await fetch('/api/parental/alert', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          parentEmail: user?.email || 'parent@community.org',
-          childEmail: parentData?.linkedChildren?.[0]?.email || 'alex.rivera@community.org',
-          alertType: 'emergency_sos',
-          message: 'TEST SOS Panic Button pressed on child device!',
-        }),
-      });
-      if (res.ok) {
-        speakText('Test parental alert triggered');
-        fetchParentalData();
-      }
-    } catch (err) {
-      console.error('Failed to trigger test alert', err);
-    }
-  };
-
   // Ranked routes for route evaluation engine
   const rankedRoutes = useMemo(() => {
     return rankRoutesForPersona(DEMO_ROUTES, persona, nightMode);
@@ -389,9 +378,6 @@ export default function SafetyRoutingPage() {
           <div className="flex items-center gap-2 text-xs font-bold uppercase tracking-widest text-primary">
             <ShieldCheck className="w-4 h-4 text-primary" />
             <span>Parental Control & Safety Center</span>
-            <span className="px-2 py-0.5 rounded-full bg-secondary/10 text-secondary text-[10px] font-extrabold border border-secondary/30">
-              BACKEND API LIVE
-            </span>
           </div>
           <h1 className="text-3xl sm:text-4xl font-black text-on-surface tracking-tight">
             Parental Controls & Route Safety Hub
@@ -439,10 +425,13 @@ export default function SafetyRoutingPage() {
               <input
                 type="text"
                 value={inputPairingCode}
-                onChange={(e) => setInputPairingCode(e.target.value.toUpperCase())}
-                placeholder="e.g. 849201 or PL-884920"
-                maxLength={9}
-                className="flex-1 h-12 px-4 rounded-xl bg-surface-container-high border border-outline-variant/40 text-on-surface font-mono font-bold text-base tracking-widest focus:outline-none focus:ring-2 focus:ring-primary uppercase placeholder:text-on-surface-variant/40 placeholder:font-sans placeholder:tracking-normal placeholder:text-sm"
+                onChange={(e) => setInputPairingCode(e.target.value.replace(/\D/g, '').slice(0, 6))}
+                placeholder="Enter 6-digit code from dependent's app"
+                maxLength={6}
+                inputMode="numeric"
+                pattern="[0-9]*"
+                aria-label="6-digit pairing code"
+                className="flex-1 h-12 px-4 rounded-xl bg-surface-container-high border border-outline-variant/40 text-on-surface font-mono font-bold text-base tracking-widest focus:outline-none focus:ring-2 focus:ring-primary placeholder:text-on-surface-variant/40 placeholder:font-sans placeholder:tracking-normal placeholder:text-sm"
               />
               <button
                 type="submit"
@@ -468,12 +457,9 @@ export default function SafetyRoutingPage() {
             )}
           </form>
 
-          <div className="p-3.5 rounded-xl bg-surface-container-low border border-outline-variant/30 flex items-center justify-between text-xs">
-            <span className="text-on-surface-variant font-medium">Default Demo Pairing Code:</span>
-            <span className="font-mono font-bold text-primary bg-primary/10 px-2 py-0.5 rounded border border-primary/20">
-              849201 (or PL-884920)
-            </span>
-          </div>
+          <p className="text-[11px] text-on-surface-variant/70 font-medium">
+            Ask the dependent to open their PathFinder app and share their 6-digit code.
+          </p>
         </div>
 
         {/* Linked Children List & Real-time Alerts */}
@@ -482,14 +468,17 @@ export default function SafetyRoutingPage() {
             <div className="flex items-center gap-2">
               <Users className="w-5 h-5 text-primary" />
               <h2 className="text-base font-extrabold text-on-surface">Linked Family Accounts</h2>
-              <span className="px-2 py-0.5 rounded-full bg-surface-container-high text-xs font-bold text-on-surface-variant">
-                {parentData?.linkedChildren?.length || 0} active
-              </span>
+              {!loadingBackend && (
+                <span className="px-2 py-0.5 rounded-full bg-surface-container-high text-xs font-bold text-on-surface-variant">
+                  {parentData?.linkedChildren?.length ?? 0} linked
+                </span>
+              )}
             </div>
             <button
               onClick={fetchParentalData}
               className="p-2 rounded-lg hover:bg-surface-container-high text-on-surface-variant transition-colors cursor-pointer"
-              title="Refresh parental data"
+              title="Refresh"
+              aria-label="Refresh linked accounts"
             >
               <RefreshCw className={`w-4 h-4 ${loadingBackend ? 'animate-spin' : ''}`} />
             </button>
@@ -521,13 +510,11 @@ export default function SafetyRoutingPage() {
                   </div>
 
                   <div className="flex items-center gap-2 text-xs">
-                    <span className="px-2.5 py-1 rounded-lg bg-surface-container-high font-mono text-[11px] font-bold text-on-surface">
-                      Code: {child.pairingCode || '849-201'}
-                    </span>
                     <button
                       onClick={() => handleUnlink(child.email)}
-                      className="p-2 rounded-lg text-on-surface-variant hover:text-tertiary hover:bg-tertiary/10 transition-colors cursor-pointer"
-                      title="Unlink device"
+                      className="p-2 rounded-lg text-on-surface-variant hover:text-error hover:bg-error/10 transition-colors cursor-pointer"
+                      title="Unlink this dependent"
+                      aria-label={`Unlink ${child.name}`}
                     >
                       <Unlink className="w-4 h-4" />
                     </button>
@@ -537,7 +524,7 @@ export default function SafetyRoutingPage() {
             </div>
           ) : (
             <div className="py-6 text-center text-xs text-on-surface-variant font-medium">
-              No child accounts paired yet. Enter code <code className="font-mono text-primary font-bold">849201</code> above.
+              No dependents linked yet. Enter a 6-digit code above to pair.
             </div>
           )}
 
@@ -546,15 +533,11 @@ export default function SafetyRoutingPage() {
             <div className="flex items-center justify-between">
               <span className="text-xs font-bold text-on-surface-variant uppercase tracking-wider flex items-center gap-1.5">
                 <Bell className="w-3.5 h-3.5 text-secondary" />
-                Live Parental Safety Log
+                Live Safety Log
               </span>
-              <button
-                onClick={handleTriggerTestAlert}
-                className="text-[11px] font-bold text-primary hover:underline flex items-center gap-1 cursor-pointer"
-              >
-                <Radio className="w-3 h-3" />
-                Trigger Test SOS Alert
-              </button>
+              <span className="text-[11px] text-on-surface-variant/60 italic">
+                Alerts appear here in real-time
+              </span>
             </div>
 
             {parentData?.alerts && parentData.alerts.length > 0 ? (

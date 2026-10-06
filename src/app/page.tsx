@@ -1,8 +1,18 @@
 'use client';
 
-import React from 'react';
-import LandingPage from '@/app/landing/page';
+import { useEffect } from 'react';
+import { useRouter } from 'next/navigation';
 
 export default function RootPage() {
-  return <LandingPage />;
+  const router = useRouter();
+
+  useEffect(() => {
+    router.replace('/login');
+  }, [router]);
+
+  return (
+    <div className="w-full min-h-screen flex items-center justify-center bg-surface">
+      <div className="w-8 h-8 rounded-full border-2 border-primary border-t-transparent animate-spin" />
+    </div>
+  );
 }

@@ -4,7 +4,7 @@ import crypto from 'crypto';
 
 // ─── GUARDIAN LINK MODEL ──────────────────────────────────────────────────────
 
-export type GuardianLinkStatus = 'PENDING' | 'ACCEPTED' | 'REVOKED';
+export type GuardianLinkStatus = 'PENDING' | 'ACCEPTED' | 'ACTIVE' | 'PAUSED' | 'REVOKED';
 
 export interface GuardianLink {
   id: string;
@@ -78,6 +78,7 @@ export interface PrivacyConsent {
   allowRealtimeLocation: boolean;
   allowTripHistory: boolean;
   allowAlerts: boolean;
+  consentVersion?: string;
 }
 
 export interface ActiveTrip {
@@ -121,6 +122,7 @@ export interface UserRecord {
   passwordHash: string;
   role: 'user' | 'parent';
   pairingCode: string;
+  pairingCodeExpiresAt?: string;
   linkedParentEmail: string | null;
   linkedChildrenEmails: string[];
   hasCompletedProfile: boolean;
@@ -199,6 +201,184 @@ function generateRandomCode(): string {
   return `${num.toString().substring(0, 3)}-${num.toString().substring(3, 6)}`;
 }
 
+function getInitialUsers(): UserRecord[] {
+  const now = new Date().toISOString();
+  const expiresAt = new Date(Date.now() + 10 * 60 * 1000).toISOString();
+
+  const alexLink: GuardianLink = {
+    id: 'gl_seed_alex_parent',
+    guardianId: 'usr_parent_1',
+    guardianEmail: 'parent@community.org',
+    dependentId: 'usr_demo_1',
+    dependentEmail: 'alex.rivera@community.org',
+    status: 'ACCEPTED',
+    consentGrantedAt: now,
+    revokedAt: null,
+    createdAt: now,
+  };
+
+  const demoLink: GuardianLink = {
+    id: 'gl_seed_demo_pair',
+    guardianId: 'usr_demo_caregiver',
+    guardianEmail: 'demo.caregiver@pathfinder.app',
+    dependentId: 'usr_demo_user',
+    dependentEmail: 'demo.user@pathfinder.app',
+    status: 'ACCEPTED',
+    consentGrantedAt: now,
+    revokedAt: null,
+    createdAt: now,
+  };
+
+  return [
+    {
+      id: 'usr_demo_1',
+      name: 'Alex Rivera',
+      email: 'alex.rivera@community.org',
+      passwordHash: hashPassword('password123'),
+      role: 'user',
+      pairingCode: '492-817',
+      pairingCodeExpiresAt: expiresAt,
+      linkedParentEmail: 'parent@community.org',
+      linkedChildrenEmails: [],
+      hasCompletedProfile: true,
+      accessibilityPreferences: {
+        ...DEFAULT_PREFERENCES,
+        primaryPersona: 'wheelchair',
+        mobilityType: 'electric-wheelchair',
+        maxSlopePercent: 5,
+      },
+      emergencyContacts: [
+        {
+          id: 'c1',
+          name: 'Dr. Sarah Rivera (Parent)',
+          phone: '+91 98765 43210',
+          relationship: 'Mother / Guardian',
+          notifyOnSOS: true,
+        },
+      ],
+      privacyConsent: { ...DEFAULT_PRIVACY },
+      privacySettings: { ...DEFAULT_PRIVACY_SETTINGS },
+      guardianLinks: [alexLink],
+      trips: [],
+      activeTrip: {
+        tripId: 'trip_live_99',
+        source: 'Dadar Station South Concourse',
+        destination: 'Cardiology Pavilion - Level 3 (Building B)',
+        status: 'IN_PROGRESS',
+        currentCoords: { lat: 19.0760, lng: 72.8777 },
+        startedAt: new Date(Date.now() - 600000).toISOString(),
+        estimatedArrival: new Date(Date.now() + 600000).toISOString(),
+        detourMeters: 0,
+      },
+      tripHistory: DEFAULT_DEMO_TRIP_HISTORY,
+      parentAlerts: [],
+      createdAt: now,
+      updatedAt: now,
+    },
+    {
+      id: 'usr_parent_1',
+      name: 'Dr. Sarah Rivera',
+      email: 'parent@community.org',
+      passwordHash: hashPassword('password123'),
+      role: 'parent',
+      pairingCode: '123-456',
+      pairingCodeExpiresAt: expiresAt,
+      linkedParentEmail: null,
+      linkedChildrenEmails: ['alex.rivera@community.org'],
+      hasCompletedProfile: true,
+      accessibilityPreferences: { ...DEFAULT_PREFERENCES },
+      emergencyContacts: [],
+      privacyConsent: { ...DEFAULT_PRIVACY },
+      privacySettings: { ...DEFAULT_PRIVACY_SETTINGS },
+      guardianLinks: [alexLink],
+      trips: [],
+      activeTrip: null,
+      tripHistory: [],
+      parentAlerts: [
+        {
+          id: 'alt_init_1',
+          childEmail: 'alex.rivera@community.org',
+          childName: 'Alex Rivera',
+          type: 'TRIP_STARTED',
+          message: 'Alex Rivera started navigation trip to Cardiology Pavilion - Level 3.',
+          timestamp: new Date(Date.now() - 600000).toISOString(),
+          read: false,
+          locationCoords: { lat: 19.0760, lng: 72.8777 },
+        },
+      ],
+      createdAt: now,
+      updatedAt: now,
+    },
+    {
+      id: 'usr_demo_user',
+      name: 'Demo User (Dependent)',
+      email: 'demo.user@pathfinder.app',
+      passwordHash: hashPassword('demo1234'),
+      role: 'user',
+      pairingCode: '852-963',
+      pairingCodeExpiresAt: expiresAt,
+      linkedParentEmail: 'demo.caregiver@pathfinder.app',
+      linkedChildrenEmails: [],
+      hasCompletedProfile: true,
+      accessibilityPreferences: {
+        ...DEFAULT_PREFERENCES,
+        primaryPersona: 'wheelchair',
+        mobilityType: 'manual-wheelchair',
+      },
+      emergencyContacts: [
+        {
+          id: 'c_demo_1',
+          name: 'Demo Caregiver',
+          phone: '+91 98765 00000',
+          relationship: 'Primary Caregiver',
+          notifyOnSOS: true,
+        },
+      ],
+      privacyConsent: { ...DEFAULT_PRIVACY },
+      privacySettings: { ...DEFAULT_PRIVACY_SETTINGS },
+      guardianLinks: [demoLink],
+      trips: [],
+      activeTrip: {
+        tripId: 'trip_demo_1',
+        source: 'Chhatrapati Shivaji Maharaj Terminus',
+        destination: 'Marine Drive Promenade',
+        status: 'IN_PROGRESS',
+        currentCoords: { lat: 18.9398, lng: 72.8355 },
+        startedAt: new Date(Date.now() - 300000).toISOString(),
+        estimatedArrival: new Date(Date.now() + 900000).toISOString(),
+        detourMeters: 0,
+      },
+      tripHistory: DEFAULT_DEMO_TRIP_HISTORY,
+      parentAlerts: [],
+      createdAt: now,
+      updatedAt: now,
+    },
+    {
+      id: 'usr_demo_caregiver',
+      name: 'Demo Caregiver (Parent)',
+      email: 'demo.caregiver@pathfinder.app',
+      passwordHash: hashPassword('demo1234'),
+      role: 'parent',
+      pairingCode: '963-852',
+      pairingCodeExpiresAt: expiresAt,
+      linkedParentEmail: null,
+      linkedChildrenEmails: ['demo.user@pathfinder.app'],
+      hasCompletedProfile: true,
+      accessibilityPreferences: { ...DEFAULT_PREFERENCES },
+      emergencyContacts: [],
+      privacyConsent: { ...DEFAULT_PRIVACY },
+      privacySettings: { ...DEFAULT_PRIVACY_SETTINGS },
+      guardianLinks: [demoLink],
+      trips: [],
+      activeTrip: null,
+      tripHistory: [],
+      parentAlerts: [],
+      createdAt: now,
+      updatedAt: now,
+    },
+  ];
+}
+
 // Ensure database exists
 function ensureDbExists(): UserRecord[] {
   try {
@@ -206,95 +386,37 @@ function ensureDbExists(): UserRecord[] {
       fs.mkdirSync(DATA_DIR, { recursive: true });
     }
     if (!fs.existsSync(DB_FILE)) {
-      const initialUsers: UserRecord[] = [
-        {
-          id: 'usr_demo_1',
-          name: 'Alex Rivera',
-          email: 'alex.rivera@community.org',
-          passwordHash: hashPassword('password123'),
-          role: 'user',
-          pairingCode: '849-201',
-          linkedParentEmail: 'parent@community.org',
-          linkedChildrenEmails: [],
-          hasCompletedProfile: true,
-          accessibilityPreferences: {
-            ...DEFAULT_PREFERENCES,
-            primaryPersona: 'wheelchair',
-            mobilityType: 'electric-wheelchair',
-            maxSlopePercent: 5,
-          },
-          emergencyContacts: [
-            {
-              id: 'c1',
-              name: 'Dr. Sarah Rivera (Parent)',
-              phone: '+91 98765 43210',
-              relationship: 'Mother / Guardian',
-              notifyOnSOS: true,
-            },
-          ],
-          privacyConsent: { ...DEFAULT_PRIVACY },
-          privacySettings: { ...DEFAULT_PRIVACY_SETTINGS },
-          guardianLinks: [],
-          trips: [],
-          activeTrip: {
-            tripId: 'trip_live_99',
-            source: 'Dadar Station South Concourse',
-            destination: 'Cardiology Pavilion - Level 3 (Building B)',
-            status: 'IN_PROGRESS',
-            currentCoords: { lat: 19.0760, lng: 72.8777 },
-            startedAt: new Date(Date.now() - 600000).toISOString(),
-            estimatedArrival: new Date(Date.now() + 600000).toISOString(),
-            detourMeters: 0,
-          },
-          tripHistory: DEFAULT_DEMO_TRIP_HISTORY,
-          parentAlerts: [],
-          createdAt: new Date().toISOString(),
-          updatedAt: new Date().toISOString(),
-        },
-        {
-          id: 'usr_parent_1',
-          name: 'Dr. Sarah Rivera',
-          email: 'parent@community.org',
-          passwordHash: hashPassword('password123'),
-          role: 'parent',
-          pairingCode: '123-456',
-          linkedParentEmail: null,
-          linkedChildrenEmails: ['alex.rivera@community.org'],
-          hasCompletedProfile: true,
-          accessibilityPreferences: { ...DEFAULT_PREFERENCES },
-          emergencyContacts: [],
-          privacyConsent: { ...DEFAULT_PRIVACY },
-          privacySettings: { ...DEFAULT_PRIVACY_SETTINGS },
-          guardianLinks: [],
-          trips: [],
-          activeTrip: null,
-          tripHistory: [],
-          parentAlerts: [
-            {
-              id: 'alt_init_1',
-              childEmail: 'alex.rivera@community.org',
-              childName: 'Alex Rivera',
-              type: 'TRIP_STARTED',
-              message: 'Alex Rivera started navigation trip to Cardiology Pavilion - Level 3.',
-              timestamp: new Date(Date.now() - 600000).toISOString(),
-              read: false,
-              locationCoords: { lat: 19.0760, lng: 72.8777 },
-            },
-          ],
-          createdAt: new Date().toISOString(),
-          updatedAt: new Date().toISOString(),
-        },
-      ];
+      const initialUsers = getInitialUsers();
       fs.writeFileSync(DB_FILE, JSON.stringify(initialUsers, null, 2), 'utf-8');
       return initialUsers;
     }
     const data = fs.readFileSync(DB_FILE, 'utf-8');
     const users = JSON.parse(data) as UserRecord[];
     
-    // Auto-patch any fields missing from legacy schema
+    // Auto-patch any missing demo accounts & missing fields
     let modified = false;
+
+    // Check if demo users exist
+    const hasDemoUser = users.some(u => u.email.toLowerCase() === 'demo.user@pathfinder.app');
+    const hasDemoCaregiver = users.some(u => u.email.toLowerCase() === 'demo.caregiver@pathfinder.app');
+    if (!hasDemoUser || !hasDemoCaregiver) {
+      const initial = getInitialUsers();
+      if (!hasDemoUser) {
+        const u = initial.find(x => x.email === 'demo.user@pathfinder.app');
+        if (u) { users.push(u); modified = true; }
+      }
+      if (!hasDemoCaregiver) {
+        const c = initial.find(x => x.email === 'demo.caregiver@pathfinder.app');
+        if (c) { users.push(c); modified = true; }
+      }
+    }
+
     users.forEach(u => {
       if (!u.pairingCode) { u.pairingCode = generateRandomCode(); modified = true; }
+      if (!u.pairingCodeExpiresAt) {
+        u.pairingCodeExpiresAt = new Date(Date.now() + 10 * 60 * 1000).toISOString();
+        modified = true;
+      }
       if (u.linkedParentEmail === undefined) { u.linkedParentEmail = null; modified = true; }
       if (!u.linkedChildrenEmails) { u.linkedChildrenEmails = []; modified = true; }
       if (!u.emergencyContacts) { u.emergencyContacts = []; modified = true; }
@@ -306,6 +428,39 @@ function ensureDbExists(): UserRecord[] {
       if (!u.guardianLinks) { u.guardianLinks = []; modified = true; }
       if (!u.trips) { u.trips = []; modified = true; }
     });
+
+    // Ensure demo links are connected
+    const demoUser = users.find(u => u.email.toLowerCase() === 'demo.user@pathfinder.app');
+    const demoCaregiver = users.find(u => u.email.toLowerCase() === 'demo.caregiver@pathfinder.app');
+    if (demoUser && demoCaregiver) {
+      const linkExists = (demoCaregiver.guardianLinks || []).some(
+        l => l.dependentEmail.toLowerCase() === demoUser.email.toLowerCase() && l.status === 'ACCEPTED'
+      );
+      if (!linkExists) {
+        const now = new Date().toISOString();
+        const demoLink: GuardianLink = {
+          id: 'gl_seed_demo_pair',
+          guardianId: demoCaregiver.id,
+          guardianEmail: demoCaregiver.email,
+          dependentId: demoUser.id,
+          dependentEmail: demoUser.email,
+          status: 'ACCEPTED',
+          consentGrantedAt: now,
+          revokedAt: null,
+          createdAt: now,
+        };
+        demoCaregiver.guardianLinks = demoCaregiver.guardianLinks || [];
+        demoUser.guardianLinks = demoUser.guardianLinks || [];
+        demoCaregiver.guardianLinks.push(demoLink);
+        demoUser.guardianLinks.push(demoLink);
+        if (!demoCaregiver.linkedChildrenEmails.includes(demoUser.email)) {
+          demoCaregiver.linkedChildrenEmails.push(demoUser.email);
+        }
+        demoUser.linkedParentEmail = demoCaregiver.email;
+        modified = true;
+      }
+    }
+
     if (modified) {
       saveDb(users);
     }
@@ -343,40 +498,47 @@ export function findUserById(id: string): UserRecord | undefined {
 
 export function findUserByPairingCode(code: string): UserRecord | undefined {
   const users = ensureDbExists();
-  const normalized = code.trim().toUpperCase().replace(/^PL-?/, '').replace(/[^A-Z0-9]/g, '');
-  if (!normalized) return undefined;
+  const normalized = code.trim().replace(/[^0-9]/g, '');
+  if (!normalized || normalized.length < 6) return undefined;
 
-  let found = users.find(u => {
-    const uCode = (u.pairingCode || '').toUpperCase().replace(/^PL-?/, '').replace(/[^A-Z0-9]/g, '');
+  return users.find(u => {
+    const uCode = (u.pairingCode || '').replace(/[^0-9]/g, '');
     return uCode === normalized;
   });
-
-  if (!found) {
-    // Fallback: match primary demo child account (Alex Rivera) for any demo pairing code
-    found = users.find(u => u.email.toLowerCase() === 'alex.rivera@community.org');
-    if (found) {
-      found.pairingCode = code.trim().toUpperCase();
-      saveDb(users);
-    }
-  }
-
-  return found;
 }
 
-export function createUser(name: string, email: string, passwordHash: string): UserRecord {
+export function getAllUsers(): UserRecord[] {
+  return ensureDbExists();
+}
+
+export function createUser(
+  name: string,
+  email: string,
+  passwordOrHash: string,
+  role: 'user' | 'parent' | 'caregiver' | 'USER' | 'CAREGIVER' = 'user',
+  pairingCode?: string,
+): UserRecord {
   const users = ensureDbExists();
   const existing = users.find(u => u.email.toLowerCase() === email.toLowerCase());
   if (existing) {
     throw new Error('An account with this email address already exists.');
   }
 
+  const normalizedRole = (role.toLowerCase() === 'caregiver' ? 'parent' : role.toLowerCase()) as 'user' | 'parent';
+
+  // If the password looks like a hex SHA-256 hash (64 chars), use it directly;
+  // otherwise hash it. This allows the register route to pass raw passwords.
+  const passwordHash = /^[0-9a-f]{64}$/i.test(passwordOrHash)
+    ? passwordOrHash
+    : hashPassword(passwordOrHash);
+
   const newUser: UserRecord = {
     id: `usr_${Date.now()}_${Math.random().toString(36).substring(2, 7)}`,
-    name: name || 'Community Navigator',
+    name: name || 'PathFinder User',
     email: email.toLowerCase(),
     passwordHash,
-    role: 'user',
-    pairingCode: generateRandomCode(),
+    role: normalizedRole,
+    pairingCode: pairingCode || generateRandomCode(),
     linkedParentEmail: null,
     linkedChildrenEmails: [],
     hasCompletedProfile: false,
@@ -426,18 +588,179 @@ export function updateUserPreferences(
   return updatedUser;
 }
 
+export function updateUser(
+  userId: string,
+  partialUser: Partial<UserRecord>
+): UserRecord {
+  const users = ensureDbExists();
+  const index = users.findIndex(u => u.id === userId || u.email.toLowerCase() === userId.toLowerCase());
+  if (index === -1) {
+    throw new Error('User not found');
+  }
+
+  const updatedUser: UserRecord = {
+    ...users[index],
+    ...partialUser,
+    updatedAt: new Date().toISOString(),
+  };
+
+  users[index] = updatedUser;
+  saveDb(users);
+  return updatedUser;
+}
+
 // ─── PARENTAL CONTROL & LINKING FUNCTIONS ─────────────────────────────────────
 
-export function refreshPairingCode(email: string): string {
+export function refreshPairingCode(email: string): { code: string; expiresAt: string } {
   const users = ensureDbExists();
   const index = users.findIndex(u => u.email.toLowerCase() === email.toLowerCase());
   if (index === -1) throw new Error('User not found');
   
   const newCode = generateRandomCode();
+  const expiresAt = new Date(Date.now() + 10 * 60 * 1000).toISOString();
   users[index].pairingCode = newCode;
+  users[index].pairingCodeExpiresAt = expiresAt;
   users[index].updatedAt = new Date().toISOString();
   saveDb(users);
-  return newCode;
+  return { code: newCode, expiresAt };
+}
+
+export function requestPairingByCode(
+  guardianEmail: string,
+  pairingCode: string
+): { link: GuardianLink; dependent: { name: string; email: string } } {
+  const users = ensureDbExists();
+  const guardian = users.find(u => u.email.toLowerCase() === guardianEmail.toLowerCase());
+  if (!guardian) throw new Error('Guardian account not found.');
+
+  const dependent = findUserByPairingCode(pairingCode);
+  if (!dependent) throw new Error('Invalid 6-digit pairing code. Please check the code on dependent’s app.');
+
+  // Check TTL if exists
+  if (dependent.pairingCodeExpiresAt) {
+    const expiry = new Date(dependent.pairingCodeExpiresAt).getTime();
+    if (Date.now() > expiry) {
+      throw new Error('This pairing code has expired. Please ask the user to regenerate a new code.');
+    }
+  }
+
+  if (guardian.email.toLowerCase() === dependent.email.toLowerCase()) {
+    throw new Error('You cannot pair an account with yourself.');
+  }
+
+  // Check if link already exists
+  const existing = (guardian.guardianLinks || []).find(
+    l => l.dependentEmail.toLowerCase() === dependent.email.toLowerCase() && l.status !== 'REVOKED'
+  );
+  if (existing) {
+    if (existing.status === 'ACCEPTED') {
+      return {
+        link: existing,
+        dependent: { name: dependent.name, email: dependent.email },
+      };
+    }
+    return {
+      link: existing,
+      dependent: { name: dependent.name, email: dependent.email },
+    };
+  }
+
+  // Create PENDING link
+  const link: GuardianLink = {
+    id: `gl_${Date.now()}_${Math.random().toString(36).substring(2, 7)}`,
+    guardianId: guardian.id,
+    guardianEmail: guardian.email,
+    dependentId: dependent.id,
+    dependentEmail: dependent.email,
+    status: 'PENDING',
+    consentGrantedAt: null,
+    revokedAt: null,
+    createdAt: new Date().toISOString(),
+  };
+
+  guardian.guardianLinks = guardian.guardianLinks || [];
+  dependent.guardianLinks = dependent.guardianLinks || [];
+  guardian.guardianLinks.push(link);
+  dependent.guardianLinks.push(link);
+
+  guardian.updatedAt = new Date().toISOString();
+  dependent.updatedAt = new Date().toISOString();
+  saveDb(users);
+
+  return {
+    link,
+    dependent: { name: dependent.name, email: dependent.email },
+  };
+}
+
+export function getPendingConsentRequests(userEmail: string): Array<{
+  linkId: string;
+  guardianEmail: string;
+  guardianName: string;
+  createdAt: string;
+}> {
+  const users = ensureDbExists();
+  const user = users.find(u => u.email.toLowerCase() === userEmail.toLowerCase());
+  if (!user || !user.guardianLinks) return [];
+
+  const pendingLinks = user.guardianLinks.filter(
+    l => l.dependentEmail.toLowerCase() === userEmail.toLowerCase() && l.status === 'PENDING'
+  );
+
+  return pendingLinks.map(link => {
+    const guardian = users.find(u => u.email.toLowerCase() === link.guardianEmail.toLowerCase());
+    return {
+      linkId: link.id,
+      guardianEmail: link.guardianEmail,
+      guardianName: guardian?.name || link.guardianEmail,
+      createdAt: link.createdAt,
+    };
+  });
+}
+
+export function respondToConsentRequest(
+  linkId: string,
+  dependentEmail: string,
+  accept: boolean
+): GuardianLink {
+  const users = ensureDbExists();
+  const now = new Date().toISOString();
+  let updatedLink: GuardianLink | null = null;
+
+  for (const user of users) {
+    if (!user.guardianLinks) continue;
+    const link = user.guardianLinks.find(l => l.id === linkId);
+    if (!link) continue;
+    if (link.dependentEmail.toLowerCase() !== dependentEmail.toLowerCase()) {
+      throw new Error('Only the recipient dependent can respond to this consent request.');
+    }
+
+    if (accept) {
+      link.status = 'ACCEPTED';
+      link.consentGrantedAt = now;
+      user.linkedParentEmail = link.guardianEmail;
+      
+      // Update guardian's linked children list
+      const guardian = users.find(u => u.email.toLowerCase() === link.guardianEmail.toLowerCase());
+      if (guardian) {
+        if (!guardian.linkedChildrenEmails.includes(dependentEmail.toLowerCase())) {
+          guardian.linkedChildrenEmails.push(dependentEmail.toLowerCase());
+        }
+        guardian.role = 'parent';
+        guardian.updatedAt = now;
+      }
+    } else {
+      link.status = 'REVOKED';
+      link.revokedAt = now;
+    }
+
+    user.updatedAt = now;
+    updatedLink = link;
+  }
+
+  if (!updatedLink) throw new Error('Guardian request not found.');
+  saveDb(users);
+  return updatedLink;
 }
 
 export function linkParentAndChild(parentEmail: string, pairingCode: string): UserRecord {

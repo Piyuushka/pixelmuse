@@ -18,6 +18,7 @@ import { RoadLayerType } from '@/lib/db/mongoSchema';
 import { triggerActiveBarrierRecalculation } from '@/lib/routeRecalculator';
 import { sessionRegistry } from '@/lib/navigationSessionRegistry';
 import { realtimeClient } from '@/lib/realtimeClient';
+import { safeFetchJson } from '@/lib/safeFetch';
 
 export type PersonaType = 'wheelchair' | 'older-adult' | 'low-vision' | 'caregiver' | 'none';
 export type FontScale = 'sm' | 'md' | 'lg';
@@ -277,7 +278,7 @@ export function AccessibilityProvider({ children }: { children: React.ReactNode 
         if (parsedUser.email) {
           // Fetch authoritative profile from server database
           fetch(`/api/user/profile?email=${encodeURIComponent(parsedUser.email)}`)
-            .then(res => res.json())
+            .then(res => safeFetchJson(res))
             .then(data => {
               if (data.user) {
                 const freshUser: UserProfile = {
@@ -318,8 +319,8 @@ export function AccessibilityProvider({ children }: { children: React.ReactNode 
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ email, password: password || 'password123' }),
     });
-    const data = await res.json();
-    if (!res.ok) {
+    const data = await safeFetchJson(res);
+    if (!res.ok || !data.user) {
       throw new Error(data.error || 'Login failed');
     }
 
@@ -359,8 +360,8 @@ export function AccessibilityProvider({ children }: { children: React.ReactNode 
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ name, email, password: password || 'password123' }),
     });
-    const data = await res.json();
-    if (!res.ok) {
+    const data = await safeFetchJson(res);
+    if (!res.ok || !data.user) {
       throw new Error(data.error || 'Registration failed');
     }
 
@@ -381,6 +382,7 @@ export function AccessibilityProvider({ children }: { children: React.ReactNode 
   };
 
   const logoutUser = () => {
+    fetch('/api/auth/logout', { method: 'POST' }).catch((err) => console.error('Logout API failed:', err));
     const resetUser: UserProfile = {
       name: '',
       email: '',
@@ -404,8 +406,8 @@ export function AccessibilityProvider({ children }: { children: React.ReactNode 
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ email: targetEmail, preferences: updatedPrefs }),
     });
-    const data = await res.json();
-    if (!res.ok) {
+    const data = await safeFetchJson(res);
+    if (!res.ok || !data.user) {
       throw new Error(data.error || 'Failed to save accessibility profile');
     }
 

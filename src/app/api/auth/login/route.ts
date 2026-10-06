@@ -1,5 +1,13 @@
 import { NextResponse } from 'next/server';
 import { findUserByEmail, hashPassword, sanitizeUser } from '@/lib/db/userStore';
+import { signToken, setAuthCookie, type TokenPayload } from '@/lib/auth';
+
+// Map legacy role strings to the new typed enum.
+function normaliseRole(role: string): TokenPayload['role'] {
+  if (role === 'parent' || role === 'CAREGIVER') return 'CAREGIVER';
+  if (role === 'admin' || role === 'ADMIN') return 'ADMIN';
+  return 'USER';
+}
 
 export async function POST(request: Request) {
   try {
@@ -29,13 +37,28 @@ export async function POST(request: Request) {
       );
     }
 
-    const safeUser = sanitizeUser(user);
+    const role = normaliseRole(user.role);
+    const safeUser = { ...sanitizeUser(user), role };
 
-    return NextResponse.json({
+    // Issue signed JWT.
+    const token = await signToken({
+      userId: user.id,
+      email: user.email,
+      role,
+      name: user.name,
+    });
+
+    const response = NextResponse.json({
       message: 'Login successful',
       user: safeUser,
+      // Legacy plain token kept for backward compat with AccessibilityContext.
       token: `token_${user.id}_${Date.now()}`,
     });
+
+    // Set HTTP-only session cookie.
+    setAuthCookie(response as any, token);
+
+    return response;
   } catch (error: any) {
     return NextResponse.json(
       { error: error.message || 'Login failed' },

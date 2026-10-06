@@ -44,13 +44,9 @@ export default function RootLayout({
           {/* Bootstraps all Capacitor native plugins — no-op on web */}
           <CapacitorInit />
           <ConversationalVoiceOnboarding />
-          <div className="flex w-full min-h-screen">
-            <Sidebar />
-            <main className="flex-1 min-w-0 overflow-y-auto min-h-screen">
-              {children}
-            </main>
+          <div className="w-full min-h-screen flex flex-col">
+            {children}
           </div>
-          <TalkToAssistantButton variant="fab" />
         </AccessibilityProvider>
       </body>
     </html>

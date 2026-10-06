@@ -23,6 +23,7 @@ import {
 } from 'lucide-react';
 import { useVoiceFeedback } from '@/hooks/useVoiceFeedback';
 import { triggerHapticCue } from '@/utils/haptics';
+import { safeFetchJson } from '@/lib/safeFetch';
 import { useAccessibility } from '@/context/AccessibilityContext';
 import Badge from './ui/Badge';
 
@@ -333,7 +334,7 @@ export default function VoiceAssistantModal({
               question: "What's in front of me?",
             }),
           });
-          const data = await res.json();
+          const data = await safeFetchJson(res);
           setIsScanningSurroundings(false);
 
           if (data.success && data.spokenResponse) {
@@ -454,7 +455,7 @@ export default function VoiceAssistantModal({
         }),
       });
 
-      const data = await res.json();
+      const data = await safeFetchJson(res);
       setIsProcessing(false);
 
       if (data.success) {
