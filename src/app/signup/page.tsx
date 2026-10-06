@@ -5,6 +5,7 @@ import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import { useAccessibility } from '@/context/AccessibilityContext';
 import { OnboardingWizard, OnboardingData } from '@/components/OnboardingWizard';
+import Logo from '@/components/Logo';
 import {
   Navigation,
   Mail,
@@ -91,9 +92,7 @@ export default function SignupPage() {
     <div className="w-full min-h-screen bg-surface text-on-surface flex flex-col items-center justify-center p-6">
       {/* Top Logo Header */}
       <Link href="/landing" className="flex items-center gap-3 mb-8 group focus:outline-none focus:ring-4 focus:ring-primary rounded-2xl p-1">
-        <div className="w-11 h-11 rounded-2xl bg-primary text-on-primary flex items-center justify-center shadow-md group-hover:scale-105 transition-transform">
-          <Navigation className="w-6 h-6 text-white fill-current" />
-        </div>
+        <Logo size={44} className="group-hover:scale-105" />
         <div className="flex flex-col">
           <span className="text-2xl font-black text-on-surface tracking-tight">
             PathFinder Safety

@@ -24,6 +24,7 @@ import { triggerHapticCue } from '@/utils/haptics';
 import { safeFetchJson } from '@/lib/safeFetch';
 import { useAccessibility } from '@/context/AccessibilityContext';
 import Badge from './ui/Badge';
+import Logo from './Logo';
 import {
   classifyVoiceCommand,
   buildNavigationSpeech,
@@ -737,8 +738,8 @@ export default function VoiceAssistantModal({
       >
         {/* Modal Header */}
         <div className="flex items-center justify-between pb-3 border-b border-outline-variant/30">
-          <div className="flex items-center gap-2">
-            <Sparkles className="w-6 h-6 text-primary animate-spin" />
+          <div className="flex items-center gap-2.5">
+            <Logo size={32} />
             <div>
               <h2 className="font-headline text-lg font-black tracking-wide leading-tight">
                 {VOICE_ASSISTANT_NAME} Accessibility Assistant

@@ -2,6 +2,7 @@
 
 import React, { useEffect, useState } from 'react';
 import { Compass, Sparkles, Footprints, ShieldCheck, ArrowRight } from 'lucide-react';
+import Logo from './Logo';
 
 interface SplashScreenProps {
   onComplete: () => void;
@@ -38,9 +39,7 @@ export default function SplashScreen({ onComplete }: SplashScreenProps) {
       <div className="relative z-10 flex flex-col items-center text-center p-6 max-w-lg mx-auto">
         {/* Logo / Accessibility Path Symbol */}
         <div className="relative mb-6">
-          <div className="w-24 h-24 sm:w-28 sm:h-28 rounded-3xl bg-gradient-to-tr from-purple-500 via-purple-600 to-indigo-500 flex items-center justify-center shadow-2xl shadow-purple-500/40 ring-4 ring-white/20 animate-bounce">
-            <Compass className="w-12 h-12 sm:w-14 sm:h-14 text-white" aria-hidden="true" />
-          </div>
+          <Logo size={112} className="shadow-2xl shadow-purple-500/40 ring-4 ring-white/20 animate-bounce rounded-3xl" />
           <div className="absolute -bottom-2 -right-2 bg-purple-400 text-purple-950 p-2 rounded-xl shadow-lg font-bold text-xs flex items-center gap-1">
             <ShieldCheck className="w-4 h-4 text-purple-950" />
             <span>WCAG AAA</span>

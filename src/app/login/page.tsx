@@ -5,6 +5,7 @@ import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import { useAccessibility } from '@/context/AccessibilityContext';
 import { safeFetchJson } from '@/lib/safeFetch';
+import Logo from '@/components/Logo';
 import {
   Navigation,
   ShieldCheck,
@@ -159,9 +160,7 @@ export default function LoginPage() {
     <div className="w-full min-h-screen bg-surface text-on-surface flex flex-col items-center justify-center p-4 md:p-8">
       {/* Brand Header */}
       <div className="flex flex-col items-center gap-2 mb-8 text-center">
-        <div className="w-14 h-14 rounded-3xl bg-primary text-on-primary flex items-center justify-center shadow-xl mb-1">
-          <Navigation className="w-8 h-8 fill-current text-white" />
-        </div>
+        <Logo size={64} className="mb-1 hover:scale-105" />
         <h1 className="text-3xl md:text-4xl font-black tracking-tight text-on-surface">
           PathFinder Access
         </h1>

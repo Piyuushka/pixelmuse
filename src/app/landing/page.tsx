@@ -3,6 +3,7 @@
 import React from 'react';
 import Link from 'next/link';
 import { useAccessibility } from '@/context/AccessibilityContext';
+import Logo from '@/components/Logo';
 import {
   Navigation,
   Sparkles,
@@ -25,9 +26,7 @@ export default function LandingPage() {
       {/* Top Navbar */}
       <header className="w-full px-6 py-4 bg-surface-container-lowest border-b border-outline-variant/30 flex items-center justify-between sticky top-0 z-40">
         <div className="flex items-center gap-3">
-          <div className="w-10 h-10 rounded-2xl bg-primary-container text-on-primary-container flex items-center justify-center shadow-sm">
-            <Navigation className="w-6 h-6 text-white fill-current" />
-          </div>
+          <Logo size={42} className="hover:scale-105" />
           <div className="flex flex-col py-1">
             <span className="text-xl sm:text-2xl font-black text-on-surface tracking-tight leading-normal">
               PathFinder Access

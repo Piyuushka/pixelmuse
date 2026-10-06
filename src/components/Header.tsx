@@ -4,6 +4,7 @@ import React from 'react';
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
 import { useAccessibility } from '@/context/AccessibilityContext';
+import Logo from './Logo';
 import { 
   CheckCircle2, 
   Navigation, 
@@ -36,9 +37,7 @@ export default function Header() {
         
         {/* Brand Section */}
         <Link href="/" className="flex items-center gap-3 flex-shrink-0 group">
-          <div className="w-10 h-10 rounded-xl bg-primary-container text-on-primary-container flex items-center justify-center shadow-sm group-hover:scale-105 transition-transform">
-            <Navigation className="w-6 h-6 fill-current text-white" />
-          </div>
+          <Logo size={40} className="group-hover:scale-105" />
           <div className="flex flex-col">
             <span className="text-xl font-extrabold text-on-surface leading-tight tracking-tight">
               PathFinder Access

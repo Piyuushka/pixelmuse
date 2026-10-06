@@ -23,6 +23,11 @@ const atkinson = Atkinson_Hyperlegible({
 export const metadata: Metadata = {
   title: 'PathFinder Access - GPS High Precision Navigation Dashboard',
   description: 'WCAG AAA barrier-free navigation dashboard for accessible urban exploration, wheelchair navigation, micro-navigation, live rerouting, and crowdsourced hazard reporting.',
+  icons: {
+    icon: '/favicon.ico',
+    shortcut: '/favicon.png',
+    apple: '/apple-touch-icon.png',
+  },
 };
 
 export default function RootLayout({

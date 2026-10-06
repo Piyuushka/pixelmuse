@@ -4,6 +4,7 @@ import React from 'react';
 import { useAccessibility } from '@/context/AccessibilityContext';
 import { Sun, Moon, Volume2, VolumeX, Sparkles, Navigation } from 'lucide-react';
 import TalkToAssistantButton from './TalkToAssistantButton';
+import Logo from './Logo';
 
 interface AccessibilityNavHeaderProps {
   currentStep?: number;
@@ -45,9 +46,7 @@ export default function AccessibilityNavHeader({
             title="pathFinder Home / Route Planner"
             aria-label="pathFinder logo, return to route planner form"
           >
-            <div className="w-10 h-10 rounded-xl bg-primary text-white flex items-center justify-center shadow-md shadow-primary/20 group-hover:scale-105 transition-transform">
-              <Navigation className="w-5 h-5 fill-current" />
-            </div>
+            <Logo size={40} className="group-hover:scale-105" />
             <div>
               <span className="text-xl font-black tracking-tight text-on-surface flex items-center gap-1.5">
                 pathFinder

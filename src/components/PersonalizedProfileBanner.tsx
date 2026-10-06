@@ -3,6 +3,7 @@
 import React from 'react';
 import Link from 'next/link';
 import { useAccessibility } from '@/context/AccessibilityContext';
+import Logo from './Logo';
 import {
   User,
   Sliders,
@@ -28,9 +29,7 @@ export default function PersonalizedProfileBanner() {
     return (
       <div className="w-full p-5 rounded-3xl bg-gradient-to-r from-primary/10 via-secondary/10 to-surface-container-low border border-primary/20 shadow-xs flex flex-col md:flex-row items-start md:items-center justify-between gap-4">
         <div className="flex items-center gap-3.5">
-          <div className="w-11 h-11 rounded-2xl bg-primary text-on-primary flex items-center justify-center shadow-xs flex-shrink-0">
-            <Sparkles className="w-6 h-6" />
-          </div>
+          <Logo size={44} className="flex-shrink-0" />
           <div className="flex flex-col gap-0.5">
             <div className="text-xs font-black text-primary uppercase tracking-wider">
               Welcome to PathFinder Access

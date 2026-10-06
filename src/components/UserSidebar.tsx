@@ -4,6 +4,7 @@ import React from 'react';
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
 import { useAccessibility, PersonaType } from '@/context/AccessibilityContext';
+import Logo from './Logo';
 import {
   Navigation,
   MapPin,
@@ -67,9 +68,7 @@ export default function UserSidebar() {
       {/* Top Brand Header */}
       <div className="p-5 flex flex-col gap-4 border-b border-outline-variant/20">
         <Link href="/user/map" className="flex items-center gap-3 group">
-          <div className="w-11 h-11 rounded-2xl bg-primary-container text-on-primary-container flex items-center justify-center shadow-md group-hover:scale-105 transition-transform flex-shrink-0">
-            <Navigation className="w-6 h-6 fill-current text-white" />
-          </div>
+          <Logo size={44} className="group-hover:scale-105" />
           <div className="flex flex-col">
             <span className="text-xl font-black text-on-surface leading-tight tracking-tight">
               PathFinder

@@ -2,6 +2,7 @@
 
 import React, { useState } from 'react';
 import { useAccessibility, PersonaType, AccessibilityPreferences } from '@/context/AccessibilityContext';
+import Logo from './Logo';
 import {
   Navigation,
   ShieldCheck,
@@ -183,9 +184,7 @@ export default function OnboardingFlowModal({
         {/* Top Header Bar */}
         <div className="px-6 py-4 bg-surface-container-low border-b border-outline-variant/20 flex items-center justify-between">
           <div className="flex items-center gap-3">
-            <div className="w-9 h-9 rounded-xl bg-primary-container text-on-primary-container flex items-center justify-center shadow-xs">
-              <Navigation className="w-5 h-5 text-white fill-current" />
-            </div>
+            <Logo size={36} />
             <div>
               <span className="text-base font-black text-on-surface tracking-tight">
                 PathFinder Access
