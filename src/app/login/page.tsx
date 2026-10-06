@@ -11,6 +11,7 @@ import {
   ShieldCheck,
   User,
   ArrowRight,
+  ArrowLeft,
   Mail,
   Lock,
   Phone,
@@ -28,6 +29,7 @@ export default function LoginPage() {
   const router = useRouter();
   const { loginUser, speakText } = useAccessibility();
 
+  const [selectedRole, setSelectedRole] = useState<'CAREGIVER' | 'USER' | null>(null);
   const [role, setRole] = useState<'CAREGIVER' | 'USER'>('USER');
   const [authMethod, setAuthMethod] = useState<'password' | 'otp' | 'google'>('password');
 
@@ -46,12 +48,13 @@ export default function LoginPage() {
 
   const isDemoMode = process.env.NEXT_PUBLIC_DEMO_MODE === 'true';
 
-  const handleRoleSelect = (selectedRole: 'CAREGIVER' | 'USER') => {
-    setRole(selectedRole);
+  const handleRoleSelect = (chosenRole: 'CAREGIVER' | 'USER') => {
+    setRole(chosenRole);
+    setSelectedRole(chosenRole);
     setErrorMessage('');
     setSuccessMessage('');
     if (isDemoMode) {
-      if (selectedRole === 'USER') {
+      if (chosenRole === 'USER') {
         setEmail('navigator@local.internal');
         setPassword('demo1234');
       } else {
@@ -59,11 +62,19 @@ export default function LoginPage() {
         setPassword('demo1234');
       }
     }
-    if (selectedRole === 'USER') {
+    if (chosenRole === 'USER') {
       speakText('Selected Navigator User Portal');
     } else {
       speakText('Selected Parent and Caregiver Guardian Portal');
     }
+  };
+
+  const handleBackToRoleSelect = () => {
+    setSelectedRole(null);
+    setErrorMessage('');
+    setSuccessMessage('');
+    setOtpSent(false);
+    setOtpCode('');
   };
 
   const handleSubmit = async (e: React.FormEvent) => {
@@ -185,246 +196,247 @@ export default function LoginPage() {
         </p>
       </div>
 
-      <div className="w-full max-w-4xl flex flex-col gap-8">
-        {/* TWO BIG PORTAL CARDS */}
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
-          {/* Card 1: User / Dependent */}
-          <div
-            onClick={() => handleRoleSelect('USER')}
-            className={`p-6 rounded-3xl border-2 transition-all cursor-pointer flex flex-col justify-between gap-5 relative overflow-hidden shadow-lg ${
-              role === 'USER'
-                ? 'bg-primary-container/20 border-primary shadow-primary/10 ring-2 ring-primary/30'
-                : 'bg-surface-container-lowest border-outline-variant/40 hover:border-primary/50'
-            }`}
-          >
-            <div className="flex items-start justify-between">
-              <div className="w-14 h-14 rounded-2xl bg-secondary text-on-secondary flex items-center justify-center shadow-md">
-                <User className="w-7 h-7" />
+      {!selectedRole ? (
+        /* STEP 1: ONLY THE TWO ROLE BLOCKS */
+        <div className="w-full max-w-4xl">
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
+            {/* Card 1: User / Dependent */}
+            <div
+              onClick={() => handleRoleSelect('USER')}
+              className="p-6 rounded-3xl border-2 transition-all cursor-pointer flex flex-col justify-between gap-5 relative overflow-hidden shadow-lg bg-surface-container-lowest border-outline-variant/40 hover:border-secondary hover:shadow-xl hover:scale-[1.01]"
+            >
+              <div className="flex items-start justify-between">
+                <div className="w-14 h-14 rounded-2xl bg-secondary text-on-secondary flex items-center justify-center shadow-md">
+                  <User className="w-7 h-7" />
+                </div>
+                <span className="text-[11px] font-black px-3 py-1 rounded-full uppercase bg-surface-container-high text-on-surface-variant">
+                  Select
+                </span>
               </div>
-              <span className={`text-[11px] font-black px-3 py-1 rounded-full uppercase ${
-                role === 'USER' ? 'bg-primary text-on-primary' : 'bg-surface-container-high text-on-surface-variant'
-              }`}>
-                {role === 'USER' ? 'Active Portal' : 'Select'}
-              </span>
-            </div>
 
-            <div className="flex flex-col gap-1.5">
-              <h2 className="text-2xl font-black text-on-surface tracking-tight">
-                I am a User (Dependent)
-              </h2>
-              <p className="text-xs text-on-surface-variant font-medium leading-relaxed">
-                Step-free wheelchair routing, high precision GPS navigation, live obstacle alerts, and one-tap SOS panic button.
-              </p>
-            </div>
-
-            <div className="pt-3 border-t border-outline-variant/30 flex items-center justify-between">
-              <div className="flex items-center gap-1.5 text-xs font-bold text-secondary">
-                <MapPin className="w-4 h-4" />
-                <span>GPS & Mobility Core</span>
+              <div className="flex flex-col gap-1.5">
+                <h2 className="text-2xl font-black text-on-surface tracking-tight">
+                  I am a User (Dependent)
+                </h2>
+                <p className="text-xs text-on-surface-variant font-medium leading-relaxed">
+                  Step-free wheelchair routing, high precision GPS navigation, live obstacle alerts, and one-tap SOS panic button.
+                </p>
               </div>
-              {isDemoMode && (
-                <button
-                  type="button"
-                  onClick={(e) => {
-                    e.stopPropagation();
-                    handleQuickDemoLogin('USER');
-                  }}
-                  className="px-3.5 py-1.5 rounded-xl bg-secondary text-on-secondary text-xs font-extrabold shadow-sm hover:opacity-95 transition-opacity"
-                >
-                  Quick Sign-In →
-                </button>
-              )}
-            </div>
-          </div>
 
-          {/* Card 2: Parent / Caregiver */}
-          <div
-            onClick={() => handleRoleSelect('CAREGIVER')}
-            className={`p-6 rounded-3xl border-2 transition-all cursor-pointer flex flex-col justify-between gap-5 relative overflow-hidden shadow-lg ${
-              role === 'CAREGIVER'
-                ? 'bg-primary-container/20 border-primary shadow-primary/10 ring-2 ring-primary/30'
-                : 'bg-surface-container-lowest border-outline-variant/40 hover:border-primary/50'
-            }`}
-          >
-            <div className="flex items-start justify-between">
-              <div className="w-14 h-14 rounded-2xl bg-primary text-on-primary flex items-center justify-center shadow-md">
-                <ShieldCheck className="w-7 h-7" />
+              <div className="pt-3 border-t border-outline-variant/30 flex items-center justify-between">
+                <div className="flex items-center gap-1.5 text-xs font-bold text-secondary">
+                  <MapPin className="w-4 h-4" />
+                  <span>GPS & Mobility Core</span>
+                </div>
+                {isDemoMode && (
+                  <button
+                    type="button"
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      handleQuickDemoLogin('USER');
+                    }}
+                    className="px-3.5 py-1.5 rounded-xl bg-secondary text-on-secondary text-xs font-extrabold shadow-sm hover:opacity-95 transition-opacity"
+                  >
+                    Quick Sign-In →
+                  </button>
+                )}
               </div>
-              <span className={`text-[11px] font-black px-3 py-1 rounded-full uppercase ${
-                role === 'CAREGIVER' ? 'bg-primary text-on-primary' : 'bg-surface-container-high text-on-surface-variant'
-              }`}>
-                {role === 'CAREGIVER' ? 'Active Portal' : 'Select'}
-              </span>
             </div>
 
-            <div className="flex flex-col gap-1.5">
-              <h2 className="text-2xl font-black text-on-surface tracking-tight">
-                I am a Parent / Caregiver
-              </h2>
-              <p className="text-xs text-on-surface-variant font-medium leading-relaxed">
-                Live two-phone GPS tracking map, instant SOS emergency alerts with siren, route deviations, and safe zones.
-              </p>
-            </div>
-
-            <div className="pt-3 border-t border-outline-variant/30 flex items-center justify-between">
-              <div className="flex items-center gap-1.5 text-xs font-bold text-primary">
-                <Radio className="w-4 h-4" />
-                <span>Real-Time Guardian Stream</span>
+            {/* Card 2: Parent / Caregiver */}
+            <div
+              onClick={() => handleRoleSelect('CAREGIVER')}
+              className="p-6 rounded-3xl border-2 transition-all cursor-pointer flex flex-col justify-between gap-5 relative overflow-hidden shadow-lg bg-surface-container-lowest border-outline-variant/40 hover:border-primary hover:shadow-xl hover:scale-[1.01]"
+            >
+              <div className="flex items-start justify-between">
+                <div className="w-14 h-14 rounded-2xl bg-primary text-on-primary flex items-center justify-center shadow-md">
+                  <ShieldCheck className="w-7 h-7" />
+                </div>
+                <span className="text-[11px] font-black px-3 py-1 rounded-full uppercase bg-surface-container-high text-on-surface-variant">
+                  Select
+                </span>
               </div>
-              {isDemoMode && (
-                <button
-                  type="button"
-                  onClick={(e) => {
-                    e.stopPropagation();
-                    handleQuickDemoLogin('CAREGIVER');
-                  }}
-                  className="px-3.5 py-1.5 rounded-xl bg-primary text-on-primary text-xs font-extrabold shadow-sm hover:opacity-95 transition-opacity"
-                >
-                  Quick Sign-In →
-                </button>
-              )}
+
+              <div className="flex flex-col gap-1.5">
+                <h2 className="text-2xl font-black text-on-surface tracking-tight">
+                  I am a Parent / Caregiver
+                </h2>
+                <p className="text-xs text-on-surface-variant font-medium leading-relaxed">
+                  Live two-phone GPS tracking map, instant SOS emergency alerts with siren, route deviations, and safe zones.
+                </p>
+              </div>
+
+              <div className="pt-3 border-t border-outline-variant/30 flex items-center justify-between">
+                <div className="flex items-center gap-1.5 text-xs font-bold text-primary">
+                  <Radio className="w-4 h-4" />
+                  <span>Real-Time Guardian Stream</span>
+                </div>
+                {isDemoMode && (
+                  <button
+                    type="button"
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      handleQuickDemoLogin('CAREGIVER');
+                    }}
+                    className="px-3.5 py-1.5 rounded-xl bg-primary text-on-primary text-xs font-extrabold shadow-sm hover:opacity-95 transition-opacity"
+                  >
+                    Quick Sign-In →
+                  </button>
+                )}
+              </div>
             </div>
           </div>
         </div>
+      ) : (
+        /* STEP 2: AUTHENTICATION FORM CARD (VISIBLE ON CLICK) */
+        <div className="w-full max-w-md mx-auto flex flex-col gap-3">
+          <button
+            type="button"
+            onClick={handleBackToRoleSelect}
+            className="flex items-center gap-1.5 text-xs font-bold text-on-surface-variant hover:text-primary transition-colors cursor-pointer self-start"
+          >
+            <ArrowLeft className="w-4 h-4" />
+            <span>Change role</span>
+          </button>
 
-        {/* AUTHENTICATION FORM CARD */}
-        <div className="w-full max-w-md mx-auto bg-surface-container-lowest rounded-3xl border border-outline-variant/40 shadow-xl p-6 md:p-8 flex flex-col gap-5">
-          <div className="flex flex-col gap-1">
-            <span className="text-[11px] font-black text-primary uppercase tracking-wider">
-              {role === 'USER' ? 'Navigator Account' : 'Caregiver Guardian Account'}
-            </span>
-            <h3 className="text-xl font-black text-on-surface">
-              Log In to {role === 'USER' ? 'User Portal' : 'Caregiver Portal'}
-            </h3>
-          </div>
-
-          {/* Auth Method Tabs */}
-          <div className="flex border-b border-outline-variant/30 text-xs font-bold text-on-surface-variant">
-            <button
-              type="button"
-              onClick={() => setAuthMethod('password')}
-              className={`py-2 px-3 border-b-2 transition-all ${
-                authMethod === 'password' ? 'border-primary text-primary' : 'border-transparent hover:text-on-surface'
-              }`}
-            >
-              Email & Password
-            </button>
-            <button
-              type="button"
-              onClick={() => setAuthMethod('otp')}
-              className={`py-2 px-3 border-b-2 transition-all ${
-                authMethod === 'otp' ? 'border-primary text-primary' : 'border-transparent hover:text-on-surface'
-              }`}
-            >
-              Phone OTP
-            </button>
-          </div>
-
-          {errorMessage && (
-            <div className="p-3.5 rounded-2xl bg-error/10 text-error text-xs font-bold border border-error/20 flex items-center gap-2">
-              <AlertCircle className="w-4 h-4 flex-shrink-0" />
-              <span>{errorMessage}</span>
+          <div className="w-full bg-surface-container-lowest rounded-3xl border border-outline-variant/40 shadow-xl p-6 md:p-8 flex flex-col gap-5">
+            <div className="flex flex-col gap-1">
+              <span className="text-[11px] font-black text-primary uppercase tracking-wider">
+                {role === 'USER' ? 'Navigator User Account' : 'Caregiver Guardian Account'}
+              </span>
+              <h3 className="text-xl font-black text-on-surface">
+                Log In to {role === 'USER' ? 'User Portal' : 'Caregiver Portal'}
+              </h3>
             </div>
-          )}
 
-          {successMessage && (
-            <div className="p-3.5 rounded-2xl bg-primary/10 text-primary text-xs font-bold border border-primary/20 flex items-center gap-2">
-              <CheckCircle2 className="w-4 h-4 flex-shrink-0" />
-              <span>{successMessage}</span>
-            </div>
-          )}
-
-          {authMethod === 'password' && (
-            <form onSubmit={handleSubmit} className="flex flex-col gap-4">
-              <div className="flex flex-col gap-1.5">
-                <label className="text-xs font-extrabold text-on-surface">Email Address</label>
-                <div className="relative">
-                  <Mail className="w-4 h-4 text-on-surface-variant absolute left-3.5 top-3.5" />
-                  <input
-                    type="email"
-                    value={email}
-                    placeholder="name@example.com"
-                    onChange={(e) => setEmail(e.target.value)}
-                    className="w-full h-11 pl-10 pr-4 rounded-xl bg-surface-container-low border border-outline-variant/40 text-xs font-semibold text-on-surface focus:outline-none focus:ring-2 focus:ring-primary"
-                  />
-                </div>
-              </div>
-
-              <div className="flex flex-col gap-1.5">
-                <label className="text-xs font-extrabold text-on-surface">Password</label>
-                <div className="relative">
-                  <Lock className="w-4 h-4 text-on-surface-variant absolute left-3.5 top-3.5" />
-                  <input
-                    type="password"
-                    value={password}
-                    placeholder="••••••••"
-                    onChange={(e) => setPassword(e.target.value)}
-                    className="w-full h-11 pl-10 pr-4 rounded-xl bg-surface-container-low border border-outline-variant/40 text-xs font-semibold text-on-surface focus:outline-none focus:ring-2 focus:ring-primary"
-                  />
-                </div>
-              </div>
-
+            {/* Auth Method Tabs */}
+            <div className="flex border-b border-outline-variant/30 text-xs font-bold text-on-surface-variant">
               <button
-                type="submit"
-                disabled={isSubmitting}
-                className="w-full h-12 rounded-2xl bg-primary text-on-primary font-black text-sm flex items-center justify-center gap-2 shadow-md hover:opacity-95 transition-opacity cursor-pointer disabled:opacity-50 mt-1"
+                type="button"
+                onClick={() => setAuthMethod('password')}
+                className={`py-2 px-3 border-b-2 transition-all ${
+                  authMethod === 'password' ? 'border-primary text-primary' : 'border-transparent hover:text-on-surface'
+                }`}
               >
-                <span>{isSubmitting ? 'Authenticating...' : role === 'USER' ? 'Enter User Portal' : 'Enter Caregiver Portal'}</span>
-                <ArrowRight className="w-4 h-4" />
+                Email & Password
               </button>
-            </form>
-          )}
+              <button
+                type="button"
+                onClick={() => setAuthMethod('otp')}
+                className={`py-2 px-3 border-b-2 transition-all ${
+                  authMethod === 'otp' ? 'border-primary text-primary' : 'border-transparent hover:text-on-surface'
+                }`}
+              >
+                Phone OTP
+              </button>
+            </div>
 
-          {authMethod === 'otp' && (
-            <form onSubmit={handleSubmit} className="flex flex-col gap-4">
-              <div className="flex flex-col gap-1.5">
-                <label className="text-xs font-extrabold text-on-surface">Mobile Phone (+91)</label>
-                <div className="relative">
-                  <Phone className="w-4 h-4 text-on-surface-variant absolute left-3.5 top-3.5" />
-                  <input
-                    type="tel"
-                    placeholder="9876543210"
-                    value={phone}
-                    onChange={(e) => setPhone(e.target.value)}
-                    disabled={otpSent}
-                    className="w-full h-11 pl-10 pr-4 rounded-xl bg-surface-container-low border border-outline-variant/40 text-xs font-semibold text-on-surface focus:outline-none focus:ring-2 focus:ring-primary"
-                  />
-                </div>
+            {errorMessage && (
+              <div className="p-3.5 rounded-2xl bg-error/10 text-error text-xs font-bold border border-error/20 flex items-center gap-2">
+                <AlertCircle className="w-4 h-4 flex-shrink-0" />
+                <span>{errorMessage}</span>
               </div>
+            )}
 
-              {otpSent && (
+            {successMessage && (
+              <div className="p-3.5 rounded-2xl bg-primary/10 text-primary text-xs font-bold border border-primary/20 flex items-center gap-2">
+                <CheckCircle2 className="w-4 h-4 flex-shrink-0" />
+                <span>{successMessage}</span>
+              </div>
+            )}
+
+            {authMethod === 'password' && (
+              <form onSubmit={handleSubmit} className="flex flex-col gap-4">
                 <div className="flex flex-col gap-1.5">
-                  <label className="text-xs font-extrabold text-on-surface">6-Digit OTP Code</label>
-                  <input
-                    type="text"
-                    maxLength={6}
-                    placeholder="123456"
-                    value={otpCode}
-                    onChange={(e) => setOtpCode(e.target.value)}
-                    className="w-full h-11 px-4 text-center tracking-widest text-lg font-bold rounded-xl bg-surface-container-low border border-outline-variant/40 text-on-surface"
-                  />
+                  <label className="text-xs font-extrabold text-on-surface">Email Address</label>
+                  <div className="relative">
+                    <Mail className="w-4 h-4 text-on-surface-variant absolute left-3.5 top-3.5" />
+                    <input
+                      type="email"
+                      value={email}
+                      placeholder="name@example.com"
+                      onChange={(e) => setEmail(e.target.value)}
+                      className="w-full h-11 pl-10 pr-4 rounded-xl bg-surface-container-low border border-outline-variant/40 text-xs font-semibold text-on-surface focus:outline-none focus:ring-2 focus:ring-primary"
+                    />
+                  </div>
                 </div>
-              )}
 
-              <button
-                type="submit"
-                disabled={isSubmitting}
-                className="w-full h-12 rounded-2xl bg-primary text-on-primary font-black text-sm flex items-center justify-center gap-2 shadow-md hover:opacity-95 transition-opacity cursor-pointer disabled:opacity-50 mt-1"
-              >
-                <span>{!otpSent ? 'Send OTP Code' : 'Verify & Enter Portal'}</span>
-                <ArrowRight className="w-4 h-4" />
-              </button>
-            </form>
-          )}
+                <div className="flex flex-col gap-1.5">
+                  <label className="text-xs font-extrabold text-on-surface">Password</label>
+                  <div className="relative">
+                    <Lock className="w-4 h-4 text-on-surface-variant absolute left-3.5 top-3.5" />
+                    <input
+                      type="password"
+                      value={password}
+                      placeholder="••••••••"
+                      onChange={(e) => setPassword(e.target.value)}
+                      className="w-full h-11 pl-10 pr-4 rounded-xl bg-surface-container-low border border-outline-variant/40 text-xs font-semibold text-on-surface focus:outline-none focus:ring-2 focus:ring-primary"
+                    />
+                  </div>
+                </div>
 
-          <div className="text-center pt-2 border-t border-outline-variant/20 text-xs text-on-surface-variant">
-            Need a new profile?{' '}
-            <Link href="/signup" className="text-primary font-extrabold hover:underline">
-              Create New Account
-            </Link>
+                <button
+                  type="submit"
+                  disabled={isSubmitting}
+                  className="w-full h-12 rounded-2xl bg-primary text-on-primary font-black text-sm flex items-center justify-center gap-2 shadow-md hover:opacity-95 transition-opacity cursor-pointer disabled:opacity-50 mt-1"
+                >
+                  <span>{isSubmitting ? 'Authenticating...' : role === 'USER' ? 'Enter User Portal' : 'Enter Caregiver Portal'}</span>
+                  <ArrowRight className="w-4 h-4" />
+                </button>
+              </form>
+            )}
+
+            {authMethod === 'otp' && (
+              <form onSubmit={handleSubmit} className="flex flex-col gap-4">
+                <div className="flex flex-col gap-1.5">
+                  <label className="text-xs font-extrabold text-on-surface">Mobile Phone (+91)</label>
+                  <div className="relative">
+                    <Phone className="w-4 h-4 text-on-surface-variant absolute left-3.5 top-3.5" />
+                    <input
+                      type="tel"
+                      placeholder="9876543210"
+                      value={phone}
+                      onChange={(e) => setPhone(e.target.value)}
+                      disabled={otpSent}
+                      className="w-full h-11 pl-10 pr-4 rounded-xl bg-surface-container-low border border-outline-variant/40 text-xs font-semibold text-on-surface focus:outline-none focus:ring-2 focus:ring-primary"
+                    />
+                  </div>
+                </div>
+
+                {otpSent && (
+                  <div className="flex flex-col gap-1.5">
+                    <label className="text-xs font-extrabold text-on-surface">6-Digit OTP Code</label>
+                    <input
+                      type="text"
+                      maxLength={6}
+                      placeholder="123456"
+                      value={otpCode}
+                      onChange={(e) => setOtpCode(e.target.value)}
+                      className="w-full h-11 px-4 text-center tracking-widest text-lg font-bold rounded-xl bg-surface-container-low border border-outline-variant/40 text-on-surface"
+                    />
+                  </div>
+                )}
+
+                <button
+                  type="submit"
+                  disabled={isSubmitting}
+                  className="w-full h-12 rounded-2xl bg-primary text-on-primary font-black text-sm flex items-center justify-center gap-2 shadow-md hover:opacity-95 transition-opacity cursor-pointer disabled:opacity-50 mt-1"
+                >
+                  <span>{!otpSent ? 'Send OTP Code' : 'Verify & Enter Portal'}</span>
+                  <ArrowRight className="w-4 h-4" />
+                </button>
+              </form>
+            )}
+
+            <div className="text-center pt-2 border-t border-outline-variant/20 text-xs text-on-surface-variant">
+              Need a new profile?{' '}
+              <Link href="/signup" className="text-primary font-extrabold hover:underline">
+                Create New Account
+              </Link>
+            </div>
           </div>
         </div>
-      </div>
+      )}
     </div>
   );
 }

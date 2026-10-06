@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useState, useEffect, useCallback } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { useAccessibility } from '@/context/AccessibilityContext';
 import { QRCodeDisplay } from '@/components/QRCodeDisplay';
 import {
@@ -32,72 +32,107 @@ export default function UserShareLocationPage() {
 
   const [pairingCode, setPairingCode] = useState('');
   const [expiresAt, setExpiresAt] = useState<string>('');
-  const [timeLeftSec, setTimeLeftSec] = useState<number>(600);
+  const [timeLeftSec, setTimeLeftSec] = useState<number>(0);
   const [pendingRequests, setPendingRequests] = useState<PendingRequest[]>([]);
   const [activeGuardian, setActiveGuardian] = useState<string | null>(null);
   const [isSharingPaused, setIsSharingPaused] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
   const [statusMessage, setStatusMessage] = useState<{ type: 'success' | 'error'; text: string } | null>(null);
 
-  // Fetch pairing info and pending consent requests
-  const fetchStatus = useCallback(async () => {
-    try {
-      const res = await fetch('/api/pairing/consent-status');
-      const data = await res.json();
-      if (res.ok && data.success) {
-        if (data.pairingCode) {
+  const initialGenRef = useRef(false);
+
+  // 1. Initial code fetch (called ONCE on mount with Strict Mode guard)
+  useEffect(() => {
+    if (initialGenRef.current) return;
+    initialGenRef.current = true;
+
+    async function initPairingCode() {
+      setIsLoading(true);
+      try {
+        const res = await fetch('/api/pairing/generate', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ force: false }),
+        });
+        const data = await res.json();
+        if (res.ok && data.success && data.pairingCode) {
           setPairingCode(data.pairingCode);
-        } else {
-          // If no code exists, generate one
-          const genRes = await fetch('/api/pairing/code', {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ userId: user?.email }),
-          });
-          if (genRes.ok) {
-            const genData = await genRes.json();
-            if (genData.code) setPairingCode(genData.code);
+          if (data.expiresAt) {
+            setExpiresAt(data.expiresAt);
+            const remaining = Math.max(0, Math.floor((new Date(data.expiresAt).getTime() - Date.now()) / 1000));
+            setTimeLeftSec(remaining);
           }
         }
-        if (data.pairingCodeExpiresAt) {
-          setExpiresAt(data.pairingCodeExpiresAt);
-          const diff = Math.max(0, Math.floor((new Date(data.pairingCodeExpiresAt).getTime() - Date.now()) / 1000));
-          setTimeLeftSec(diff);
-        }
-        setPendingRequests(data.pendingRequests || []);
-        setActiveGuardian(data.activeGuardian || null);
+      } catch (err) {
+        console.error('Failed to initialize pairing code:', err);
+      } finally {
+        setIsLoading(false);
       }
-    } catch (err) {
-      console.error('Error polling consent status:', err);
     }
-  }, [user?.email]);
 
+    initPairingCode();
+  }, []);
+
+  // 2. Read-only polling for caregiver connection requests (every 4 seconds)
   useEffect(() => {
-    fetchStatus();
-    // Poll every 3 seconds for real-time caregiver connection request
-    const interval = setInterval(fetchStatus, 3000);
-    return () => clearInterval(interval);
-  }, [fetchStatus]);
+    let isMounted = true;
 
-  // Countdown timer for pairing code
+    async function pollConsent() {
+      try {
+        const res = await fetch('/api/pairing/consent-status');
+        const data = await res.json();
+        if (isMounted && res.ok && data.success) {
+          setPendingRequests(data.pendingRequests || []);
+          setActiveGuardian(data.activeGuardian || null);
+          // If code was not yet populated, set it without re-generating
+          if (data.pairingCode && !pairingCode) {
+            setPairingCode(data.pairingCode);
+            if (data.pairingCodeExpiresAt) {
+              setExpiresAt(data.pairingCodeExpiresAt);
+              const diff = Math.max(0, Math.floor((new Date(data.pairingCodeExpiresAt).getTime() - Date.now()) / 1000));
+              setTimeLeftSec(diff);
+            }
+          }
+        }
+      } catch (err) {
+        console.error('Error polling consent status:', err);
+      }
+    }
+
+    pollConsent();
+    const interval = setInterval(pollConsent, 4000);
+    return () => {
+      isMounted = false;
+      clearInterval(interval);
+    };
+  }, [pairingCode]);
+
+  // 3. Pure local countdown timer
   useEffect(() => {
     const timer = setInterval(() => {
-      setTimeLeftSec(prev => (prev > 0 ? prev - 1 : 0));
+      setTimeLeftSec((prev) => (prev > 0 ? prev - 1 : 0));
     }, 1000);
     return () => clearInterval(timer);
   }, []);
 
-  // Regenerate pairing code
+  // 4. Explicit regenerate pairing code
   const handleRegenerateCode = async () => {
     setIsLoading(true);
     setStatusMessage(null);
     try {
-      const res = await fetch('/api/pairing/generate', { method: 'POST' });
+      const res = await fetch('/api/pairing/generate', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ force: true }),
+      });
       const data = await res.json();
       if (res.ok && data.success) {
         setPairingCode(data.pairingCode);
         setExpiresAt(data.expiresAt);
-        setTimeLeftSec(600);
+        const remaining = data.expiresAt
+          ? Math.max(0, Math.floor((new Date(data.expiresAt).getTime() - Date.now()) / 1000))
+          : 600;
+        setTimeLeftSec(remaining);
         setStatusMessage({ type: 'success', text: 'New 6-digit pairing code generated.' });
         speakText('New 6 digit pairing code generated.');
       }
@@ -123,7 +158,13 @@ export default function UserShareLocationPage() {
           text: action === 'accept' ? 'Pairing accepted! Caregiver can now track your live route.' : 'Pairing request rejected.',
         });
         speakText(action === 'accept' ? 'Location sharing granted' : 'Request rejected');
-        fetchStatus();
+        // Re-check consent
+        const statusRes = await fetch('/api/pairing/consent-status');
+        const statusData = await statusRes.json();
+        if (statusRes.ok && statusData.success) {
+          setPendingRequests(statusData.pendingRequests || []);
+          setActiveGuardian(statusData.activeGuardian || null);
+        }
       }
     } catch {
       setStatusMessage({ type: 'error', text: 'Failed to submit response.' });
@@ -135,6 +176,8 @@ export default function UserShareLocationPage() {
     const s = sec % 60;
     return `${m}:${s < 10 ? '0' : ''}${s}`;
   };
+
+  const isExpired = timeLeftSec <= 0 && !!pairingCode;
 
   return (
     <div className="w-full px-4 md:px-8 py-8 flex justify-center">
@@ -273,15 +316,30 @@ export default function UserShareLocationPage() {
             {/* Code Box */}
             <div className="py-6 px-4 rounded-2xl bg-surface-container-low border-2 border-primary/30 flex flex-col items-center justify-center gap-2">
               {pairingCode ? (
-                <>
-                  <span className="text-4xl md:text-5xl font-black text-primary tracking-widest font-mono select-all">
-                    {pairingCode}
-                  </span>
-                  <div className="flex items-center gap-1.5 text-xs text-on-surface-variant font-bold">
-                    <Clock className="w-3.5 h-3.5 text-secondary" />
-                    <span>Expires in {formatTime(timeLeftSec)}</span>
+                isExpired ? (
+                  <div className="py-2 flex flex-col items-center gap-1.5 text-center">
+                    <div className="flex items-center gap-1.5 text-error font-black text-sm">
+                      <AlertOctagon className="w-4 h-4" />
+                      <span>Code Expired</span>
+                    </div>
+                    <span className="text-3xl font-black text-on-surface-variant/40 line-through font-mono">
+                      {pairingCode}
+                    </span>
+                    <span className="text-[11px] text-on-surface-variant font-medium">
+                      Please click &quot;Regenerate New Code&quot; below.
+                    </span>
                   </div>
-                </>
+                ) : (
+                  <>
+                    <span className="text-4xl md:text-5xl font-black text-primary tracking-widest font-mono select-all">
+                      {pairingCode}
+                    </span>
+                    <div className="flex items-center gap-1.5 text-xs text-on-surface-variant font-bold">
+                      <Clock className="w-3.5 h-3.5 text-secondary" />
+                      <span>Expires in {formatTime(timeLeftSec)}</span>
+                    </div>
+                  </>
+                )
               ) : (
                 <div className="py-3 flex flex-col items-center gap-2 animate-pulse">
                   <span className="text-base font-bold text-on-surface-variant font-mono">
@@ -317,8 +375,14 @@ export default function UserShareLocationPage() {
             </div>
 
             <div className="p-3 bg-white rounded-2xl shadow-sm border border-outline-variant/30 min-h-[160px] flex items-center justify-center">
-              {pairingCode ? (
+              {pairingCode && !isExpired ? (
                 <QRCodeDisplay text={`pathfinder:pair:${pairingCode}`} size={160} />
+              ) : isExpired ? (
+                <div className="w-40 h-40 bg-surface-container-low rounded-xl flex flex-col items-center justify-center p-3 text-center gap-1">
+                  <AlertOctagon className="w-6 h-6 text-error" />
+                  <span className="text-xs text-error font-bold">QR Expired</span>
+                  <span className="text-[10px] text-on-surface-variant">Regenerate code to refresh QR</span>
+                </div>
               ) : (
                 <div className="w-40 h-40 bg-surface-container-low rounded-xl animate-pulse flex items-center justify-center text-xs text-on-surface-variant font-bold">
                   Loading QR...

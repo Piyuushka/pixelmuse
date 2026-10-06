@@ -17,11 +17,19 @@ import { getSupabaseAdmin, isSupabaseConfigured } from '@/lib/supabase';
 import {
   findUserById,
   findUserByPairingCode,
+  getValidPairingCode,
   refreshPairingCode,
   requestPairingByCode,
   respondToConsentRequest,
   getPendingConsentRequests,
 } from '@/lib/db/userStore';
+
+// In-memory cache for active plaintext codes so they survive component refreshes within TTL
+const activePlaintextCodes = new Map<string, { code: string; expiresAt: string; codeHash: string }>();
+
+function isUUID(str: string): boolean {
+  return /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i.test(str);
+}
 
 // ─── Helpers ──────────────────────────────────────────────────────────────────
 
@@ -62,20 +70,48 @@ export interface DependentItem {
 
 // ─── Generate pairing code (dependent side) ───────────────────────────────────
 
-export async function generatePairingCode(dependentId: string): Promise<GeneratedCode> {
+export async function generatePairingCode(dependentId: string, force: boolean = false): Promise<GeneratedCode> {
   const supabase = getSupabaseAdmin();
-  if (!supabase || !isSupabaseConfigured()) {
-    // Fallback: refresh code in flat-file store
+  if (!supabase || !isSupabaseConfigured() || !isUUID(dependentId)) {
+    // Fallback: flat-file store
     const user = findUserById(dependentId);
     if (!user) throw new Error('User not found');
+    if (!force) {
+      const existing = getValidPairingCode(user.email);
+      if (existing) {
+        return existing;
+      }
+    }
     const { code, expiresAt } = refreshPairingCode(user.email);
     return { code, expiresAt };
+  }
+
+  const now = new Date();
+
+  // If not forcing a new code, check if we already have an unexpired cached code
+  if (!force) {
+    const cached = activePlaintextCodes.get(dependentId);
+    if (cached && new Date(cached.expiresAt) > now) {
+      // Check if it was marked as used in DB
+      const { data: checkRow } = await supabase
+        .from('pairing_codes')
+        .select('id, used_at')
+        .eq('dependent_id', dependentId)
+        .eq('code_hash', cached.codeHash)
+        .is('used_at', null)
+        .gt('expires_at', now.toISOString())
+        .maybeSingle();
+
+      if (checkRow) {
+        return { code: cached.code, expiresAt: cached.expiresAt };
+      }
+    }
   }
 
   // Invalidate existing unused codes for this dependent
   await supabase
     .from('pairing_codes')
-    .update({ used_at: new Date().toISOString() })
+    .update({ used_at: now.toISOString() })
     .eq('dependent_id', dependentId)
     .is('used_at', null);
 
@@ -91,6 +127,12 @@ export async function generatePairingCode(dependentId: string): Promise<Generate
 
   if (error) throw new Error(`Failed to store pairing code: ${error.message}`);
 
+  activePlaintextCodes.set(dependentId, {
+    code: plain,
+    expiresAt: expires_at,
+    codeHash: code_hash,
+  });
+
   return { code: plain, expiresAt: expires_at };
 }
 
@@ -98,19 +140,18 @@ export async function generatePairingCode(dependentId: string): Promise<Generate
 
 export async function getCurrentCode(dependentId: string): Promise<{ code: string | null; expiresAt: string | null }> {
   const supabase = getSupabaseAdmin();
-  if (!supabase || !isSupabaseConfigured()) {
+  if (!supabase || !isSupabaseConfigured() || !isUUID(dependentId)) {
     const user = findUserById(dependentId);
     if (!user) return { code: null, expiresAt: null };
-    // Check if expired
-    if (user.pairingCodeExpiresAt && new Date(user.pairingCodeExpiresAt) < new Date()) {
-      return { code: null, expiresAt: null };
-    }
-    return { code: user.pairingCode || null, expiresAt: user.pairingCodeExpiresAt || null };
+    const valid = getValidPairingCode(user.email);
+    return { code: valid?.code || null, expiresAt: valid?.expiresAt || null };
   }
 
-  // Note: we can't reverse the hash, so we just check if one exists
-  // The code returned here is null since we can't reverse hash; caller should
-  // show "code already generated" or re-generate
+  const cached = activePlaintextCodes.get(dependentId);
+  if (cached && new Date(cached.expiresAt) > new Date()) {
+    return { code: cached.code, expiresAt: cached.expiresAt };
+  }
+
   const { data } = await supabase
     .from('pairing_codes')
     .select('id, expires_at')
@@ -119,14 +160,13 @@ export async function getCurrentCode(dependentId: string): Promise<{ code: strin
     .gt('expires_at', new Date().toISOString())
     .order('created_at', { ascending: false })
     .limit(1)
-    .single();
+    .maybeSingle();
 
   if (!data) return { code: null, expiresAt: null };
-  // We can't reverse the hash — generate a fresh one
   return { code: null, expiresAt: data.expires_at };
 }
 
-// ─── Consent status (dependent side) ─────────────────────────────────────────
+// ─── Consent status (dependent side - PURE READ-ONLY) ─────────────────────────
 
 export async function getConsentStatus(dependentId: string, email: string): Promise<{
   pairingCode: string | null;
@@ -135,12 +175,13 @@ export async function getConsentStatus(dependentId: string, email: string): Prom
   activeCaregiver: string | null;
 }> {
   const supabase = getSupabaseAdmin();
-  if (!supabase || !isSupabaseConfigured()) {
+  if (!supabase || !isSupabaseConfigured() || !isUUID(dependentId)) {
     const user = findUserById(dependentId);
     const pending = getPendingConsentRequests(email);
+    const valid = user?.email ? getValidPairingCode(user.email) : null;
     return {
-      pairingCode: user?.pairingCode || null,
-      pairingCodeExpiresAt: user?.pairingCodeExpiresAt || null,
+      pairingCode: valid?.code || null,
+      pairingCodeExpiresAt: valid?.expiresAt || null,
       pendingRequests: pending.map((p: { linkId: string; guardianEmail: string; guardianName: string; createdAt: string }) => ({
         linkId: p.linkId,
         caregiverId: '',
@@ -150,6 +191,16 @@ export async function getConsentStatus(dependentId: string, email: string): Prom
       })),
       activeCaregiver: user?.linkedParentEmail || null,
     };
+  }
+
+  // Check cached unexpired code
+  const cached = activePlaintextCodes.get(dependentId);
+  let pairingCode: string | null = null;
+  let pairingCodeExpiresAt: string | null = null;
+
+  if (cached && new Date(cached.expiresAt) > new Date()) {
+    pairingCode = cached.code;
+    pairingCodeExpiresAt = cached.expiresAt;
   }
 
   // Get pending caregiver_links for this dependent
@@ -182,7 +233,7 @@ export async function getConsentStatus(dependentId: string, email: string): Prom
     .eq('dependent_id', dependentId)
     .eq('status', 'ACTIVE')
     .limit(1)
-    .single();
+    .maybeSingle();
 
   let activeCaregiver: string | null = null;
   if (activeLink) {
@@ -190,10 +241,9 @@ export async function getConsentStatus(dependentId: string, email: string): Prom
     activeCaregiver = (profile as { full_name?: string; email?: string } | undefined)?.email || null;
   }
 
-  // We can't reverse code hash — return null so UI shows "generate" button
   return {
-    pairingCode: null,
-    pairingCodeExpiresAt: null,
+    pairingCode,
+    pairingCodeExpiresAt,
     pendingRequests,
     activeCaregiver,
   };
@@ -207,7 +257,7 @@ export async function claimPairingCode(caregiverId: string, caregiverEmail: stri
   dependent: { id: string; name: string; email: string };
 }> {
   const supabase = getSupabaseAdmin();
-  if (!supabase || !isSupabaseConfigured()) {
+  if (!supabase || !isSupabaseConfigured() || !isUUID(caregiverId)) {
     const result = requestPairingByCode(caregiverEmail, plainCode);
     return {
       linkId: result.link.id,
@@ -290,6 +340,8 @@ export async function claimPairingCode(caregiverId: string, caregiverEmail: stri
     .update({ used_at: now })
     .eq('id', pairingRow.id);
 
+  activePlaintextCodes.delete(pairingRow.dependent_id);
+
   return {
     linkId: newLink.id,
     status: newLink.status,
@@ -305,7 +357,7 @@ export async function claimPairingCode(caregiverId: string, caregiverEmail: stri
 
 export async function respondToConsent(linkId: string, dependentId: string, accept: boolean): Promise<{ linkId: string; status: string }> {
   const supabase = getSupabaseAdmin();
-  if (!supabase || !isSupabaseConfigured()) {
+  if (!supabase || !isSupabaseConfigured() || !isUUID(dependentId)) {
     // Fallback to flat-file store — we need dependent email
     const user = findUserById(dependentId);
     if (!user) throw new Error('User not found');
@@ -336,7 +388,7 @@ export async function respondToConsent(linkId: string, dependentId: string, acce
 
 export async function listDependents(caregiverId: string, caregiverEmail: string): Promise<DependentItem[]> {
   const supabase = getSupabaseAdmin();
-  if (!supabase || !isSupabaseConfigured()) {
+  if (!supabase || !isSupabaseConfigured() || !isUUID(caregiverId)) {
     const user = findUserById(caregiverId);
     if (!user) return [];
     return user.guardianLinks
@@ -377,7 +429,7 @@ export async function listDependents(caregiverId: string, caregiverEmail: string
 
 export async function revokeLink(linkId: string, requesterId: string): Promise<void> {
   const supabase = getSupabaseAdmin();
-  if (!supabase || !isSupabaseConfigured()) {
+  if (!supabase || !isSupabaseConfigured() || !isUUID(requesterId)) {
     // Flat-file fallback: not implemented here, handled elsewhere
     return;
   }

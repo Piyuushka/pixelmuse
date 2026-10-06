@@ -720,6 +720,16 @@ export function updateUser(
 
 // ─── PARENTAL CONTROL & LINKING FUNCTIONS ─────────────────────────────────────
 
+export function getValidPairingCode(email: string): { code: string; expiresAt: string } | null {
+  const users = ensureDbExists();
+  const user = users.find(u => u.email.toLowerCase() === email.toLowerCase());
+  if (!user || !user.pairingCode) return null;
+  if (user.pairingCodeExpiresAt && new Date(user.pairingCodeExpiresAt).getTime() <= Date.now()) {
+    return null;
+  }
+  return { code: user.pairingCode, expiresAt: user.pairingCodeExpiresAt || new Date(Date.now() + 10 * 60 * 1000).toISOString() };
+}
+
 export function refreshPairingCode(email: string): { code: string; expiresAt: string } {
   const users = ensureDbExists();
   const index = users.findIndex(u => u.email.toLowerCase() === email.toLowerCase());
