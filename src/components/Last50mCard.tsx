@@ -6,6 +6,7 @@ import { Volume2, Navigation, AlertTriangle, Info, CheckCircle2 } from 'lucide-r
 import { entrances } from '@/data/entrances';
 import { selectEntrance } from '@/lib/entranceSelector';
 import { computeConfidence } from '@/lib/confidence';
+import TrustBadge from '@/components/TrustBadge';
 
 export default function Last50mCard() {
   const { persona, speakText } = useAccessibility();
@@ -64,14 +65,10 @@ export default function Last50mCard() {
             </div>
           </div>
           
-          {/* Confidence Info */}
-          {confidence && (
-            <div className="flex items-center gap-2 mt-1 px-2 py-1.5 rounded-lg bg-surface-container-highest/50 border border-outline-variant/20 text-[10px] text-on-surface-variant">
-              <Info className="w-3 h-3 text-secondary" />
-              <span>
-                Confidence: <strong className="text-on-surface">{confidence.score}%</strong> 
-                {' '}• Verified {daysAgo} days ago, {recommended.confirmations} confirmations
-              </span>
+          {/* Trust Badge with continuous decay & exact timestamp tooltip */}
+          {recommended && (
+            <div className="mt-1">
+              <TrustBadge item={recommended} size="sm" showWhyButton={true} />
             </div>
           )}
         </div>

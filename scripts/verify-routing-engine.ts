@@ -176,6 +176,78 @@ async function runTests() {
   // Clean up
   sessionRegistry.endSession(testSession.sessionId);
 
+  console.log('\n======================================================');
+  console.log('🧪 6. Testing Route Metrics Pipeline & Mobility Profile Differentiation');
+  console.log('======================================================');
+
+  const { computeRouteMetrics } = await import('../src/lib/routeMetrics');
+
+  // Test route containing 1 flight of stairs, 9% max slope, and 1 unsignalized crossing
+  const sampleTestRoute = {
+    distanceM: 1200,
+    durationMin: 15,
+    steps: [
+      { id: 's1', title: 'Depart Concourse', type: 'smooth_footpath', distance_m: 300, slopePercent: 2 },
+      { id: 's2', title: 'Pedestrian Skywalk Steps', type: 'stair', detail: 'Flight of 24 concrete steps', distance_m: 50, slopePercent: 9 },
+      { id: 's3', title: 'Arterial Road Uncontrolled Crossing', type: 'unsafe_crossing', detail: '4-lane crossing without pedestrian signal', distance_m: 100 },
+      { id: 's4', title: 'Paved Avenue', type: 'smooth_footpath', distance_m: 750, slopePercent: 3 }
+    ],
+    coordinates: [
+      { lat: 19.0760, lng: 72.8777 },
+      { lat: 19.0765, lng: 72.8782 },
+      { lat: 19.0770, lng: 72.8788 }
+    ],
+    dataSource: 'live' as const
+  };
+
+  // Run on identical route with three distinct profiles
+  const wheelchairMetrics = computeRouteMetrics(sampleTestRoute, 'wheelchair', [activeBarrier]);
+  const olderAdultMetrics = computeRouteMetrics(sampleTestRoute, 'older-adult', [activeBarrier]);
+  const standardMetrics = computeRouteMetrics(sampleTestRoute, 'none', [activeBarrier]);
+
+  console.log('Wheelchair Accessibility Score:', wheelchairMetrics.accessibilityScore, wheelchairMetrics.scoreBreakdown);
+  console.log('Older Adult Accessibility Score:', olderAdultMetrics.accessibilityScore, olderAdultMetrics.scoreBreakdown);
+  console.log('Standard Nav Accessibility Score:', standardMetrics.accessibilityScore, standardMetrics.scoreBreakdown);
+
+  // 1. Assert required metrics schema fields exist
+  assert(typeof wheelchairMetrics.distanceM === 'number' && wheelchairMetrics.distanceM === 1200, 'distanceM is correctly populated');
+  assert(typeof wheelchairMetrics.durationMin === 'number' && wheelchairMetrics.durationMin === 15, 'durationMin is correctly populated');
+  assert(typeof wheelchairMetrics.stepCount === 'number' && wheelchairMetrics.stepCount > 0, 'stepCount is correctly populated');
+  assert(typeof wheelchairMetrics.maxSlopePct === 'number' && wheelchairMetrics.maxSlopePct === 9, 'maxSlopePct is correctly calculated');
+  assert(typeof wheelchairMetrics.avgSlopePct === 'number', 'avgSlopePct is correctly calculated');
+  assert(typeof wheelchairMetrics.crossings === 'object' && wheelchairMetrics.crossings.unsignalled === 1, 'unsignalled crossings detected');
+  assert(typeof wheelchairMetrics.barriersOnRoute === 'number' && wheelchairMetrics.barriersOnRoute >= 1, 'barriersOnRoute detected from spatial coordinates');
+  assert(typeof wheelchairMetrics.lightingScore === 'number', 'lightingScore is populated');
+  assert(typeof wheelchairMetrics.accessibilityScore === 'number', 'accessibilityScore is populated');
+  assert(wheelchairMetrics.dataSource === 'live', 'dataSource is preserved as live');
+  assert(typeof wheelchairMetrics.scoreBreakdown === 'object' && typeof wheelchairMetrics.scoreBreakdown.formulaExplanation === 'string', 'scoreBreakdown with formula explanation is present');
+
+  // 2. Assert distinct profile differentiation on the exact same route
+  assert(
+    wheelchairMetrics.scoreBreakdown.stairDeduction > olderAdultMetrics.scoreBreakdown.stairDeduction,
+    `Wheelchair penalizes stairs more severely than older adult: ${wheelchairMetrics.scoreBreakdown.stairDeduction} vs ${olderAdultMetrics.scoreBreakdown.stairDeduction}`
+  );
+
+  assert(
+    olderAdultMetrics.scoreBreakdown.stairDeduction > standardMetrics.scoreBreakdown.stairDeduction,
+    `Older adult penalizes stairs more than standard profile: ${olderAdultMetrics.scoreBreakdown.stairDeduction} vs ${standardMetrics.scoreBreakdown.stairDeduction}`
+  );
+
+  assert(
+    wheelchairMetrics.scoreBreakdown.slopeDeduction > olderAdultMetrics.scoreBreakdown.slopeDeduction,
+    `Wheelchair penalizes 9% slope more than older adult (5% vs 8% limit): ${wheelchairMetrics.scoreBreakdown.slopeDeduction} vs ${olderAdultMetrics.scoreBreakdown.slopeDeduction}`
+  );
+
+  assert(
+    wheelchairMetrics.accessibilityScore < olderAdultMetrics.accessibilityScore,
+    `Wheelchair score (${wheelchairMetrics.accessibilityScore}) is lower than Older Adult (${olderAdultMetrics.accessibilityScore}) due to stairs and slope violations`
+  );
+
+  assert(
+    olderAdultMetrics.accessibilityScore < standardMetrics.accessibilityScore,
+    `Older adult score (${olderAdultMetrics.accessibilityScore}) is lower than standard (${standardMetrics.accessibilityScore}) due to reduced tolerance`
+  );
+
   console.log('\n🎉 ALL TESTS PASSED SUCCESSFULLY! All requirements verified.\n');
 }
 
@@ -183,3 +255,4 @@ runTests().catch(err => {
   console.error('Fatal error during test run:', err);
   process.exit(1);
 });
+
