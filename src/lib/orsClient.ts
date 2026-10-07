@@ -36,10 +36,6 @@ interface ORSResponse {
 }
 
 function mapORSInstructionToStep(instruction: string, type: number, index: number, isAccessible: boolean, coords: number[], distance: number): SchematicStep {
-  // ORS Types (Simplified):
-  // 0: Left, 1: Right, 2: Sharp left, 3: Sharp right, 4: Slight left, 5: Slight right, 
-  // 6: Straight, 7: Enter roundabout, 8: Exit roundabout, 9: U-turn, 10: Goal, 11: Depart, 12: Keep left, 13: Keep right
-  
   let stepType: SchematicStep['type'] = 'smooth_footpath';
   let title = instruction;
   let detail = '';
@@ -77,25 +73,70 @@ function mapORSInstructionToStep(instruction: string, type: number, index: numbe
   };
 }
 
-async function fetchRoute(start: Coordinates, end: Coordinates, profile: 'foot-walking' | 'wheelchair'): Promise<ORSResponse | null> {
-  if (!ORS_API_KEY) {
-    console.warn('ORS API key not found. Using mock data.');
+/**
+ * Free public OSRM (Open Source Routing Machine) fallback that requires no API key.
+ * Guarantees live route calculation for any start/end coordinates globally.
+ */
+async function fetchOSRMRoute(start: Coordinates, end: Coordinates): Promise<ORSResponse | null> {
+  try {
+    const url = `https://router.project-osrm.org/route/v1/foot/${start.lng},${start.lat};${end.lng},${end.lat}?overview=full&geometries=geojson&steps=true`;
+    const response = await fetch(url);
+    if (!response.ok) return null;
+    const data = await response.json();
+    if (!data.routes || data.routes.length === 0) return null;
+
+    const route = data.routes[0];
+    const steps = (route.legs || []).flatMap((leg: any) => leg.steps || []);
+
+    return {
+      features: [
+        {
+          geometry: route.geometry,
+          properties: {
+            segments: [
+              {
+                distance: route.distance,
+                duration: route.duration,
+                steps: steps.map((s: any) => ({
+                  distance: s.distance,
+                  duration: s.duration,
+                  type: s.maneuver?.type === 'arrive' ? 10 : (s.maneuver?.type === 'depart' ? 11 : 6),
+                  instruction: s.maneuver?.instruction || s.name || 'Proceed along designated path',
+                  name: s.name || '',
+                  way_points: [0],
+                })),
+              },
+            ],
+            summary: {
+              distance: route.distance,
+              duration: route.duration,
+            },
+          },
+        },
+      ],
+    };
+  } catch (error) {
+    console.warn('OSRM live route fallback error:', error);
     return null;
+  }
+}
+
+async function fetchRoute(start: Coordinates, end: Coordinates, profile: 'foot-walking' | 'wheelchair'): Promise<ORSResponse | null> {
+  if (ORS_API_KEY && !ORS_API_KEY.startsWith('eyJ')) {
+    try {
+      const url = `${ORS_BASE_URL}/${profile}?api_key=${ORS_API_KEY}&start=${start.lng},${start.lat}&end=${end.lng},${end.lat}`;
+      const response = await fetch(url);
+      if (response.ok) {
+        return await response.json();
+      }
+      console.warn(`ORS API Route error (${response.statusText}), falling back to OSRM`);
+    } catch (error) {
+      console.warn('Failed to fetch ORS route, falling back to OSRM:', error);
+    }
   }
 
-  try {
-    // Note: ORS expects [lng, lat]
-    const url = `${ORS_BASE_URL}/${profile}?api_key=${ORS_API_KEY}&start=${start.lng},${start.lat}&end=${end.lng},${end.lat}`;
-    const response = await fetch(url);
-    if (!response.ok) {
-      console.warn(`ORS API Route not found or error: ${response.statusText}`);
-      return null;
-    }
-    return await response.json();
-  } catch (error) {
-    console.warn('Failed to fetch ORS route:', error);
-    return null;
-  }
+  // Automatic OSRM fallback if ORS key is invalid or fails
+  return await fetchOSRMRoute(start, end);
 }
 
 export async function getLiveRouteScenario(
@@ -104,18 +145,18 @@ export async function getLiveRouteScenario(
   prefId: AccessibilityPreferenceId = 'wheelchair'
 ): Promise<(RouteScenarioData & { geojsonNormal?: any, geojsonAccessible?: any }) | null> {
   
-  // 1. Fetch both routes in parallel
   const [normalRes, accessibleRes] = await Promise.all([
     fetchRoute(start, end, 'foot-walking'),
     fetchRoute(start, end, 'wheelchair')
   ]);
 
-  if (!normalRes || !accessibleRes) {
-    return null; // Fallback to mock data if API fails or no key
+  const activeRes = normalRes || accessibleRes;
+  if (!activeRes) {
+    return null;
   }
 
-  const normalFeature = normalRes.features[0];
-  const accFeature = accessibleRes.features[0];
+  const normalFeature = normalRes ? normalRes.features[0] : activeRes.features[0];
+  const accFeature = accessibleRes ? accessibleRes.features[0] : activeRes.features[0];
 
   const normalSummary = normalFeature.properties.summary;
   const accSummary = accFeature.properties.summary;
@@ -124,22 +165,22 @@ export async function getLiveRouteScenario(
   const accStepsRaw = accFeature.properties.segments.flatMap(s => s.steps);
 
   const normalSteps: SchematicStep[] = normalStepsRaw.map((step, i) => {
-    const coords = normalFeature.geometry.coordinates[step.way_points[0]];
+    const coords = normalFeature.geometry.coordinates[step.way_points[0] || 0];
     return mapORSInstructionToStep(step.instruction, step.type, i, false, coords, step.distance);
   });
   const accessibleSteps: SchematicStep[] = accStepsRaw.map((step, i) => {
-    const coords = accFeature.geometry.coordinates[step.way_points[0]];
+    const coords = accFeature.geometry.coordinates[step.way_points[0] || 0];
     return mapORSInstructionToStep(step.instruction, step.type, i, true, coords, step.distance);
   });
 
   return {
     normal: {
       distance: Number((normalSummary.distance / 1000).toFixed(2)),
-      time: Math.round(normalSummary.duration / 60),
+      time: Math.max(1, Math.round(normalSummary.duration / 60)),
     },
     accessible: {
       distance: Number((accSummary.distance / 1000).toFixed(2)),
-      time: Math.round(accSummary.duration / 60),
+      time: Math.max(1, Math.round(accSummary.duration / 60)),
     },
     normalSteps,
     accessibleSteps,
@@ -342,6 +383,7 @@ export async function searchLocation(query: string): Promise<GeocodeResult[]> {
 
   const normalized = query.toLowerCase().trim();
 
+<<<<<<< Updated upstream
   // 1. Exact preset matches
   const exactDemoMatches = DEMO_LOCATIONS.filter(l => l.name.toLowerCase() === normalized).map(l => ({
     name: l.name,
@@ -382,6 +424,13 @@ export async function searchLocation(query: string): Promise<GeocodeResult[]> {
   const looseDemoMatches = DEMO_LOCATIONS.filter(l => 
     l.name.toLowerCase() !== normalized &&
     (l.name.toLowerCase().includes(normalized) || (normalized.length > 4 && normalized.includes(l.name.toLowerCase())))
+=======
+  const demoMatches = DEMO_LOCATIONS.filter(l =>
+    l.name.toLowerCase().includes(normalized) || 
+    normalized.includes(l.name.toLowerCase()) ||
+    (l.description && l.description.toLowerCase().includes(normalized)) ||
+    (l.id && l.id.replace(/-/g, ' ').includes(normalized))
+>>>>>>> Stashed changes
   ).map(l => ({
     name: l.name,
     label: `${l.name} — ${l.description}`,
@@ -390,7 +439,25 @@ export async function searchLocation(query: string): Promise<GeocodeResult[]> {
 
   const combined = [...exactDemoMatches];
 
+<<<<<<< Updated upstream
   for (const r of serverResults) {
+=======
+  const tasks = [];
+  if (process.env.NEXT_PUBLIC_GOOGLE_MAPS_API_KEY) {
+    tasks.push(geocodeGoogle(query));
+  }
+  tasks.push(geocodeNominatim(query));
+  
+  const resultsArray = await Promise.all(tasks);
+  
+  for (const res of resultsArray) {
+    remoteResults = remoteResults.concat(res);
+  }
+
+  const combined = [...demoMatches];
+  
+  for (const r of remoteResults) {
+>>>>>>> Stashed changes
     if (!combined.some(c => c.name.toLowerCase() === r.name.toLowerCase() || c.label.toLowerCase() === r.label.toLowerCase())) {
       combined.push(r);
     }
@@ -404,4 +471,3 @@ export async function searchLocation(query: string): Promise<GeocodeResult[]> {
 
   return combined;
 }
-

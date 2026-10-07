@@ -166,6 +166,25 @@ export default function UnifiedRoutePlanner({ initialMode = 'gps' }: UnifiedRout
     getRouteComparison(effectiveStartName, destName)
   );
 
+  // Automatically fetch live route from OSRM/ORS whenever coordinates or start/destination change
+  useEffect(() => {
+    let isMounted = true;
+    const fetchLiveRoute = async () => {
+      const sCoords = locationMode === 'gps' ? detectedCoordinates : startLocation?.coords;
+      const dCoords = destLocation?.coords;
+
+      if (sCoords && dCoords) {
+        const liveData = await getLiveRouteScenario(sCoords, dCoords);
+        if (liveData && isMounted) {
+          setScenarioData(liveData);
+        }
+      }
+    };
+
+    fetchLiveRoute();
+    return () => { isMounted = false; };
+  }, [locationMode, coordinates, startLocation, destLocation]);
+
   const { normal, accessible, geojsonNormal, geojsonAccessible, accessibleSteps, normalSteps } = scenarioData;
 
   // Use adapted steps if rerouted, otherwise fallback to accessibleSteps

@@ -4,42 +4,33 @@ import { KeyboardResize } from '@capacitor/keyboard';
 /**
  * Capacitor Configuration — PathFinder Access
  *
- * DEPLOYMENT MODES:
- * ─────────────────
- * A) PRODUCTION (recommended):
- *    Deploy your Next.js app to Vercel / Railway / any Node.js host.
- *    Set server.url to your deployed URL below.
- *    Run: npm run mobile:build && npx cap open android
+ * SERVER URL / LOADING MODES:
+ * ────────────────────────────
+ * 1. LOCAL ANDROID EMULATOR (default):
+ *    server.url: 'http://10.0.2.2:3000'
+ *    (10.0.2.2 is the special alias to your host PC localhost inside the Android emulator)
  *
- * B) LOCAL DEV (live reload on device):
- *    1. Find your machine's LAN IP (e.g. 192.168.1.100)
- *    2. Run: npm run dev
- *    3. Uncomment the server block below, set your LAN IP
- *    4. Run: npx cap sync && npx cap open android
- *    The device will load directly from your local Next.js dev server.
+ * 2. PHYSICAL DEVICE OVER WI-FI:
+ *    Find your computer's local Wi-Fi IP (run `ipconfig` in terminal, e.g. 192.168.1.50)
+ *    server.url: 'http://<YOUR_LOCAL_IP>:3000' (e.g. 'http://192.168.1.50:3000')
+ *    Make sure your phone and PC are connected to the same Wi-Fi network.
+ *
+ * 3. PRODUCTION DEPLOYMENT (Vercel / Cloud):
+ *    server.url: 'https://your-production-domain.vercel.app'
+ *    cleartext: false
  */
 
 const config: CapacitorConfig = {
-  appId: 'com.pixelmuse.pathfinderaccess',
+  appId: 'com.pathfinder.access',
   appName: 'PathFinder Access',
-  // webDir is used only for static exports (not applicable here).
-  // Capacitor requires it to exist even in server-URL mode.
   webDir: 'public',
 
-  // ── LOCAL DEV: live reload from Next.js dev server ──────────────────
-  // Android device/emulator loads directly from your local Next.js server.
-  // Make sure `npm run dev` is running before opening Android Studio.
   server: {
+    // Android emulator special localhost alias
     url: 'http://10.0.2.2:3000',
     cleartext: true,
+    androidScheme: 'https',
   },
-
-  // ── PRODUCTION: point to your deployed Next.js URL ───────────────────
-  // When ready to deploy, comment out the server block above and use this:
-  // server: {
-  //   url: 'https://your-app.vercel.app',
-  //   cleartext: false,
-  // },
 
   plugins: {
     SplashScreen: {

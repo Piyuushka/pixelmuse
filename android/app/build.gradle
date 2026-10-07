@@ -1,10 +1,10 @@
 apply plugin: 'com.android.application'
 
 android {
-    namespace = "com.pixelmuse.pathfinderaccess"
+    namespace = "com.pathfinder.access"
     compileSdk = rootProject.ext.compileSdkVersion
     defaultConfig {
-        applicationId "com.pixelmuse.pathfinderaccess"
+        applicationId "com.pathfinder.access"
         minSdkVersion rootProject.ext.minSdkVersion
         targetSdkVersion rootProject.ext.targetSdkVersion
         versionCode 1
@@ -19,7 +19,7 @@ android {
     buildTypes {
         release {
             minifyEnabled false
-            proguardFiles getDefaultProguardFile('proguard-android-optimize.txt'), 'proguard-rules.pro'
+            proguardFiles getDefaultProguardFile('proguard-android.txt'), 'proguard-rules.pro'
         }
     }
 }
@@ -39,20 +39,16 @@ dependencies {
     testImplementation "junit:junit:$junitVersion"
     androidTestImplementation "androidx.test.ext:junit:$androidxJunitVersion"
     androidTestImplementation "androidx.test.espresso:espresso-core:$androidxEspressoCoreVersion"
-    if (file('../capacitor-cordova-android-plugins').exists()) {
-        implementation project(':capacitor-cordova-android-plugins')
-    }
+    implementation project(':capacitor-cordova-android-plugins')
 }
 
-if (file('capacitor.build.gradle').exists()) {
-    apply from: 'capacitor.build.gradle'
-}
+apply from: 'capacitor.build.gradle'
 
 try {
     def servicesJSON = file('google-services.json')
     if (servicesJSON.text) {
         apply plugin: 'com.google.gms.google-services'
     }
-} catch(Exception ignored) {
+} catch(Exception e) {
     logger.info("google-services.json not found, google-services plugin not applied. Push Notifications won't work")
 }

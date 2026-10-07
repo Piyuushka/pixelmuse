@@ -1,10 +1,11 @@
 {
-	"appId": "com.pixelmuse.pathfinderaccess",
+	"appId": "com.pathfinder.access",
 	"appName": "PathFinder Access",
 	"webDir": "public",
 	"server": {
 		"url": "http://10.0.2.2:3000",
-		"cleartext": true
+		"cleartext": true,
+		"androidScheme": "https"
 	},
 	"plugins": {
 		"SplashScreen": {

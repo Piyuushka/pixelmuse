@@ -2,6 +2,6 @@
 <resources>
     <string name="app_name">PathFinder Access</string>
     <string name="title_activity_main">PathFinder Access</string>
-    <string name="package_name">com.pixelmuse.pathfinderaccess</string>
-    <string name="custom_url_scheme">com.pixelmuse.pathfinderaccess</string>
+    <string name="package_name">com.pathfinder.access</string>
+    <string name="custom_url_scheme">com.pathfinder.access</string>
 </resources>
