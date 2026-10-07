@@ -32,6 +32,19 @@ function CommunityConfidenceContent() {
   const searchParams = useSearchParams();
   const { barrierReports, addBarrierReport, upvoteReport, downvoteReport, resolveReport, speakText, activeHazardAlert } = useAccessibility();
 
+  // Relative time formatter
+  const timeAgo = (timestampMs: number): string => {
+    const diff = Date.now() - timestampMs;
+    const mins = Math.floor(diff / 60_000);
+    const hours = Math.floor(diff / 3_600_000);
+    const days = Math.floor(diff / 86_400_000);
+    if (mins < 1) return 'just now';
+    if (mins < 60) return `${mins} min ago`;
+    if (hours < 24) return `${hours}h ago`;
+    return `${days}d ago`;
+  };
+
+
   // View state: 'feed' (default) or 'reportForm'
   const [view, setView] = useState<'feed' | 'reportForm'>('feed');
 
@@ -375,13 +388,19 @@ function CommunityConfidenceContent() {
                         </span>
                         <span className="text-xs font-semibold text-on-surface-variant flex items-center gap-1">
                           <Clock className="w-3.5 h-3.5" aria-hidden="true" />
-                          {report.date}
+                          {report.reportedAt ? timeAgo(report.reportedAt) : report.date}
                         </span>
                       </div>
 
-                      <div className="flex items-center gap-1.5 text-xs font-bold text-secondary">
-                        <ShieldCheck className="w-4 h-4" aria-hidden="true" />
-                        <span>{report.status}</span>
+                      <div className="flex items-center gap-2">
+                        <span className="text-[11px] font-semibold text-on-surface-variant flex items-center gap-1">
+                          <svg className="w-3 h-3 text-secondary" fill="currentColor" viewBox="0 0 20 20" aria-hidden="true"><path fillRule="evenodd" d="M10 9a3 3 0 100-6 3 3 0 000 6zm-7 9a7 7 0 1114 0H3z" clipRule="evenodd" /></svg>
+                          {report.reportedBy || 'Community Navigator'}
+                        </span>
+                        <div className="flex items-center gap-1.5 text-xs font-bold text-secondary">
+                          <ShieldCheck className="w-4 h-4" aria-hidden="true" />
+                          <span>{report.status}</span>
+                        </div>
                       </div>
                     </div>
 

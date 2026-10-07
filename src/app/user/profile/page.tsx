@@ -28,8 +28,6 @@ export default function UserProfilePage() {
     speakText,
     isDarkMode,
     toggleDarkMode,
-    isHighContrast,
-    toggleHighContrast,
     isVoicePromptActive,
     toggleVoicePrompt,
     openOnboarding,
@@ -181,7 +179,7 @@ export default function UserProfilePage() {
             Quick Accessibility Toggles
           </h2>
 
-          <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
             <button
               type="button"
               onClick={toggleDarkMode}
@@ -192,18 +190,6 @@ export default function UserProfilePage() {
                 <span>Night Mode</span>
               </div>
               <span className="text-[10px] text-primary font-black uppercase">{isDarkMode ? 'ON' : 'OFF'}</span>
-            </button>
-
-            <button
-              type="button"
-              onClick={toggleHighContrast}
-              className="p-3.5 rounded-2xl bg-surface-container-low hover:bg-surface-container-high border border-outline-variant/30 flex items-center justify-between text-xs font-bold text-on-surface cursor-pointer"
-            >
-              <div className="flex items-center gap-2">
-                <ShieldCheck className="w-4 h-4 text-secondary" />
-                <span>High Contrast</span>
-              </div>
-              <span className="text-[10px] text-secondary font-black uppercase">{isHighContrast ? 'ON' : 'OFF'}</span>
             </button>
 
             <button

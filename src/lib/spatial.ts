@@ -98,6 +98,38 @@ export function isPointInBoundingBox(point: Coordinates, bbox: BoundingBox): boo
 }
 
 /**
+ * Calculates the shortest distance in meters from a point to a line segment.
+ * Uses a flat-earth approximation which is accurate enough for short distances (< 1km).
+ */
+export function pointToSegmentDistanceMeters(
+  point: Coordinates,
+  p1: Coordinates,
+  p2: Coordinates
+): number {
+  const x0 = point.lng;
+  const y0 = point.lat;
+  const x1 = p1.lng;
+  const y1 = p1.lat;
+  const x2 = p2.lng;
+  const y2 = p2.lat;
+
+  const dx = x2 - x1;
+  const dy = y2 - y1;
+
+  if (dx === 0 && dy === 0) {
+    return calculateHaversineDistance(point, p1);
+  }
+
+  const t = ((x0 - x1) * dx + (y0 - y1) * dy) / (dx * dx + dy * dy);
+  const tClamped = Math.max(0, Math.min(1, t));
+
+  const projX = x1 + tClamped * dx;
+  const projY = y1 + tClamped * dy;
+
+  return calculateHaversineDistance(point, { lat: projY, lng: projX });
+}
+
+/**
  * Determines if a barrier intersects with any segment of a route within a proximity threshold.
  */
 export function isBarrierOnRouteSegment(
@@ -109,14 +141,22 @@ export function isBarrierOnRouteSegment(
     const p1 = routeCoords[i];
     const p2 = routeCoords[i + 1];
 
-    const distToStart = calculateHaversineDistance(barrierCoord, p1);
-    const distToEnd = calculateHaversineDistance(barrierCoord, p2);
-
-    if (distToStart <= proximityMeters || distToEnd <= proximityMeters) {
+    if (pointToSegmentDistanceMeters(barrierCoord, p1, p2) <= proximityMeters) {
       return true;
     }
   }
   return false;
+}
+
+/**
+ * Determines if a given coordinate point is near ANY part of the provided polyline.
+ */
+export function isPointNearPolyline(
+  point: Coordinates,
+  polyline: Coordinates[],
+  toleranceMeters: number = 25
+): boolean {
+  return isBarrierOnRouteSegment(point, polyline, toleranceMeters);
 }
 
 /**

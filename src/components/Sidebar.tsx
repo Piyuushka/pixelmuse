@@ -13,7 +13,6 @@ import {
   AlertTriangle,
   PlusCircle,
   CheckCircle2,
-  Contrast,
   Volume2,
   VolumeX,
   Accessibility,
@@ -50,8 +49,6 @@ export default function Sidebar() {
   const {
     isDarkMode,
     toggleDarkMode,
-    isHighContrast,
-    toggleHighContrast,
     fontScale,
     setFontScale,
     isVoicePromptActive,
@@ -294,8 +291,8 @@ export default function Sidebar() {
           <span className="text-[10px] text-secondary font-bold">WCAG AAA</span>
         </div>
 
-        {/* Night Mode, Contrast & Voice Row */}
-        <div className="grid grid-cols-3 gap-1.5">
+        {/* Night Mode & Voice Row */}
+        <div className="grid grid-cols-2 gap-2">
           <button
             type="button"
             onClick={() => {
@@ -305,40 +302,27 @@ export default function Sidebar() {
             id="sidebar-night-mode-toggle"
             aria-label={`Toggle Theme Mode. Currently ${isDarkMode ? 'Night Mode' : 'Day Mode'}`}
             aria-pressed={isDarkMode}
-            className={`h-10 px-1.5 rounded-xl flex items-center justify-center gap-1 text-xs font-bold transition-all cursor-pointer ${
+            className={`h-10 px-2 rounded-xl flex items-center justify-center gap-1.5 text-xs font-bold transition-all cursor-pointer ${
               isDarkMode
                 ? 'bg-primary text-white shadow-sm ring-1 ring-primary/40'
                 : 'bg-surface-container-lowest hover:bg-surface-container-high text-on-surface border border-outline-variant/30'
             }`}
           >
             {isDarkMode ? <Moon className="w-3.5 h-3.5 text-white" /> : <Sun className="w-3.5 h-3.5 text-amber-500" />}
-            <span className="text-[11px]">{isDarkMode ? 'Night' : 'Day'}</span>
-          </button>
-
-          <button
-            type="button"
-            onClick={toggleHighContrast}
-            className={`h-10 px-1.5 rounded-xl flex items-center justify-center gap-1 text-xs font-bold transition-all cursor-pointer ${
-              isHighContrast
-                ? 'bg-secondary text-on-secondary shadow-sm'
-                : 'bg-surface-container-lowest hover:bg-surface-container-high text-on-surface border border-outline-variant/30'
-            }`}
-          >
-            <Contrast className="w-3.5 h-3.5" />
-            <span className="text-[11px]">Contrast</span>
+            <span className="text-xs">{isDarkMode ? 'Night' : 'Day'}</span>
           </button>
 
           <button
             type="button"
             onClick={toggleVoicePrompt}
-            className={`h-10 px-1.5 rounded-xl flex items-center justify-center gap-1 text-xs font-bold transition-all cursor-pointer ${
+            className={`h-10 px-2 rounded-xl flex items-center justify-center gap-1.5 text-xs font-bold transition-all cursor-pointer ${
               isVoicePromptActive
                 ? 'bg-secondary text-on-secondary shadow-sm'
                 : 'bg-surface-container-lowest hover:bg-surface-container-high text-on-surface border border-outline-variant/30'
             }`}
           >
             {isVoicePromptActive ? <Volume2 className="w-3.5 h-3.5 animate-pulse" /> : <VolumeX className="w-3.5 h-3.5" />}
-            <span className="text-[11px]">Voice</span>
+            <span className="text-xs">Voice</span>
           </button>
         </div>
 

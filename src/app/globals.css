@@ -174,15 +174,41 @@ body, .font-body, .font-label {
   transition: background-color 0.2s ease, color 0.2s ease;
 }
 
-/* Font Scale Utilities */
+/* Font Scale Utilities (WCAG Compliant Dynamic Text Resizing) */
+:root,
+html {
+  font-size: 100%;
+}
+
+:root[data-font-scale="sm"],
+html[data-font-scale="sm"],
+html.font-scale-sm,
+body.font-scale-sm {
+  font-size: 87.5%; /* Compact (14px baseline) */
+}
+
+:root[data-font-scale="md"],
+html[data-font-scale="md"],
+html.font-scale-md,
+body.font-scale-md {
+  font-size: 100%; /* Standard (16px baseline) */
+}
+
+:root[data-font-scale="lg"],
+html[data-font-scale="lg"],
+html.font-scale-lg,
+body.font-scale-lg {
+  font-size: 120%; /* Large / High Legibility (19.2px baseline) */
+}
+
 .font-scale-sm {
-  font-size: 92%;
+  font-size: 87.5%;
 }
 .font-scale-md {
   font-size: 100%;
 }
 .font-scale-lg {
-  font-size: 115%;
+  font-size: 120%;
 }
 
 /* Custom Scrollbar for Accessibility */

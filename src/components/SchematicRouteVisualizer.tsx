@@ -60,13 +60,13 @@ export default function SchematicRouteVisualizer({
         <div className="flex items-center gap-2">
           <Compass className="w-5 h-5 text-primary" />
           <h2 className="text-lg font-black text-on-surface">
-            Schematic Route Path Visualizer
+            Detailed Step-by-Step Breakdown
           </h2>
         </div>
 
         <div className="flex items-center gap-2">
           <span className="text-[11px] font-bold tracking-wider uppercase px-3 py-1 rounded-full bg-surface-container border border-outline-variant/40 text-on-surface-variant">
-            Schematic route — not to scale
+            Schematic Timeline — Detailed Steps
           </span>
 
           {onViewChange && (

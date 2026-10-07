@@ -287,7 +287,7 @@
     "email": "akankshaingale@gmail.com",
     "passwordHash": "8d969eef6ecad3c29a3a629280e686cf0c3f5d5a86aff3ca12020c923adc6c92",
     "role": "user",
-    "pairingCode": "491-500",
+    "pairingCode": "292-525",
     "linkedParentEmail": null,
     "linkedChildrenEmails": [],
     "hasCompletedProfile": true,
@@ -302,7 +302,8 @@
       "avoidStairs": true,
       "needTactilePaving": false,
       "needAudioPrompts": true,
-      "maxWalkingDistanceMeters": 1000
+      "maxWalkingDistanceMeters": 1000,
+      "fontScale": "md"
     },
     "emergencyContacts": [],
     "privacyConsent": {
@@ -322,8 +323,8 @@
     "guardianLinks": [],
     "trips": [],
     "createdAt": "2026-10-04T05:32:26.036Z",
-    "updatedAt": "2026-10-04T05:32:41.424Z",
-    "pairingCodeExpiresAt": "2026-10-06T10:18:46.533Z",
+    "updatedAt": "2026-10-06T15:57:46.474Z",
+    "pairingCodeExpiresAt": "2026-10-06T16:05:32.974Z",
     "onboarding_complete": true,
     "alertPreferences": {
       "push": true,
@@ -1405,5 +1406,129 @@
     "createdAt": "2026-10-06T12:18:05.909Z",
     "updatedAt": "2026-10-06T12:22:19.267Z",
     "pairingCodeExpiresAt": "2026-10-06T12:28:06.384Z"
+  },
+  {
+    "id": "usr_1791294508705_oc1z1",
+    "name": "Aastha",
+    "email": "yadav.ramprakash1969@gmail.com",
+    "passwordHash": "bbce28e22d1a3ecfa04286808bf93823c7adb0ba6589d20ce1fcbd6e5696b6ca",
+    "role": "user",
+    "pairingCode": "751218",
+    "linkedParentEmail": null,
+    "linkedChildrenEmails": [],
+    "hasCompletedProfile": true,
+    "onboarding_complete": true,
+    "phone": "",
+    "relationship": "",
+    "preferredLanguage": "en",
+    "alertPreferences": {
+      "push": true,
+      "sms": true,
+      "email": true
+    },
+    "photoUrl": "",
+    "accessibilityPreferences": {
+      "primaryPersona": "wheelchair",
+      "mobilityType": "electric-wheelchair",
+      "requireStepFree": true,
+      "maxSlopePercent": 5,
+      "preferLowerSlopes": true,
+      "preferReducedDistance": true,
+      "preferSaferCrossings": true,
+      "avoidStairs": true,
+      "needTactilePaving": false,
+      "needAudioPrompts": true,
+      "maxWalkingDistanceMeters": 1000
+    },
+    "emergencyContacts": [
+      {
+        "id": "ec_init_1",
+        "name": "Assdd23346",
+        "phone": "5455445",
+        "relationship": "Parent / Primary Guardian",
+        "notifyOnSOS": true
+      }
+    ],
+    "privacyConsent": {
+      "allowRealtimeLocation": true,
+      "allowTripHistory": true,
+      "allowAlerts": true
+    },
+    "privacySettings": {
+      "allowRealtimeLocation": true,
+      "allowTripHistory": true,
+      "allowAlerts": true,
+      "shareAccessibilityPreferences": true
+    },
+    "activeTrip": null,
+    "tripHistory": [],
+    "parentAlerts": [],
+    "guardianLinks": [],
+    "trips": [],
+    "createdAt": "2026-10-06T13:48:28.705Z",
+    "updatedAt": "2026-10-06T13:48:53.684Z",
+    "pairingCodeExpiresAt": "2026-10-06T13:58:30.987Z"
+  },
+  {
+    "id": "usr_1791299258148_lg0r5",
+    "name": "Aastha",
+    "email": "aastha@123",
+    "passwordHash": "653154bb7e876e710cac3817edd967ef44f76213f698d1bd2be374419cc93c81",
+    "role": "user",
+    "pairingCode": "942383",
+    "linkedParentEmail": null,
+    "linkedChildrenEmails": [],
+    "hasCompletedProfile": true,
+    "onboarding_complete": true,
+    "phone": "",
+    "relationship": "",
+    "preferredLanguage": "en",
+    "alertPreferences": {
+      "push": true,
+      "sms": true,
+      "email": true
+    },
+    "photoUrl": "",
+    "accessibilityPreferences": {
+      "primaryPersona": "low-vision",
+      "mobilityType": "electric-wheelchair",
+      "requireStepFree": true,
+      "maxSlopePercent": 5,
+      "preferLowerSlopes": true,
+      "preferReducedDistance": true,
+      "preferSaferCrossings": true,
+      "avoidStairs": true,
+      "needTactilePaving": false,
+      "needAudioPrompts": true,
+      "maxWalkingDistanceMeters": 1000
+    },
+    "emergencyContacts": [
+      {
+        "id": "ec_init_1",
+        "name": "Pranjall devmane",
+        "phone": "7183183284393",
+        "relationship": "Parent / Primary Guardian",
+        "notifyOnSOS": true
+      }
+    ],
+    "privacyConsent": {
+      "allowRealtimeLocation": true,
+      "allowTripHistory": true,
+      "allowAlerts": true
+    },
+    "privacySettings": {
+      "allowRealtimeLocation": true,
+      "allowTripHistory": true,
+      "allowAlerts": true,
+      "shareAccessibilityPreferences": true
+    },
+    "activeTrip": null,
+    "tripHistory": [],
+    "parentAlerts": [],
+    "guardianLinks": [],
+    "trips": [],
+    "createdAt": "2026-10-06T15:07:38.148Z",
+    "updatedAt": "2026-10-06T15:07:58.991Z",
+    "pairingCodeExpiresAt": "2026-10-06T15:17:38.946Z"
   }
 ]

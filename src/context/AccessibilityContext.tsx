@@ -117,6 +117,7 @@ export interface AccessibilityPreferences {
   needTactilePaving: boolean;
   needAudioPrompts: boolean;
   maxWalkingDistanceMeters: number;
+  fontScale?: FontScale;
 }
 
 export interface BarrierReport extends IndianBarrierReport {}
@@ -251,6 +252,7 @@ const DEFAULT_PREFERENCES: AccessibilityPreferences = {
   needTactilePaving: false,
   needAudioPrompts: true,
   maxWalkingDistanceMeters: 1000,
+  fontScale: 'md',
 };
 
 const AccessibilityContext = createContext<AccessibilityContextType | undefined>(undefined);
@@ -262,13 +264,20 @@ export function AccessibilityProvider({ children }: { children: React.ReactNode 
 
   const [isDarkMode, setIsDarkMode] = useState<boolean>(false);
   const [isHighContrast, setIsHighContrast] = useState(false);
-  const [fontScale, setFontScale] = useState<FontScale>('md');
+  const [fontScale, setFontScaleState] = useState<FontScale>('md');
   const [isVoicePromptActive, setIsVoicePromptActive] = useState(false);
   const [persona, setPersona] = useState<PersonaType>('wheelchair');
 
-  // Load theme preference from localStorage or system on mount
+  // Load fontScale and theme preference from localStorage on mount
   useEffect(() => {
     if (typeof window === 'undefined') return;
+    try {
+      const savedScale = localStorage.getItem('pathfinder_font_scale');
+      if (savedScale === 'sm' || savedScale === 'md' || savedScale === 'lg') {
+        setFontScaleState(savedScale);
+      }
+    } catch (e) {}
+
     try {
       const savedTheme = localStorage.getItem('pathfinder_theme') || localStorage.getItem('theme');
       if (savedTheme) {
@@ -283,6 +292,68 @@ export function AccessibilityProvider({ children }: { children: React.ReactNode 
       console.error('Failed to load theme preference:', e);
     }
   }, []);
+
+  // Synchronize document <html>, <body> font-scale attributes, classes, and root font-size
+  useEffect(() => {
+    if (typeof window === 'undefined') return;
+    const root = document.documentElement;
+    const body = document.body;
+
+    root.classList.remove('font-scale-sm', 'font-scale-md', 'font-scale-lg');
+    root.classList.add(`font-scale-${fontScale}`);
+    root.setAttribute('data-font-scale', fontScale);
+
+    if (fontScale === 'sm') {
+      root.style.fontSize = '87.5%';
+    } else if (fontScale === 'lg') {
+      root.style.fontSize = '120%';
+    } else {
+      root.style.fontSize = '100%';
+    }
+
+    body.classList.remove('font-scale-sm', 'font-scale-md', 'font-scale-lg');
+    body.classList.add(`font-scale-${fontScale}`);
+    body.setAttribute('data-font-scale', fontScale);
+
+    try {
+      localStorage.setItem('pathfinder_font_scale', fontScale);
+    } catch (e) {}
+  }, [fontScale]);
+
+  // Unified fontScale setter that updates state, localStorage, and DB backend
+  const setFontScale = useCallback((scale: FontScale) => {
+    setFontScaleState(scale);
+    try {
+      localStorage.setItem('pathfinder_font_scale', scale);
+    } catch (e) {}
+
+    // Update accessibilityPreferences state & localStorage
+    setAccessibilityPreferences(prev => {
+      const next = { ...prev, fontScale: scale };
+      try {
+        localStorage.setItem('pathfinder_preferences', JSON.stringify(next));
+      } catch (e) {}
+      return next;
+    });
+
+    // Sync to backend user profile in database
+    try {
+      const savedUser = typeof window !== 'undefined' ? localStorage.getItem('pathfinder_user') : null;
+      const targetEmail = user?.email || (savedUser ? JSON.parse(savedUser)?.email : null);
+      if (targetEmail) {
+        fetch('/api/user/profile', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            email: targetEmail,
+            preferences: { fontScale: scale },
+          }),
+        }).catch(err => {
+          console.warn('Backend sync of text size preference failed:', err);
+        });
+      }
+    } catch (e) {}
+  }, [user?.email]);
 
   // Synchronize document <html>, <body> classes, attributes, color-scheme, and localStorage
   useEffect(() => {
@@ -339,6 +410,12 @@ export function AccessibilityProvider({ children }: { children: React.ReactNode 
                 setUser(freshUser);
                 if (data.user.accessibilityPreferences) {
                   setAccessibilityPreferences(data.user.accessibilityPreferences);
+                  if (data.user.accessibilityPreferences.fontScale) {
+                    setFontScaleState(data.user.accessibilityPreferences.fontScale);
+                    try {
+                      localStorage.setItem('pathfinder_font_scale', data.user.accessibilityPreferences.fontScale);
+                    } catch (e) {}
+                  }
                   if (data.user.accessibilityPreferences.primaryPersona) {
                     setPersona(data.user.accessibilityPreferences.primaryPersona);
                   }
@@ -384,6 +461,12 @@ export function AccessibilityProvider({ children }: { children: React.ReactNode 
     setUser(dbUser);
     if (data.user.accessibilityPreferences) {
       setAccessibilityPreferences(data.user.accessibilityPreferences);
+      if (data.user.accessibilityPreferences.fontScale) {
+        setFontScaleState(data.user.accessibilityPreferences.fontScale);
+        try {
+          localStorage.setItem('pathfinder_font_scale', data.user.accessibilityPreferences.fontScale);
+        } catch (e) {}
+      }
       if (data.user.accessibilityPreferences.primaryPersona) {
         setPersona(data.user.accessibilityPreferences.primaryPersona);
       }
@@ -475,6 +558,12 @@ export function AccessibilityProvider({ children }: { children: React.ReactNode 
     setUser(updatedUser);
     if (data.user.accessibilityPreferences) {
       setAccessibilityPreferences(data.user.accessibilityPreferences);
+      if (data.user.accessibilityPreferences.fontScale) {
+        setFontScaleState(data.user.accessibilityPreferences.fontScale);
+        try {
+          localStorage.setItem('pathfinder_font_scale', data.user.accessibilityPreferences.fontScale);
+        } catch (e) {}
+      }
       if (data.user.accessibilityPreferences.primaryPersona) {
         setPersona(data.user.accessibilityPreferences.primaryPersona);
       }

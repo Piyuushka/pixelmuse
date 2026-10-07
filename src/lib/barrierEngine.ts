@@ -15,6 +15,8 @@ export interface IndianBarrierReport {
   votes: number;
   downvotes: number;
   date: string;
+  reportedAt: number; // Unix timestamp ms — for relative time display
+  reportedBy: string;  // Source attribution label
   createdAt: number; // Unix timestamp ms
   expiresAt: number; // Unix timestamp ms
   ttlSeconds: number;
@@ -109,6 +111,8 @@ export function createBarrierReport(input: {
     votes: 1,
     downvotes: 0,
     date: 'Just now',
+    reportedAt: now,
+    reportedBy: 'Community Navigator',
     createdAt: now,
     expiresAt: now + ttl * 1000,
     ttlSeconds: ttl,

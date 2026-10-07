@@ -184,7 +184,7 @@ export default function LoginPage() {
   };
 
   return (
-    <div className="w-full min-h-screen bg-surface text-on-surface flex flex-col items-center justify-center p-4 md:p-8">
+    <div className="w-full min-h-screen bg-surface text-on-surface flex flex-col items-center justify-center p-4 md:p-8 pb-32 md:pb-40">
       {/* Brand Header */}
       <div className="flex flex-col items-center gap-2 mb-8 text-center">
         <Logo size={64} className="mb-1 hover:scale-105" />

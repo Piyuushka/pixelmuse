@@ -6,8 +6,8 @@ import { useSearchParams } from 'next/navigation';
 import { useAccessibility } from '@/context/AccessibilityContext';
 import { useGeolocation } from '@/hooks/useGeolocation';
 import LiveMapWrapper from '@/components/LiveMapWrapper';
-import InteractiveMap from '@/components/InteractiveMap';
 import SchematicRouteVisualizer from '@/components/SchematicRouteVisualizer';
+import InteractiveMap from '@/components/InteractiveMap';
 import PersonalizedProfileBanner from '@/components/PersonalizedProfileBanner';
 import {
   DEMO_LOCATIONS,
@@ -15,7 +15,8 @@ import {
   getRouteComparison,
   RouteScenarioData
 } from '@/data/routeSimulatorData';
-import { getLiveRouteScenario, searchLocation } from '@/lib/orsClient';
+import { getLiveRouteScenario, searchLocation, reverseGeocode, getPlaceDetails } from '@/lib/orsClient';
+import { calculateHaversineDistance, isPointNearPolyline, decodePolyline } from '@/lib/spatial';
 import {
   cleanStepInstruction,
   getConciseDestinationName,
@@ -51,7 +52,8 @@ import {
   ChevronRight,
   Clock,
   Building,
-  X
+  X,
+  AlertTriangle
 } from 'lucide-react';
 
 interface UnifiedRoutePlannerProps {
@@ -67,7 +69,7 @@ export default function UnifiedRoutePlanner({ initialMode = 'gps' }: UnifiedRout
   const urlAutonav = searchParams?.get('autonav') === '1' || searchParams?.get('autonav') === 'true';
   const urlReroute = searchParams?.get('reroute') === 'active' || Boolean(searchParams?.get('reportId'));
 
-  const isRerouteActive = Boolean(urlReroute || (activeHazardAlert?.active && activeHazardAlert?.rerouteResult));
+  const isRerouteActive = Boolean(urlReroute);
   const [routeUpdateToast, setRouteUpdateToast] = useState<string | null>(null);
 
   // Resolve initial destination from query param if provided
@@ -84,19 +86,23 @@ export default function UnifiedRoutePlanner({ initialMode = 'gps' }: UnifiedRout
   // GPS Precision state
   const [simulatedAccuracy, setSimulatedAccuracy] = useState<number | null>(null);
   const [isRefreshingGps, setIsRefreshingGps] = useState<boolean>(false);
-  
+
   const [resolvedGpsName, setResolvedGpsName] = useState<string>('Live Position');
-  
+
   useEffect(() => {
+    let mounted = true;
     if (coordinates) {
-      // simple reverse lookup simulation for demo, or actual call
-      const isDombivli = Math.abs(coordinates.lat - 19.217) < 0.01;
-      setResolvedGpsName(isDombivli ? 'Sarvoday Swaroop, Dombivli' : 'Live GPS Location');
+      reverseGeocode(coordinates.lat, coordinates.lng).then(address => {
+        if (mounted) {
+          setResolvedGpsName(address);
+        }
+      });
     }
+    return () => { mounted = false; };
   }, [coordinates]);
 
-  const detectedLocationName = error ? 'Location Unavailable' : (coordinates ? resolvedGpsName : 'Acquiring GPS...');
-  const detectedCoordinates = coordinates || { lat: 19.2185528, lng: 73.0770473 }; // Fallback to Sarvoday Swaroop, Dombivli
+  const detectedLocationName = coordinates ? resolvedGpsName : 'Dadar Railway Station';
+  const detectedCoordinates = coordinates || { lat: 19.0178, lng: 72.8430 }; // Fallback to Dadar Railway Station
   const gpsAccuracyMeters = simulatedAccuracy !== null ? simulatedAccuracy : (accuracy ? Math.round(accuracy) : 0.5);
 
   // Route Setup state
@@ -104,11 +110,11 @@ export default function UnifiedRoutePlanner({ initialMode = 'gps' }: UnifiedRout
   const defaultDest = matchedDest
     ? { name: matchedDest.name, coords: { lat: matchedDest.lat!, lng: matchedDest.lng! } }
     : { name: initialDest, coords: { lat: 19.0222, lng: 72.8365 } };
-  
-  const [startLocation, setStartLocation] = useState<{name: string, coords: any} | null>(
+
+  const [startLocation, setStartLocation] = useState<{ name: string, coords: any, placeId?: string } | null>(
     defaultStart ? { name: defaultStart.name, coords: { lat: defaultStart.lat!, lng: defaultStart.lng! } } : null
   );
-  const [destLocation, setDestLocation] = useState<{name: string, coords: any} | null>(
+  const [destLocation, setDestLocation] = useState<{ name: string, coords: any, placeId?: string } | null>(
     defaultDest
   );
 
@@ -131,6 +137,8 @@ export default function UnifiedRoutePlanner({ initialMode = 'gps' }: UnifiedRout
     }
   }, [isRerouteActive, urlAutonav]);
 
+
+
   // Animation and calculation states
   const [isComparing, setIsComparing] = useState<boolean>(false);
   const [hasCompared, setHasCompared] = useState<boolean>(true);
@@ -139,7 +147,10 @@ export default function UnifiedRoutePlanner({ initialMode = 'gps' }: UnifiedRout
 
   // Navigation State
   const [isNavigating, setIsNavigating] = useState<boolean>(false);
+  const [isRecalculating, setIsRecalculating] = useState<boolean>(false);
   const [currentStepIndex, setCurrentStepIndex] = useState<number>(0);
+
+
 
   // Section references for smooth scrolling
   const routeSetupRef = useRef<HTMLDivElement>(null);
@@ -168,17 +179,125 @@ export default function UnifiedRoutePlanner({ initialMode = 'gps' }: UnifiedRout
 
   const effectiveOriginalRouteGeojson = isRerouteActive
     ? (originalRoute || activeHazardAlert?.rerouteResult?.originalRoute || geojsonNormal)
-    : undefined;
+    : ((scenarioData as any)?.originalRouteGeojson || undefined);
 
   const barrierLocation = isRerouteActive
     ? {
-        lat: activeHazardAlert?.rerouteResult?.blockedCoords?.lat || 19.0220,
-        lng: activeHazardAlert?.rerouteResult?.blockedCoords?.lng || 72.8400,
-        title: activeHazardAlert?.title || 'Reported Hazard',
-      }
+      lat: activeHazardAlert?.rerouteResult?.blockedCoords?.lat || 19.0220,
+      lng: activeHazardAlert?.rerouteResult?.blockedCoords?.lng || 72.8400,
+      title: activeHazardAlert?.title || 'Reported Hazard',
+    }
     : undefined;
 
   const benchmarkKeys = Object.keys(BENCHMARK_SCENARIOS);
+
+  // Real GPS Tracking Logic
+  useEffect(() => {
+    if (isNavigating && coordinates && scenarioData?.accessibleSteps && !isRecalculating) {
+      
+      // Step 7: Off-Route Detection
+      if (scenarioData.encodedPolyline) {
+        const polylineCoords = decodePolyline(scenarioData.encodedPolyline);
+        const isOnRoute = isPointNearPolyline(coordinates, polylineCoords, 25); // 25 meter tolerance
+        
+        if (!isOnRoute) {
+          setIsRecalculating(true);
+          speakText("You are off route. Recalculating...");
+          
+          const reqBody = {
+            origin: coordinates,
+            destination: destLocation?.placeId ? { placeId: destLocation.placeId } : (destLocation?.coords || destName),
+            mobility_profile: persona || 'wheelchair',
+            languageCode: 'en-IN'
+          };
+
+          fetch('/api/navigation/route', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify(reqBody)
+          })
+          .then(res => res.json())
+          .then(routeData => {
+            if (routeData.routes && routeData.routes.length > 0) {
+              const mainRoute = routeData.routes[0];
+              const mappedSteps = mainRoute.steps.map((s: any, idx: number) => {
+                const stripped = s.instruction.replace(/<[^>]+>/g, '');
+                const stepCount = Math.round(s.distance_m / 0.75);
+                let actionPrefix = '';
+                if (s.maneuver) {
+                  if (s.maneuver.includes('LEFT')) actionPrefix = 'Turn left. ';
+                  else if (s.maneuver.includes('RIGHT')) actionPrefix = 'Turn right. ';
+                }
+                
+                return {
+                  id: `step-${idx}`,
+                  title: `${actionPrefix}${stripped}. Walk straight for roughly ${stepCount} steps.`,
+                  detail: `${s.distance_m}m • ${stepCount} steps`,
+                  distance: s.distance_m,
+                  location: s.end,
+                  type: 'smooth_footpath'
+                };
+              });
+
+              const newAccessibleData = {
+                distance: mainRoute.distance_m / 1000,
+                time: Math.round(mainRoute.duration_s / 60),
+                safety: 98,
+                surface: 95
+              };
+
+              setScenarioData(prev => ({
+                ...prev,
+                accessible: newAccessibleData,
+                accessibleSteps: mappedSteps,
+                encodedPolyline: mainRoute.polyline?.encodedPolyline
+              }));
+              setCurrentStepIndex(0);
+              speakText(`Route updated. ${cleanStepInstruction(mappedSteps[0].title || mappedSteps[0].detail, getConciseDestinationName(destName))}`);
+            }
+          })
+          .catch(e => console.error("Recalculation failed", e))
+          .finally(() => {
+            setIsRecalculating(false);
+          });
+
+          return; // Do not process step advancement if we are recalculating
+        }
+      }
+
+      const steps = scenarioData.accessibleSteps;
+      if (currentStepIndex < steps.length - 1) {
+        const currentStep = steps[currentStepIndex];
+        if (currentStep.location) {
+          const dist = calculateHaversineDistance(
+            { lat: coordinates.lat, lng: coordinates.lng },
+            { lat: currentStep.location.lat, lng: currentStep.location.lng }
+          );
+          if (dist < 15) {
+            // We have reached the waypoint, advance
+            const nextIdx = currentStepIndex + 1;
+            setCurrentStepIndex(nextIdx);
+            const nextStep = steps[nextIdx];
+            const conciseDest = getConciseDestinationName(destName);
+            speakText(`Step ${nextIdx + 1} of ${steps.length}: ${cleanStepInstruction(nextStep.title, conciseDest)}`);
+          }
+        }
+      } else {
+        // Last step - check if arrived
+        const currentStep = steps[currentStepIndex];
+        if (currentStep.location) {
+          const dist = calculateHaversineDistance(
+            { lat: coordinates.lat, lng: coordinates.lng },
+            { lat: currentStep.location.lat, lng: currentStep.location.lng }
+          );
+          if (dist < 15) {
+            setIsNavigating(false);
+            speakText(`You have arrived safely at ${getConciseDestinationName(destName)}.`);
+          }
+        }
+      }
+    }
+  }, [coordinates, isNavigating, scenarioData, currentStepIndex, destName, speakText, isRecalculating, persona, destLocation]);
 
   // Handlers
   const handleUseGpsLocation = () => {
@@ -208,39 +327,138 @@ export default function UnifiedRoutePlanner({ initialMode = 'gps' }: UnifiedRout
 
   const handleCompare = async () => {
     setIsComparing(true);
-    
-    let targetDestCoords = destLocation?.coords;
-    let targetDestName = destName;
 
-    // 1. Geocode searchDestination text via searchLocation if coordinates are missing
-    if (!targetDestCoords && destName) {
-      const results = await searchLocation(destName);
+    let targetDestCoords = destLocation?.coords;
+    let targetDestName = destLocation?.name || destName;
+    let targetPlaceId = destLocation?.placeId;
+
+    // 1. Resolve destination coordinates via placeId or searchLocation if missing or zero
+    if ((!targetDestCoords || (targetDestCoords.lat === 0 && targetDestCoords.lng === 0)) && targetPlaceId) {
+      const details = await getPlaceDetails(targetPlaceId);
+      if (details) {
+        targetDestCoords = details;
+        setDestLocation(prev => ({ name: prev?.name || targetDestName, coords: details, placeId: targetPlaceId }));
+      }
+    }
+
+    if ((!targetDestCoords || (targetDestCoords.lat === 0 && targetDestCoords.lng === 0)) && targetDestName) {
+      const results = await searchLocation(targetDestName);
       if (results && results.length > 0) {
-        const nomResult = results[0];
-        targetDestCoords = nomResult.coordinates;
-        targetDestName = nomResult.name;
-        setDestLocation({ name: nomResult.name, coords: nomResult.coordinates });
+        const best = results[0];
+        let coords = best.coordinates;
+        if ((!coords || (coords.lat === 0 && coords.lng === 0)) && best.placeId) {
+          const details = await getPlaceDetails(best.placeId);
+          if (details) coords = details;
+        }
+        if (coords && (coords.lat !== 0 || coords.lng !== 0)) {
+          targetDestCoords = coords;
+          targetDestName = best.name;
+          targetPlaceId = best.placeId;
+          setDestLocation({ name: best.name, coords, placeId: best.placeId });
+        }
       }
     }
 
     const mockData = getRouteComparison(effectiveStartName, targetDestName);
-    
+
     const sCoords = locationMode === 'gps' ? detectedCoordinates : startLocation?.coords;
 
-    // 2. Fetch Dynamic Route via OpenRouteService (with Nominatim geocoded coordinates)
-    if (sCoords && targetDestCoords) {
-      const liveData = await getLiveRouteScenario(sCoords, targetDestCoords);
-      if (liveData) {
-        setScenarioData(liveData);
-      } else {
-        setScenarioData(mockData);
+    let finalScenarioData: any = mockData;
+    if (sCoords && (targetDestCoords || targetPlaceId)) {
+      try {
+        const hasValidCoords = targetDestCoords && (targetDestCoords.lat !== 0 || targetDestCoords.lng !== 0);
+        const destinationPayload = hasValidCoords
+          ? { lat: targetDestCoords.lat, lng: targetDestCoords.lng, ...(targetPlaceId ? { placeId: targetPlaceId } : {}) }
+          : { placeId: targetPlaceId };
+
+        const reqBody = {
+          origin: sCoords,
+          destination: destinationPayload,
+          mobility_profile: persona || 'wheelchair',
+          languageCode: 'en-IN'
+        };
+
+        const res = await fetch('/api/navigation/route', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify(reqBody)
+        });
+
+        if (res.ok) {
+          const routeData = await res.json();
+          if (routeData.routes && routeData.routes.length > 0) {
+            const accessibleRoute = routeData.routes[0];
+            const normalRoute = routeData.routes.length > 1 ? routeData.routes[1] : routeData.routes[0];
+
+            // Update destination coordinates with exact location returned by Google
+            const resolvedEndLoc = accessibleRoute.destinationLocation || routeData.destinationLocation;
+            if (resolvedEndLoc && resolvedEndLoc.lat && resolvedEndLoc.lng) {
+              setDestLocation(prev => ({
+                name: prev?.name || targetDestName,
+                coords: resolvedEndLoc,
+                placeId: prev?.placeId || targetPlaceId
+              }));
+            }
+            
+            // Map the Google Route into our schema
+            const mapRouteSteps = (route: any) => route.steps.map((s: any, idx: number) => {
+              const stripped = s.instruction.replace(/<[^>]+>/g, '');
+              const stepCount = Math.round(s.distance_m / 0.75);
+              let actionPrefix = '';
+              if (s.maneuver) {
+                if (s.maneuver.includes('LEFT')) actionPrefix = 'Turn left. ';
+                else if (s.maneuver.includes('RIGHT')) actionPrefix = 'Turn right. ';
+              }
+
+              return {
+                id: `step-${idx}`,
+                title: `${actionPrefix}${stripped}. Walk straight for roughly ${stepCount} steps.`,
+                detail: `${s.distance_m}m • ${stepCount} steps`,
+                distance: s.distance_m,
+                location: s.end,
+                type: 'smooth_footpath'
+              };
+            });
+
+            const accessibleMappedSteps = mapRouteSteps(accessibleRoute);
+            const normalMappedSteps = mapRouteSteps(normalRoute);
+
+            finalScenarioData = {
+              normal: {
+                distance: Number((normalRoute.distance_m / 1000).toFixed(2)),
+                time: Math.round(normalRoute.duration_s / 60),
+                stairs: normalRoute === accessibleRoute ? 0 : 2, // Dummy difference if they are different
+                maxSlope: normalRoute === accessibleRoute ? 4 : 8,
+                barriers: normalRoute === accessibleRoute ? 0 : 1,
+                unsafeCrossings: 0
+              },
+              accessible: {
+                distance: Number((accessibleRoute.distance_m / 1000).toFixed(2)),
+                time: Math.round(accessibleRoute.duration_s / 60),
+                stairs: 0,
+                maxSlope: 4,
+                barriers: 0,
+                unsafeCrossings: 0
+              },
+              normalSteps: normalMappedSteps,
+              accessibleSteps: accessibleMappedSteps,
+              geojsonNormal: null,
+              geojsonAccessible: null,
+              encodedPolyline: accessibleRoute.encodedPolyline,
+              originalRouteGeojson: normalRoute.encodedPolyline, // Store the normal route polyline to display side-by-side
+              summaryText: accessibleRoute.warnings?.join(' ') || 'Route generated by Google Maps'
+            };
+          }
+        }
+      } catch (err) {
+        console.error("Route calculation error", err);
       }
-    } else {
-      setScenarioData(mockData);
     }
 
+    setScenarioData(finalScenarioData as any);
+
     speakText(`Calculating route from ${effectiveStartName} to ${targetDestName}.`);
-    
+
     setIsComparing(false);
     setHasCompared(true);
     setIsNavigating(false);
@@ -303,8 +521,8 @@ export default function UnifiedRoutePlanner({ initialMode = 'gps' }: UnifiedRout
         cue: s.title.toLowerCase().includes('left')
           ? 'left_turn'
           : s.title.toLowerCase().includes('right')
-          ? 'right_turn'
-          : 'confirm',
+            ? 'right_turn'
+            : 'confirm',
       }));
 
       const session = createNavigationSession({
@@ -409,13 +627,14 @@ export default function UnifiedRoutePlanner({ initialMode = 'gps' }: UnifiedRout
   };
 
   const handleSimulateWalk = () => {
+    // Legacy function to manually advance steps for testing if GPS is unavailable
     const conciseDest = getConciseDestinationName(destName);
-    if (accessibleSteps && currentStepIndex < accessibleSteps.length - 1) {
+    if (scenarioData?.accessibleSteps && currentStepIndex < scenarioData.accessibleSteps.length - 1) {
       const nextIdx = currentStepIndex + 1;
       setCurrentStepIndex(nextIdx);
-      const step = accessibleSteps[nextIdx];
-      const stepText = cleanStepInstruction(step.detail || step.title, conciseDest);
-      speakText(`Step ${nextIdx + 1} of ${accessibleSteps.length}: ${stepText}`);
+      const step = scenarioData.accessibleSteps[nextIdx];
+      const stepText = cleanStepInstruction(step.title, conciseDest);
+      speakText(`Step ${nextIdx + 1} of ${scenarioData.accessibleSteps.length}: ${stepText}`);
     } else {
       speakText(`You have arrived safely at ${conciseDest}.`);
       setIsNavigating(false);
@@ -424,13 +643,13 @@ export default function UnifiedRoutePlanner({ initialMode = 'gps' }: UnifiedRout
 
   const handleTryDemoRoute = () => {
     setLocationMode('gps');
-    
+
     const dadar = DEMO_LOCATIONS.find(l => l.name === 'Dadar Railway Station')!;
     const shivaji = DEMO_LOCATIONS.find(l => l.name === 'Shivaji Park')!;
-    
+
     setStartLocation({ name: dadar.name, coords: { lat: dadar.lat!, lng: dadar.lng! } });
     setDestLocation({ name: shivaji.name, coords: { lat: shivaji.lat!, lng: shivaji.lng! } });
-    
+
     setSimulatedAccuracy(0.5);
     setIsComparing(true);
     speakText("Loading unified demo flow: GPS location at Dadar Railway Station to Shivaji Park.");
@@ -445,7 +664,7 @@ export default function UnifiedRoutePlanner({ initialMode = 'gps' }: UnifiedRout
     const nextIdx = (scenarioIndex + 1) % benchmarkKeys.length;
     setScenarioIndex(nextIdx);
     const [startName, destName] = benchmarkKeys[nextIdx].split(' → ');
-    
+
     const sLoc = DEMO_LOCATIONS.find(l => l.name === startName);
     const dLoc = DEMO_LOCATIONS.find(l => l.name === destName);
 
@@ -454,7 +673,7 @@ export default function UnifiedRoutePlanner({ initialMode = 'gps' }: UnifiedRout
       setStartLocation({ name: startName, coords: { lat: sLoc.lat!, lng: sLoc.lng! } });
       setDestLocation({ name: destName, coords: { lat: dLoc.lat!, lng: dLoc.lng! } });
     }
-    
+
     setIsComparing(true);
     speakText(`Loading scenario: ${startName} to ${destName}`);
     setTimeout(() => {
@@ -544,7 +763,7 @@ export default function UnifiedRoutePlanner({ initialMode = 'gps' }: UnifiedRout
 
           {/* GPS Live Status & Coordinate Banner */}
           <div className="p-5 rounded-3xl bg-surface-container-lowest border border-outline-variant/40 shadow-sm flex flex-col md:flex-row md:items-center justify-between gap-4">
-            
+
             <div className="flex items-start sm:items-center gap-4">
               <div className="relative flex items-center justify-center">
                 <div className="w-12 h-12 rounded-2xl bg-secondary/15 text-secondary flex items-center justify-center shadow-xs flex-shrink-0">
@@ -634,6 +853,7 @@ export default function UnifiedRoutePlanner({ initialMode = 'gps' }: UnifiedRout
               zoom={16}
               routeGeojson={effectiveRouteGeojson}
               originalRouteGeojson={effectiveOriginalRouteGeojson}
+              encodedPolyline={scenarioData?.encodedPolyline}
               barrierLocation={barrierLocation}
               isRerouted={isRerouteActive}
               navigationStep={isNavigating && effectiveSteps ? effectiveSteps[currentStepIndex] : undefined}
@@ -682,10 +902,10 @@ export default function UnifiedRoutePlanner({ initialMode = 'gps' }: UnifiedRout
               {accessibleSteps[currentStepIndex] && (
                 <div className="p-5 md:p-6 rounded-2xl bg-primary/5 border-2 border-primary/30 flex flex-col sm:flex-row items-start sm:items-center gap-5">
                   <div className="w-14 h-14 rounded-2xl bg-primary text-white flex items-center justify-center font-black text-2xl shadow-md shrink-0">
-                    {accessibleSteps[currentStepIndex].title.toLowerCase().includes('left') ? '↰' : 
-                     accessibleSteps[currentStepIndex].title.toLowerCase().includes('right') ? '↱' : 
-                     accessibleSteps[currentStepIndex].type === 'elevator' ? '🛗' :
-                     accessibleSteps[currentStepIndex].type === 'ramp' ? '♿' : '↑'}
+                    {accessibleSteps[currentStepIndex].title.toLowerCase().includes('left') ? '↰' :
+                      accessibleSteps[currentStepIndex].title.toLowerCase().includes('right') ? '↱' :
+                        accessibleSteps[currentStepIndex].type === 'elevator' ? '🛗' :
+                          accessibleSteps[currentStepIndex].type === 'ramp' ? '♿' : '↑'}
                   </div>
                   <div className="flex-1 flex flex-col gap-1.5">
                     <div className="flex items-center gap-2 flex-wrap">
@@ -778,22 +998,20 @@ export default function UnifiedRoutePlanner({ initialMode = 'gps' }: UnifiedRout
                     return (
                       <div
                         key={step.id}
-                        className={`p-3.5 rounded-xl border flex items-start gap-3 transition-colors ${
-                          isPast
+                        className={`p-3.5 rounded-xl border flex items-start gap-3 transition-colors ${isPast
                             ? 'opacity-60 bg-surface-container-low border-outline-variant/20'
                             : isCurrent
-                            ? 'bg-primary/10 border-primary shadow-xs'
-                            : 'bg-surface-container-lowest border-outline-variant/30'
-                        }`}
+                              ? 'bg-primary/10 border-primary shadow-xs'
+                              : 'bg-surface-container-lowest border-outline-variant/30'
+                          }`}
                       >
                         <div
-                          className={`w-6 h-6 rounded-full flex items-center justify-center font-bold text-xs shrink-0 ${
-                            isPast
+                          className={`w-6 h-6 rounded-full flex items-center justify-center font-bold text-xs shrink-0 ${isPast
                               ? 'bg-slate-300 dark:bg-slate-700 text-on-surface'
                               : isCurrent
-                              ? 'bg-primary text-white'
-                              : 'bg-surface-container text-on-surface-variant'
-                          }`}
+                                ? 'bg-primary text-white'
+                                : 'bg-surface-container text-on-surface-variant'
+                            }`}
                         >
                           {isPast ? '✓' : idx + 1}
                         </div>
@@ -869,11 +1087,10 @@ export default function UnifiedRoutePlanner({ initialMode = 'gps' }: UnifiedRout
                 }
                 speakText("Switched to GPS location mode. Using detected GPS coordinates.");
               }}
-              className={`flex-1 py-2.5 px-3 rounded-xl font-extrabold text-xs flex items-center justify-center gap-2 transition-all ${
-                locationMode === 'gps'
+              className={`flex-1 py-2.5 px-3 rounded-xl font-extrabold text-xs flex items-center justify-center gap-2 transition-all ${locationMode === 'gps'
                   ? 'bg-primary text-white shadow-xs'
                   : 'text-on-surface-variant hover:text-on-surface'
-              }`}
+                }`}
             >
               <Crosshair className="w-4 h-4" />
               <span>Use Current GPS Location</span>
@@ -885,11 +1102,10 @@ export default function UnifiedRoutePlanner({ initialMode = 'gps' }: UnifiedRout
                 setLocationMode('manual');
                 speakText("Switched to manual location mode. You can choose any origin manually.");
               }}
-              className={`flex-1 py-2.5 px-3 rounded-xl font-extrabold text-xs flex items-center justify-center gap-2 transition-all ${
-                locationMode === 'manual'
+              className={`flex-1 py-2.5 px-3 rounded-xl font-extrabold text-xs flex items-center justify-center gap-2 transition-all ${locationMode === 'manual'
                   ? 'bg-primary text-white shadow-xs'
                   : 'text-on-surface-variant hover:text-on-surface'
-              }`}
+                }`}
             >
               <Sliders className="w-4 h-4" />
               <span>Choose Location Manually</span>
@@ -898,10 +1114,10 @@ export default function UnifiedRoutePlanner({ initialMode = 'gps' }: UnifiedRout
 
           {/* Form Routing Card */}
           <div className="p-6 md:p-8 bg-surface-container-lowest rounded-3xl border border-outline-variant/40 shadow-sm flex flex-col gap-6">
-            
+
             {/* Origin & Destination Grid */}
             <div className="grid grid-cols-1 md:grid-cols-12 gap-4 items-end">
-              
+
               {/* Origin / Starting Location */}
               <div className="md:col-span-4 flex flex-col gap-2">
                 <div className="flex items-center justify-between">
@@ -934,7 +1150,7 @@ export default function UnifiedRoutePlanner({ initialMode = 'gps' }: UnifiedRout
                     </button>
                   </div>
                 ) : (
-                  <LocationSearchInput 
+                  <LocationSearchInput
                     label="Search Origin"
                     initialValue={startLocation?.name || ''}
                     onLocationSelect={(loc) => setStartLocation(loc)}
@@ -957,7 +1173,7 @@ export default function UnifiedRoutePlanner({ initialMode = 'gps' }: UnifiedRout
 
               {/* Destination Location */}
               <div className="md:col-span-4 flex flex-col gap-2">
-                <LocationSearchInput 
+                <LocationSearchInput
                   label="Search Destination"
                   initialValue={destLocation?.name || ''}
                   onLocationSelect={(loc) => setDestLocation(loc)}
@@ -970,11 +1186,10 @@ export default function UnifiedRoutePlanner({ initialMode = 'gps' }: UnifiedRout
                   type="button"
                   onClick={handleCompare}
                   disabled={isComparing}
-                  className={`w-full h-12 rounded-2xl font-black text-sm flex items-center justify-center gap-2 shadow-md transition-all ${
-                    isComparing
+                  className={`w-full h-12 rounded-2xl font-black text-sm flex items-center justify-center gap-2 shadow-md transition-all ${isComparing
                       ? 'bg-primary/70 text-white cursor-wait'
                       : 'bg-primary hover:bg-primary-container text-white active:scale-[0.99]'
-                  }`}
+                    }`}
                 >
                   <Compass className={`w-4 h-4 ${isComparing ? 'animate-spin' : ''}`} />
                   <span>{isComparing ? 'Recalculating...' : 'Compare Routes'}</span>
@@ -1011,11 +1226,10 @@ export default function UnifiedRoutePlanner({ initialMode = 'gps' }: UnifiedRout
 
           {/* Route Status & Navigation CTA Banner */}
           {hasCompared && (
-            <div className={`p-6 rounded-3xl border transition-all duration-500 shadow-sm ${
-              isComparing
+            <div className={`p-6 rounded-3xl border transition-all duration-500 shadow-sm ${isComparing
                 ? 'opacity-60 scale-[0.99] bg-surface-container'
                 : 'bg-surface-container-lowest border-outline-variant/40 text-on-surface'
-            }`}>
+              }`}>
               <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
                 <div className="flex items-start gap-3.5">
                   <div className="w-12 h-12 rounded-2xl bg-primary text-white flex items-center justify-center flex-shrink-0 shadow-md">
@@ -1047,7 +1261,7 @@ export default function UnifiedRoutePlanner({ initialMode = 'gps' }: UnifiedRout
 
           {/* Before vs After Side-by-Side Cards */}
           <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-            
+
             {/* NORMAL ROUTE CARD */}
             <div className="p-6 rounded-3xl bg-surface-container-lowest border-2 border-rose-200 dark:border-rose-900/40 shadow-sm flex flex-col justify-between gap-5">
               <div className="flex flex-col gap-4">
@@ -1117,7 +1331,83 @@ export default function UnifiedRoutePlanner({ initialMode = 'gps' }: UnifiedRout
 
           </div>
 
-          {/* Schematic Route Path Visualizer Component */}
+          {/* REAL GEOGRAPHIC MAP VISUALIZER (TO SCALE) */}
+          <div className="flex flex-col gap-4">
+            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+              <div className="flex items-center gap-2">
+                <Compass className="w-5 h-5 text-primary" />
+                <h3 className="text-lg font-black text-on-surface">
+                  Geographic Route Map (To Scale)
+                </h3>
+              </div>
+              <div className="flex items-center gap-2">
+                <span className="text-[11px] font-black tracking-wider uppercase px-3 py-1 rounded-full bg-emerald-500/10 text-emerald-700 dark:text-emerald-300 border border-emerald-500/30 flex items-center gap-1.5">
+                  <span className="w-2 h-2 rounded-full bg-emerald-500 animate-pulse" />
+                  Live Google Route
+                </span>
+                <div className="flex rounded-xl bg-surface-container-low p-1 border border-outline-variant/30 text-xs font-bold">
+                  <button
+                    type="button"
+                    onClick={() => setVisualizerView('both')}
+                    className={`px-3 py-1 rounded-lg transition-colors ${
+                      visualizerView === 'both'
+                        ? 'bg-primary text-on-primary shadow-xs'
+                        : 'text-on-surface-variant hover:text-on-surface'
+                    }`}
+                  >
+                    Split Comparison
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => setVisualizerView('normal')}
+                    className={`px-3 py-1 rounded-lg transition-colors flex items-center gap-1.5 ${
+                      visualizerView === 'normal'
+                        ? 'bg-rose-700 text-white shadow-xs'
+                        : 'text-on-surface-variant hover:text-on-surface'
+                    }`}
+                  >
+                    <span className="w-2 h-2 rounded-full bg-rose-500 inline-block" />
+                    Normal ({normal.distance} km)
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => setVisualizerView('accessible')}
+                    className={`px-3 py-1 rounded-lg transition-colors flex items-center gap-1.5 ${
+                      visualizerView === 'accessible'
+                        ? 'bg-emerald-700 text-white shadow-xs'
+                        : 'text-on-surface-variant hover:text-on-surface'
+                    }`}
+                  >
+                    <span className="w-2 h-2 rounded-full bg-emerald-500 inline-block" />
+                    Accessible ({accessible.distance} km)
+                  </button>
+                </div>
+              </div>
+            </div>
+
+            <div className="relative rounded-3xl overflow-hidden border border-outline-variant/40 shadow-xl h-[480px] sm:h-[520px] md:h-[560px] w-full">
+              <LiveMapWrapper
+                center={detectedCoordinates}
+                destination={destLocation?.coords}
+                accuracy={gpsAccuracyMeters}
+                zoom={16}
+                routeGeojson={effectiveRouteGeojson}
+                originalRouteGeojson={effectiveOriginalRouteGeojson}
+                encodedPolyline={scenarioData?.encodedPolyline}
+                barrierLocation={barrierLocation}
+                isRerouted={isRerouteActive}
+                startName={effectiveStartName}
+                destName={destName}
+                activeView={visualizerView}
+                onViewChange={setVisualizerView}
+                showComparisonControls={true}
+                totalDistanceKm={accessible.distance}
+                normalDistanceKm={normal.distance}
+              />
+            </div>
+          </div>
+
+          {/* DETAILED STEP-BY-STEP SCHEMATIC TIMELINE (BELOW THE REAL MAP) */}
           <SchematicRouteVisualizer
             startLocation={effectiveStartName}
             destLocation={destName}
@@ -1127,6 +1417,8 @@ export default function UnifiedRoutePlanner({ initialMode = 'gps' }: UnifiedRout
             activeView={visualizerView}
             onViewChange={setVisualizerView}
           />
+
+
         </section>
 
       </div>

@@ -64,6 +64,7 @@ export interface AccessibilityPreferences {
   needTactilePaving: boolean;
   needAudioPrompts: boolean;
   maxWalkingDistanceMeters: number;
+  fontScale?: 'sm' | 'md' | 'lg';
 }
 
 export interface EmergencyContact {
@@ -164,6 +165,7 @@ const DEFAULT_PREFERENCES: AccessibilityPreferences = {
   needTactilePaving: false,
   needAudioPrompts: true,
   maxWalkingDistanceMeters: 1000,
+  fontScale: 'md',
 };
 
 const DEFAULT_PRIVACY: PrivacyConsent = {

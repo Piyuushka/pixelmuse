@@ -40,7 +40,7 @@ interface ActiveDependentInfo {
 
 export default function CaregiverSidebar() {
   const pathname = usePathname();
-  const { isDarkMode, toggleDarkMode, speakText, user, logoutUser } = useAccessibility();
+  const { isDarkMode, toggleDarkMode, speakText, user, logoutUser, fontScale, setFontScale } = useAccessibility();
 
   const [activeDependent, setActiveDependent] = useState<ActiveDependentInfo | null>(null);
   const [loadingDependent, setLoadingDependent] = useState<boolean>(true);
@@ -207,6 +207,52 @@ export default function CaregiverSidebar() {
 
       {/* Footer Controls */}
       <div className="p-4 border-t border-outline-variant/30 bg-surface-container-low flex flex-col gap-3">
+        {/* Font Scaling Row */}
+        <div className="flex items-center justify-between p-1 rounded-xl bg-surface-container-lowest border border-outline-variant/30">
+          <span className="text-xs font-bold text-on-surface-variant pl-2">Text Size</span>
+          <div className="flex items-center gap-1">
+            <button
+              type="button"
+              onClick={() => {
+                setFontScale('sm');
+                speakText('Text size compact');
+              }}
+              aria-label="Small compact text size"
+              className={`w-7 h-7 rounded-lg text-xs font-bold flex items-center justify-center cursor-pointer transition-colors ${
+                fontScale === 'sm' ? 'bg-primary text-on-primary font-extrabold shadow-sm' : 'text-on-surface-variant hover:bg-surface-container'
+              }`}
+            >
+              T-
+            </button>
+            <button
+              type="button"
+              onClick={() => {
+                setFontScale('md');
+                speakText('Text size standard');
+              }}
+              aria-label="Medium standard text size"
+              className={`w-7 h-7 rounded-lg text-xs font-bold flex items-center justify-center cursor-pointer transition-colors ${
+                fontScale === 'md' ? 'bg-primary text-on-primary font-extrabold shadow-sm' : 'text-on-surface-variant hover:bg-surface-container'
+              }`}
+            >
+              T
+            </button>
+            <button
+              type="button"
+              onClick={() => {
+                setFontScale('lg');
+                speakText('Text size large');
+              }}
+              aria-label="Large text size"
+              className={`w-7 h-7 rounded-lg text-xs font-bold flex items-center justify-center cursor-pointer transition-colors ${
+                fontScale === 'lg' ? 'bg-primary text-on-primary font-extrabold shadow-sm' : 'text-on-surface-variant hover:bg-surface-container'
+              }`}
+            >
+              T+
+            </button>
+          </div>
+        </div>
+
         {/* Night / Day toggle */}
         <button
           type="button"

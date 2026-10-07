@@ -36,6 +36,7 @@ export interface RouteScenarioData {
   accessibleSteps: SchematicStep[];
   whyChanged?: string[];
   summaryText?: string;
+  encodedPolyline?: string;
 }
 
 export type AccessibilityPreferenceId = PersonaType | 'none';
