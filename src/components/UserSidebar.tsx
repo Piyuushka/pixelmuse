@@ -64,7 +64,7 @@ export default function UserSidebar() {
   ];
 
   return (
-    <aside className="w-72 bg-surface-container-lowest border-r border-outline-variant/30 flex flex-col justify-between h-screen sticky top-0 z-50 flex-shrink-0 shadow-sm overflow-y-auto">
+    <aside aria-label="User navigation sidebar" className="w-72 bg-surface-container-lowest border-r border-outline-variant/30 flex flex-col justify-between h-screen sticky top-0 z-50 flex-shrink-0 shadow-sm overflow-y-auto">
       
       {/* Top Brand Header */}
       <div className="p-5 flex flex-col gap-4 border-b border-outline-variant/20">
@@ -99,40 +99,42 @@ export default function UserSidebar() {
 
       {/* Navigation Pages */}
       <div className="px-3 py-4 flex-1 flex flex-col gap-1">
-        <div className="px-3 py-1 text-[11px] font-extrabold text-on-surface-variant uppercase tracking-wider">
-          Navigator Menu
-        </div>
+        <nav aria-label="Navigator pages" className="flex flex-col gap-1">
+          <div className="px-3 py-1 text-[11px] font-extrabold text-on-surface-variant uppercase tracking-wider">
+            Navigator Menu
+          </div>
 
-        {userNavItems.map((item) => {
-          const isActive = pathname === item.href || (item.href === '/user/map' && pathname === '/user');
-          const Icon = item.icon;
-          return (
-            <Link
-              key={item.href}
-              href={item.href}
-              className={`px-3.5 py-3 rounded-2xl font-bold text-sm transition-all flex items-center justify-between group ${
-                isActive
-                  ? 'bg-primary-container text-on-primary-container shadow-md font-extrabold'
-                  : 'text-on-surface-variant hover:bg-surface-container-high hover:text-on-surface'
-              }`}
-            >
-              <div className="flex items-center gap-3">
-                <Icon className={`w-5 h-5 ${isActive ? 'text-white' : 'text-on-surface-variant group-hover:text-primary'}`} />
-                <span>{item.label}</span>
-              </div>
+          {userNavItems.map((item) => {
+            const isActive = pathname === item.href || (item.href === '/user/map' && pathname === '/user');
+            const Icon = item.icon;
+            return (
+              <Link
+                key={item.href}
+                href={item.href}
+                className={`px-3.5 py-3 rounded-2xl font-bold text-sm transition-all flex items-center justify-between group ${
+                  isActive
+                    ? 'bg-primary-container text-on-primary-container shadow-md font-extrabold'
+                    : 'text-on-surface-variant hover:bg-surface-container-high hover:text-on-surface'
+                }`}
+              >
+                <div className="flex items-center gap-3">
+                  <Icon className={`w-5 h-5 ${isActive ? 'text-white' : 'text-on-surface-variant group-hover:text-primary'}`} />
+                  <span>{item.label}</span>
+                </div>
 
-              {item.badge && (
-                <span className="text-[9px] font-black px-2 py-0.5 rounded-full bg-secondary text-on-secondary uppercase">
-                  {item.badge}
-                </span>
-              )}
+                {item.badge && (
+                  <span className="text-[9px] font-black px-2 py-0.5 rounded-full bg-secondary text-on-secondary uppercase">
+                    {item.badge}
+                  </span>
+                )}
 
-              {item.alert && simulatedObstacle?.active && (
-                <span className="w-2 h-2 rounded-full bg-tertiary animate-pulse" />
-              )}
-            </Link>
-          );
-        })}
+                {item.alert && simulatedObstacle?.active && (
+                  <span className="w-2 h-2 rounded-full bg-tertiary animate-pulse" />
+                )}
+              </Link>
+            );
+          })}
+        </nav>
 
         {/* Mobility Mode Selector in Sidebar */}
         <div className="mt-4 px-3 py-1 text-[11px] font-extrabold text-on-surface-variant uppercase tracking-wider">
@@ -152,7 +154,7 @@ export default function UserSidebar() {
                 }}
                 className={`p-2 rounded-xl flex items-center gap-2 text-xs font-bold transition-all border ${
                   isSelected
-                    ? 'bg-primary/10 border-primary text-primary shadow-xs'
+                    ? 'bg-primary/15 border-primary text-blue-900 dark:text-blue-200 font-extrabold shadow-xs'
                     : 'bg-surface-container-low border-transparent text-on-surface-variant hover:bg-surface-container-high'
                 }`}
               >
@@ -267,7 +269,7 @@ export default function UserSidebar() {
           <div className="flex items-center gap-1.5 pt-1">
             <Link
               href="/user/profile-setup?edit=true"
-              className="flex-1 py-2 px-2.5 rounded-xl bg-primary/10 text-primary text-[11px] font-extrabold hover:bg-primary/20 transition-colors text-center cursor-pointer"
+              className="flex-1 py-2 px-2.5 rounded-xl bg-primary/15 text-blue-900 dark:text-blue-200 text-[11px] font-extrabold hover:bg-primary/25 transition-colors text-center cursor-pointer"
             >
               Profile Settings
             </Link>

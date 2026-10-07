@@ -423,7 +423,9 @@ export default function VoiceAssistantModal({
           if (isNavigatingRef.current && sessionRef.current) {
             handleAdvanceStep();
           } else {
-            speakWithAutoResume('Tell me where you would like to go, for example: take me to Cardiology Pavilion.');
+            router.push('/user/map?autonav=1');
+            speakWithAutoResume('Starting accessible route navigation from your live position.');
+            setTimeout(() => onClose(), 1200);
           }
           return;
         }
@@ -498,8 +500,11 @@ export default function VoiceAssistantModal({
             router.push('/login');
             speakWithAutoResume('Opening login page.');
           } else if (action === 'REPORT_BARRIER') {
-            router.push('/report-barrier');
+            router.push('/community-confidence?action=report');
             speakWithAutoResume('Opening barrier reporting screen.');
+          } else if (action === 'AVOID_STAIRS') {
+            setPersona('wheelchair');
+            speakWithAutoResume('Avoid stairs preference enabled. 100% step-free routing activated, avoiding all stairs and escalators.');
           } else if (action === 'DARK_MODE') {
             if (!isDarkMode) toggleDarkMode();
             speakWithAutoResume('Night mode enabled for high contrast viewing.');
@@ -535,6 +540,9 @@ export default function VoiceAssistantModal({
             } else if (data.action === 'SET_FONT_LARGE') {
               setFontScale('lg');
               speakWithAutoResume(data.spokenResponse);
+            } else if (data.action === 'AVOID_STAIRS') {
+              setPersona('wheelchair');
+              speakWithAutoResume(data.spokenResponse || 'Avoid stairs preference enabled.');
             } else if (data.targetUrl) {
               router.push(data.targetUrl);
               speakWithAutoResume(data.spokenResponse);

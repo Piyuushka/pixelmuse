@@ -195,7 +195,7 @@ export default function RouteImpactPanel({
         headline: `Adapted for ${label}: prioritizes ${specialtyFocus}. ${distText}, ${timeText}.`,
         detail: `Baseline route replaced with an accessibility-optimized path. Accessibility score adjusted from ${baselineMetrics.accessibilityScore} to ${adaptedMetrics.accessibilityScore} (${deltas.scoreDelta >= 0 ? `+${deltas.scoreDelta}` : deltas.scoreDelta} pts).`,
         badge: 'Accessibility Profile Adaptation',
-        badgeColor: 'border-emerald-500/30 bg-emerald-500/10 text-emerald-700 dark:text-emerald-300',
+        badgeColor: 'border-emerald-700/40 bg-emerald-700/15 text-emerald-800 dark:text-emerald-300 font-extrabold',
       };
     }
 
@@ -204,7 +204,7 @@ export default function RouteImpactPanel({
       headline: `Bypasses inaccessible obstacles and steep grades. +${Math.max(0, deltas.distDeltaM)} m, +${Math.max(0, Math.round(deltas.durDeltaMin))} min.`,
       detail: `Comparing standard shortest walking path against verified step-free accessibility route.`,
       badge: 'Dual-Route Evaluation',
-      badgeColor: 'border-blue-500/30 bg-blue-500/10 text-blue-700 dark:text-blue-300',
+      badgeColor: 'border-blue-700/40 bg-blue-700/15 text-blue-900 dark:text-blue-300 font-extrabold',
     };
   }, [isSimulatingBarrier, activeBarrier, currentPersona, triggerReason, deltas, baselineMetrics, adaptedMetrics]);
 
@@ -896,13 +896,13 @@ export default function RouteImpactPanel({
                     </span>
                   </td>
                   <td className="py-3.5 px-4 font-black text-emerald-800 dark:text-emerald-300">
-                    <span className="px-2.5 py-1 rounded-md bg-emerald-600 text-white font-black shadow-xs">
+                    <span className="px-2.5 py-1 rounded-md bg-emerald-800 text-white font-black shadow-xs">
                       {adaptedMetrics.accessibilityScore} / 100
                     </span>
                   </td>
                   <td className="py-3.5 px-4 font-extrabold text-on-surface">
                     {deltas.scoreDelta > 0 ? (
-                      <span className="inline-flex items-center gap-1 px-2.5 py-1 rounded-lg bg-emerald-600 text-white font-black shadow-xs">
+                      <span className="inline-flex items-center gap-1 px-2.5 py-1 rounded-lg bg-emerald-800 text-white font-black shadow-xs">
                         <span>▲</span> +{deltas.scoreDelta} pts (Improved)
                       </span>
                     ) : (

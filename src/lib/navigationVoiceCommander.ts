@@ -369,9 +369,39 @@ export function classifyVoiceCommand(rawTranscript: string): CommandClassificati
   if (
     normalized.includes('report barrier') ||
     normalized.includes('report obstacle') ||
-    normalized.includes('report hazard')
+    normalized.includes('report hazard') ||
+    normalized.includes('report a barrier')
   ) {
     return { intent: 'UI_ACTION', rawTranscript, normalizedText: normalized, payload: { action: 'REPORT_BARRIER' } };
+  }
+  if (
+    normalized.includes('avoid stairs') ||
+    normalized.includes('no stairs') ||
+    normalized.includes('avoid stair') ||
+    normalized.includes('step free') ||
+    normalized.includes('step-free') ||
+    normalized.includes('bypass stairs')
+  ) {
+    return { intent: 'UI_ACTION', rawTranscript, normalizedText: normalized, payload: { action: 'AVOID_STAIRS' } };
+  }
+  if (
+    normalized.includes('nearest restroom') ||
+    normalized.includes('nearest toilet') ||
+    normalized.includes('nearest washroom') ||
+    normalized.includes('accessible restroom') ||
+    normalized.includes('find restroom') ||
+    normalized.includes('find toilet')
+  ) {
+    return {
+      intent: 'NEW_DESTINATION',
+      rawTranscript,
+      normalizedText: normalized,
+      payload: {
+        destinationQuery: 'Accessible Restroom Concourse B (Step-Free)',
+        facilityType: 'restroom',
+        isRestroom: true,
+      },
+    };
   }
   if (normalized.includes('dark mode') || normalized.includes('night mode')) {
     return { intent: 'UI_ACTION', rawTranscript, normalizedText: normalized, payload: { action: 'DARK_MODE' } };
@@ -384,9 +414,10 @@ export function classifyVoiceCommand(rawTranscript: string): CommandClassificati
   const startNavPatterns = [
     /^(?:please\s+)?(?:start|begin|commence)\s+(?:navigation|navigating|route|guidance)$/i,
     /^(?:start|begin)\s+nav$/i,
+    /^start route$/i,
     /^start$/i,
   ];
-  if (startNavPatterns.some((pattern) => pattern.test(normalized))) {
+  if (startNavPatterns.some((pattern) => pattern.test(normalized)) || normalized === 'start route' || normalized === 'start navigation') {
     return {
       intent: 'START_NAVIGATION',
       rawTranscript,

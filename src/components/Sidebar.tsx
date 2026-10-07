@@ -188,7 +188,7 @@ export default function Sidebar() {
                 }}
                 className={`p-2 rounded-xl flex items-center gap-2 text-xs font-bold transition-all border ${
                   isSelected
-                    ? 'bg-primary/10 border-primary text-primary shadow-xs'
+                    ? 'bg-primary/15 border-primary text-blue-900 dark:text-blue-200 font-extrabold shadow-xs'
                     : 'bg-surface-container-low border-transparent text-on-surface-variant hover:bg-surface-container-high'
                 }`}
               >
@@ -388,7 +388,7 @@ export default function Sidebar() {
             <button
               type="button"
               onClick={openOnboarding}
-              className="flex-1 py-1.5 rounded-xl bg-primary/10 text-primary text-[11px] font-extrabold hover:bg-primary/20 transition-colors text-center cursor-pointer"
+              className="flex-1 py-1.5 rounded-xl bg-primary/15 text-blue-900 dark:text-blue-200 text-[11px] font-extrabold hover:bg-primary/25 transition-colors text-center cursor-pointer"
             >
               {user.isLoggedIn ? 'Edit Profile' : 'Log In / Register'}
             </button>

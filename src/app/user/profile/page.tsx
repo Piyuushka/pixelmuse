@@ -121,7 +121,7 @@ export default function UserProfilePage() {
           <button
             type="button"
             onClick={openOnboarding}
-            className="px-4 py-2.5 rounded-xl bg-surface-container-high hover:bg-surface-container text-primary font-extrabold text-xs flex items-center gap-2 transition-colors cursor-pointer"
+            className="px-4 py-2.5 rounded-xl bg-primary text-white hover:bg-primary-container font-extrabold text-xs flex items-center gap-2 transition-colors cursor-pointer shadow-sm"
           >
             <Sliders className="w-4 h-4" />
             <span>Re-run Voice Onboarding</span>

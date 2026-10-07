@@ -496,12 +496,12 @@ export default function LiveLeafletMap(props: LiveLeafletMapProps) {
         </button>
       </div>
 
-      {/* Floating Re-centre Button (Bottom-Left) */}
-      <div className="absolute bottom-4 left-4 z-[100]">
+      {/* Floating Re-centre Button (Safely offset above map attribution) */}
+      <div className="absolute bottom-12 left-4 z-[100]">
         <button
           type="button"
           onClick={handleRecentre}
-          className="px-4 py-2.5 rounded-full bg-white text-[#1d4ed8] font-black text-xs shadow-2xl border border-slate-200 flex items-center gap-2 hover:bg-slate-50 hover:scale-105 active:scale-95 transition-all cursor-pointer"
+          className="min-h-[44px] px-4 py-2.5 rounded-full bg-white text-[#1d4ed8] font-black text-xs shadow-2xl border border-slate-200 flex items-center gap-2 hover:bg-slate-50 hover:scale-105 active:scale-95 transition-all cursor-pointer"
         >
           <Navigation className="w-4 h-4 text-[#1d4ed8] fill-current" />
           <span>Re-centre</span>

@@ -86,8 +86,8 @@ export default function PersonalizedProfileBanner() {
             <span className="text-sm font-black text-on-surface">
               Welcome back, {user.name || 'Navigator'}
             </span>
-            <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full bg-secondary/15 text-secondary text-[11px] font-extrabold">
-              <CheckCircle2 className="w-3 h-3" />
+            <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full bg-emerald-100 dark:bg-emerald-950/70 text-emerald-950 dark:text-emerald-100 border border-emerald-600/30 text-[11px] font-black">
+              <CheckCircle2 className="w-3 h-3 text-emerald-700 dark:text-emerald-300" aria-hidden="true" />
               <span>Profile Active</span>
             </span>
           </div>

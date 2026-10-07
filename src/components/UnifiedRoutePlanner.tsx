@@ -61,16 +61,20 @@ import {
   Clock,
   Building,
   X,
-  AlertTriangle
+  AlertTriangle,
+  Map as MapIcon,
+  FileText
 } from 'lucide-react';
+import TextOnlyNavigationPanel from '@/components/TextOnlyNavigationPanel';
 
 interface UnifiedRoutePlannerProps {
   initialMode?: 'gps' | 'manual';
 }
 
 export default function UnifiedRoutePlanner({ initialMode = 'gps' }: UnifiedRoutePlannerProps) {
-  const { speakText, simulatedObstacle, activeHazardAlert, originalRoute, adaptedRoute, persona, setPersona, accessibilityPreferences, barrierReports } = useAccessibility();
+  const { speakText, simulatedObstacle, activeHazardAlert, originalRoute, adaptedRoute, persona, setPersona, accessibilityPreferences, barrierReports, isSimpleMode } = useAccessibility();
   const searchParams = useSearchParams();
+  const [navigationViewMode, setNavigationViewMode] = useState<'map' | 'text-only'>('map');
 
   const urlDest = searchParams?.get('dest');
   const urlMode = searchParams?.get('mode') as 'gps' | 'manual' | null;
@@ -1119,47 +1123,118 @@ export default function UnifiedRoutePlanner({ initialMode = 'gps' }: UnifiedRout
 
           </div>
 
-          {/* Dedicated Map Container - Completely Unobstructed */}
-          <div className="relative rounded-3xl overflow-hidden border border-outline-variant/40 shadow-xl h-[480px] sm:h-[520px] md:h-[560px] w-full">
-            {/* Route updated toast banner */}
-            {routeUpdateToast && (
-              <div className="absolute top-4 left-4 right-4 sm:left-auto sm:right-6 sm:max-w-md z-[1100] p-3.5 rounded-2xl bg-secondary text-white shadow-2xl border-2 border-white/40 flex items-center justify-between gap-3 animate-fade-in" role="status" aria-live="polite">
-                <div className="flex items-center gap-2.5">
-                  <CheckCircle2 className="w-5 h-5 text-white shrink-0" />
-                  <span className="text-xs sm:text-sm font-extrabold">{routeUpdateToast}</span>
-                </div>
-                <button
-                  type="button"
-                  onClick={() => setRouteUpdateToast(null)}
-                  className="p-1 rounded-lg hover:bg-white/20 text-white cursor-pointer"
-                  aria-label="Dismiss toast"
-                >
-                  ✕
-                </button>
-              </div>
-            )}
+          {/* View Mode Switcher: Interactive Map vs Text-Only Turn-by-Turn Full Alternative */}
+          <div className="flex items-center justify-between gap-3 flex-wrap">
+            <div className="flex items-center gap-1.5 p-1 rounded-2xl bg-surface-container border border-outline-variant/30" role="tablist" aria-label="Route Display View Options">
+              <button
+                type="button"
+                role="tab"
+                id="tab-map-view"
+                aria-selected={navigationViewMode === 'map'}
+                onClick={() => {
+                  setNavigationViewMode('map');
+                  speakText('Interactive Map view selected.');
+                }}
+                className={`min-h-[44px] px-4 rounded-xl flex items-center gap-2 font-bold text-xs transition-all cursor-pointer ${
+                  navigationViewMode === 'map'
+                    ? 'bg-primary text-white shadow-md font-black'
+                    : 'text-on-surface-variant hover:bg-surface-container-high'
+                }`}
+              >
+                <MapIcon className="w-4 h-4 shrink-0" />
+                <span>🗺️ Interactive Map</span>
+              </button>
 
-            <LiveMapWrapper
-              center={detectedCoordinates}
-              destination={destLocation?.coords}
-              accuracy={gpsAccuracyMeters}
-              zoom={16}
-              routeGeojson={effectiveRouteGeojson}
-              originalRouteGeojson={effectiveOriginalRouteGeojson}
-              encodedPolyline={scenarioData?.encodedPolyline}
-              barrierLocation={barrierLocation}
-              isRerouted={isRerouteActive || isSimulatingBarrier}
-              showComparisonControls={true}
-              navigationStep={isNavigating && effectiveSteps ? effectiveSteps[currentStepIndex] : undefined}
-              isNavigating={isNavigating}
-              onExitNavigation={handleEndNavigation}
-              totalDistanceKm={isRerouteActive && activeHazardAlert?.rerouteResult?.distance ? activeHazardAlert.rerouteResult.distance : (accessible?.distance || 3.6)}
-              totalMinutes={isRerouteActive && activeHazardAlert?.rerouteResult?.route?.properties?.durationMinutes ? activeHazardAlert.rerouteResult.route.properties.durationMinutes : (accessible?.time || 51)}
-              totalSteps={Math.round(((accessible?.distance || 3.6) * 1000) / 0.75)}
-              destName={destName}
-              roadName={effectiveSteps?.[currentStepIndex]?.title || 'Juhu Rd / Juhu Tara Rd'}
-            />
+              <button
+                type="button"
+                role="tab"
+                id="tab-text-only-view"
+                aria-selected={navigationViewMode === 'text-only'}
+                onClick={() => {
+                  setNavigationViewMode('text-only');
+                  speakText('Text-only turn-by-turn navigation view active. Full accessible alternative to map with per-step accessibility details.');
+                }}
+                className={`min-h-[44px] px-4 rounded-xl flex items-center gap-2 font-bold text-xs transition-all cursor-pointer ${
+                  navigationViewMode === 'text-only'
+                    ? 'bg-primary text-white shadow-md font-black'
+                    : 'text-on-surface-variant hover:bg-surface-container-high'
+                }`}
+              >
+                <FileText className="w-4 h-4 shrink-0" />
+                <span>📄 Text-Only Turn-by-Turn (Full Alternative)</span>
+              </button>
+            </div>
+
+            <span className="text-xs font-semibold text-on-surface-variant">
+              {navigationViewMode === 'text-only' ? 'Accessible Screen-Reader Mode' : 'Visual Map Canvas'}
+            </span>
           </div>
+
+          {/* Conditional Display: Text-Only Full Alternative vs Dedicated Map Container */}
+          {navigationViewMode === 'text-only' ? (
+            <TextOnlyNavigationPanel
+              steps={(effectiveSteps as any) || []}
+              currentStepIndex={currentStepIndex}
+              totalDistanceKm={isRerouteActive && activeHazardAlert?.rerouteResult?.distance ? Number(activeHazardAlert.rerouteResult.distance) : Number(accessible?.distance || 3.6)}
+              totalDurationMin={isRerouteActive && activeHazardAlert?.rerouteResult?.route?.properties?.durationMinutes ? Number(activeHazardAlert.rerouteResult.route.properties.durationMinutes) : Number(accessible?.time || 51)}
+              destName={destName}
+              originName={effectiveStartName}
+              isNavigating={isNavigating}
+              onAdvanceStep={handleNextStep}
+              onPreviousStep={handlePreviousStep}
+              onSelectStep={(idx) => {
+                setCurrentStepIndex(idx);
+                if (effectiveSteps?.[idx]) {
+                  const s = effectiveSteps[idx];
+                  speakText(`Step ${idx + 1}: ${cleanStepInstruction(s.detail || s.title, destName)}`);
+                }
+              }}
+              onStartNavigation={handleStartNavigation}
+              onEndNavigation={handleEndNavigation}
+              onToggleMapView={() => setNavigationViewMode('map')}
+            />
+          ) : (
+            <div className="relative rounded-3xl overflow-hidden border border-outline-variant/40 shadow-xl h-[480px] sm:h-[520px] md:h-[560px] w-full">
+              {/* Route updated toast banner */}
+              {routeUpdateToast && (
+                <div className="absolute top-4 left-4 right-4 sm:left-auto sm:right-6 sm:max-w-md z-[1100] p-3.5 rounded-2xl bg-secondary text-white shadow-2xl border-2 border-white/40 flex items-center justify-between gap-3 animate-fade-in" role="status" aria-live="polite">
+                  <div className="flex items-center gap-2.5">
+                    <CheckCircle2 className="w-5 h-5 text-white shrink-0" />
+                    <span className="text-xs sm:text-sm font-extrabold">{routeUpdateToast}</span>
+                  </div>
+                  <button
+                    type="button"
+                    onClick={() => setRouteUpdateToast(null)}
+                    className="p-1 rounded-lg hover:bg-white/20 text-white cursor-pointer"
+                    aria-label="Dismiss toast"
+                  >
+                    ✕
+                  </button>
+                </div>
+              )}
+
+              <LiveMapWrapper
+                center={detectedCoordinates}
+                destination={destLocation?.coords}
+                accuracy={gpsAccuracyMeters}
+                zoom={16}
+                routeGeojson={effectiveRouteGeojson}
+                originalRouteGeojson={effectiveOriginalRouteGeojson}
+                encodedPolyline={scenarioData?.encodedPolyline}
+                barrierLocation={barrierLocation}
+                isRerouted={isRerouteActive || isSimulatingBarrier}
+                showComparisonControls={true}
+                navigationStep={isNavigating && effectiveSteps ? effectiveSteps[currentStepIndex] : undefined}
+                isNavigating={isNavigating}
+                onExitNavigation={handleEndNavigation}
+                totalDistanceKm={isRerouteActive && activeHazardAlert?.rerouteResult?.distance ? activeHazardAlert.rerouteResult.distance : (accessible?.distance || 3.6)}
+                totalMinutes={isRerouteActive && activeHazardAlert?.rerouteResult?.route?.properties?.durationMinutes ? activeHazardAlert.rerouteResult.route.properties.durationMinutes : (accessible?.time || 51)}
+                totalSteps={Math.round(((accessible?.distance || 3.6) * 1000) / 0.75)}
+                destName={destName}
+                roadName={effectiveSteps?.[currentStepIndex]?.title || 'Juhu Rd / Juhu Tara Rd'}
+              />
+            </div>
+          )}
 
           {/* TURN-BY-TURN NAVIGATION: Dedicated card immediately BELOW the map in normal document flow */}
           {isNavigating && accessibleSteps && (

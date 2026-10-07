@@ -35,7 +35,7 @@ export default function TalkToAssistantButton({
           <span>Talk to {wakeWordName}</span>
         </div>
         <div className="flex items-center gap-2">
-          <span className="text-[11px] font-bold opacity-80 bg-white/20 px-2.5 py-0.5 rounded-full flex items-center gap-1.5">
+          <span className="text-[11px] font-bold text-white bg-black/40 px-2.5 py-0.5 rounded-full flex items-center gap-1.5">
             <span
               className={`w-1.5 h-1.5 rounded-full ${
                 voiceState === 'CLOSED_WAKE_LISTENING'
@@ -62,7 +62,7 @@ export default function TalkToAssistantButton({
       >
         <Sparkles className="w-4 h-4" />
         <span>Talk to {wakeWordName}</span>
-        <span className="text-[10px] opacity-80 font-bold bg-white/20 px-1.5 py-0.5 rounded-md hidden md:inline">
+        <span className="text-[10px] text-white font-bold bg-black/40 px-1.5 py-0.5 rounded-md hidden md:inline">
           {voiceState === 'CLOSED_WAKE_LISTENING' ? `"Hey ${wakeWordName}"` : statusText}
         </span>
       </button>
@@ -101,7 +101,7 @@ export default function TalkToAssistantButton({
       >
         <Sparkles className="w-5 h-5 fill-current animate-pulse text-amber-300" />
         <span className="tracking-wide">Talk to {wakeWordName}</span>
-        <span className="hidden sm:inline text-[11px] font-bold opacity-80 bg-white/20 px-2 py-0.5 rounded-full">
+        <span className="hidden sm:inline text-[11px] font-bold text-white bg-black/40 px-2 py-0.5 rounded-full">
           &quot;Hey {wakeWordName}&quot;
         </span>
         {voiceState === 'MIC_UNAVAILABLE' ? (

@@ -15,7 +15,7 @@ export default function UserPortalLayout({
 
   if (isProfileSetup) {
     return (
-      <main className="w-full min-h-screen bg-surface text-on-surface">
+      <main id="main-content" tabIndex={-1} className="w-full min-h-screen bg-surface text-on-surface outline-none">
         {children}
       </main>
     );
@@ -24,7 +24,7 @@ export default function UserPortalLayout({
   return (
     <div className="flex w-full min-h-screen bg-surface text-on-surface">
       <UserSidebar />
-      <main className="flex-1 min-w-0 overflow-y-auto min-h-screen">
+      <main id="main-content" tabIndex={-1} className="flex-1 min-w-0 overflow-y-auto min-h-screen outline-none">
         {children}
       </main>
       <TalkToAssistantButton variant="fab" />

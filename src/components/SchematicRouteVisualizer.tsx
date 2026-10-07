@@ -254,7 +254,7 @@ export default function SchematicRouteVisualizer({
             <div className="flex-1">
               <span>{normalConfidence.warningMessage}</span>
               {normalConfidence.staleSegmentsCount > 0 && (
-                <span className="block text-[11px] font-medium text-amber-800/80 dark:text-amber-300/80 mt-0.5">
+                <span className="block text-[11px] font-semibold text-amber-950 dark:text-amber-100 mt-0.5">
                   Continuous decay algorithm flagged {normalConfidence.staleSegmentsCount} segment(s) past standard half-life threshold without fresh surveyor verification.
                 </span>
               )}

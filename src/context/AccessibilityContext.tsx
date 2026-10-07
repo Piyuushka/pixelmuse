@@ -130,6 +130,9 @@ interface AccessibilityContextType {
   toggleNightMode: () => void;
   isHighContrast: boolean;
   toggleHighContrast: () => void;
+  isSimpleMode: boolean;
+  toggleSimpleMode: () => void;
+  setSimpleMode: (val: boolean) => void;
   fontScale: FontScale;
   setFontScale: (scale: FontScale) => void;
   isVoicePromptActive: boolean;
@@ -264,13 +267,21 @@ export function AccessibilityProvider({ children }: { children: React.ReactNode 
 
   const [isDarkMode, setIsDarkMode] = useState<boolean>(false);
   const [isHighContrast, setIsHighContrast] = useState(false);
+  const [isSimpleMode, setIsSimpleMode] = useState<boolean>(false);
   const [fontScale, setFontScaleState] = useState<FontScale>('md');
   const [isVoicePromptActive, setIsVoicePromptActive] = useState(false);
   const [persona, setPersona] = useState<PersonaType>('wheelchair');
 
-  // Load fontScale and theme preference from localStorage on mount
+  // Load fontScale, theme, and simple mode preferences from localStorage on mount
   useEffect(() => {
     if (typeof window === 'undefined') return;
+    try {
+      const savedSimple = localStorage.getItem('pathfinder_simple_mode');
+      if (savedSimple === 'true') {
+        setIsSimpleMode(true);
+      }
+    } catch (e) {}
+
     try {
       const savedScale = localStorage.getItem('pathfinder_font_scale');
       if (savedScale === 'sm' || savedScale === 'md' || savedScale === 'lg') {
@@ -387,6 +398,24 @@ export function AccessibilityProvider({ children }: { children: React.ReactNode 
   const toggleDarkMode = useCallback(() => {
     setIsDarkMode(prev => !prev);
   }, []);
+
+  // Synchronize document <html>, <body> classes and data attributes for simple mode
+  useEffect(() => {
+    if (typeof window === 'undefined') return;
+    const root = document.documentElement;
+    const body = document.body;
+    if (isSimpleMode) {
+      root.classList.add('simple-mode');
+      root.setAttribute('data-simple-mode', 'true');
+      body.classList.add('simple-mode');
+      body.setAttribute('data-simple-mode', 'true');
+    } else {
+      root.classList.remove('simple-mode');
+      root.removeAttribute('data-simple-mode');
+      body.classList.remove('simple-mode');
+      body.removeAttribute('data-simple-mode');
+    }
+  }, [isSimpleMode]);
 
   // Load state from localStorage & fetch fresh DB profile on initial mount
   useEffect(() => {
@@ -662,6 +691,32 @@ export function AccessibilityProvider({ children }: { children: React.ReactNode 
   );
 
   const toggleHighContrast = () => setIsHighContrast(prev => !prev);
+
+  const toggleSimpleMode = useCallback(() => {
+    setIsSimpleMode(prev => {
+      const next = !prev;
+      try {
+        localStorage.setItem('pathfinder_simple_mode', String(next));
+      } catch (e) {}
+      if (typeof window !== 'undefined' && 'speechSynthesis' in window) {
+        window.speechSynthesis.cancel();
+        const msg = new SpeechSynthesisUtterance(
+          next
+            ? 'Simple mode enabled. Larger buttons and simplified navigation controls.'
+            : 'Simple mode disabled. Standard navigation controls restored.'
+        );
+        window.speechSynthesis.speak(msg);
+      }
+      return next;
+    });
+  }, []);
+
+  const setSimpleMode = useCallback((val: boolean) => {
+    setIsSimpleMode(val);
+    try {
+      localStorage.setItem('pathfinder_simple_mode', String(val));
+    } catch (e) {}
+  }, []);
   const toggleVoicePrompt = () => {
     setIsVoicePromptActive(prev => {
       const next = !prev;
@@ -1028,6 +1083,9 @@ export function AccessibilityProvider({ children }: { children: React.ReactNode 
         toggleNightMode: toggleDarkMode,
         isHighContrast,
         toggleHighContrast,
+        isSimpleMode,
+        toggleSimpleMode,
+        setSimpleMode,
         fontScale,
         setFontScale,
         isVoicePromptActive,
@@ -1070,8 +1128,9 @@ export function AccessibilityProvider({ children }: { children: React.ReactNode 
       }}
     >
       <div
-        className={`${isHighContrast ? 'high-contrast' : ''} ${isDarkMode ? 'dark dark-mode' : ''} font-scale-${fontScale} w-full min-h-screen transition-all`}
+        className={`${isHighContrast ? 'high-contrast' : ''} ${isDarkMode ? 'dark dark-mode' : ''} ${isSimpleMode ? 'simple-mode' : ''} font-scale-${fontScale} w-full min-h-screen transition-all`}
         data-theme={isDarkMode ? 'dark' : 'light'}
+        data-simple-mode={isSimpleMode ? 'true' : 'false'}
       >
         {children}
       </div>

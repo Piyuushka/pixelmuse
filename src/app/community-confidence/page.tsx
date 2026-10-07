@@ -34,7 +34,7 @@ import {
 } from 'lucide-react';
 import TrustBadge from '@/components/TrustBadge';
 import MapLocationPickerModal from '@/components/MapLocationPickerModal';
-import { BarrierRecord, BarrierCategory } from '@/lib/db/barrierService';
+import { BarrierRecord, BarrierCategory, CATEGORY_LABELS } from '@/lib/db/barrierService';
 
 const EXTENDED_CATEGORIES: Array<{
   id: BarrierCategory;
@@ -523,34 +523,34 @@ function CommunityConfidenceContent() {
             {/* Dynamic Obstacle Avoidance: Live Alert Banner */}
             {activeHazardAlert?.active && (
               <div
-                className="p-4 rounded-2xl bg-tertiary-container/20 border-2 border-tertiary/50 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3 shadow-sm animate-pulse"
+                className="p-4 rounded-2xl bg-amber-50 dark:bg-amber-950/40 border-2 border-amber-600/70 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3 shadow-sm"
                 role="alert"
                 aria-live="assertive"
               >
                 <div className="flex items-start gap-3">
-                  <div className="w-9 h-9 rounded-xl bg-tertiary/20 text-tertiary flex items-center justify-center shrink-0">
+                  <div className="w-9 h-9 rounded-xl bg-amber-100 dark:bg-amber-900/40 text-amber-950 dark:text-amber-200 flex items-center justify-center shrink-0">
                     <AlertTriangle className="w-5 h-5" aria-hidden="true" />
                   </div>
                   <div>
                     <div className="flex items-center gap-2 flex-wrap">
-                      <span className="text-[10px] font-black uppercase text-tertiary tracking-wider">
+                      <span className="text-[10px] font-black uppercase text-amber-950 dark:text-amber-200 tracking-wider">
                         🔴 Instant Rerouting Triggered
                       </span>
-                      <span className="text-[10px] font-bold px-2 py-0.5 rounded bg-tertiary text-white">
+                      <span className="text-[10px] font-black px-2 py-0.5 rounded bg-slate-900 text-white">
                         {activeHazardAlert.detourTime}
                       </span>
                     </div>
                     <div className="text-sm font-extrabold text-on-surface mt-0.5">
                       {activeHazardAlert.title}
                     </div>
-                    <div className="text-xs text-on-surface-variant font-medium mt-0.5">
+                    <div className="text-xs text-on-surface font-semibold mt-0.5">
                       {activeHazardAlert.impact}
                     </div>
                   </div>
                 </div>
                 <Link
                   href="/live-adaptation-alert"
-                  className="px-3 py-2 rounded-xl bg-tertiary text-on-tertiary font-extrabold text-xs flex items-center gap-1.5 shadow-sm hover:opacity-90 transition-opacity whitespace-nowrap self-start sm:self-center"
+                  className="px-3.5 py-2 rounded-xl bg-slate-900 hover:bg-slate-800 text-white font-extrabold text-xs flex items-center gap-1.5 shadow-sm transition-colors whitespace-nowrap self-start sm:self-center"
                 >
                   <Navigation className="w-3.5 h-3.5" aria-hidden="true" />
                   <span>View Reroute</span>
@@ -683,10 +683,10 @@ function CommunityConfidenceContent() {
                     <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 border-b border-outline-variant/20 pb-3">
                       <div className="flex items-center gap-2 flex-wrap">
                         <span
-                          className={`px-3 py-1 rounded-full text-xs font-extrabold uppercase ${
+                          className={`px-3 py-1 rounded-full text-xs font-black uppercase tracking-wider ${
                             isCritical
-                              ? 'bg-tertiary/20 text-tertiary'
-                              : 'bg-secondary-container text-on-secondary-container'
+                              ? 'bg-amber-100 dark:bg-amber-950/70 text-amber-950 dark:text-amber-100 border border-amber-600/40'
+                              : 'bg-emerald-100 dark:bg-emerald-950/70 text-emerald-950 dark:text-emerald-100 border border-emerald-600/40'
                           }`}
                         >
                           {report.category}
@@ -698,7 +698,7 @@ function CommunityConfidenceContent() {
                         <span className="text-[11px] font-semibold text-on-surface-variant flex items-center gap-1">
                           👤 {report.reportedBy || 'Navigator'}
                         </span>
-                        <span className="text-xs font-semibold text-on-surface-variant flex items-center gap-1">
+                        <span suppressHydrationWarning className="text-xs font-semibold text-on-surface-variant flex items-center gap-1">
                           <Clock className="w-3.5 h-3.5" aria-hidden="true" />
                           {timeAgo(report.reportedAt)}
                         </span>
@@ -839,6 +839,7 @@ function CommunityConfidenceContent() {
                                     {evt.actor}
                                   </span>
                                   <time
+                                    suppressHydrationWarning
                                     dateTime={evt.timestamp}
                                     title={new Date(evt.timestamp).toLocaleString('en-IN')}
                                     className="text-[11px] text-on-surface-variant font-medium"

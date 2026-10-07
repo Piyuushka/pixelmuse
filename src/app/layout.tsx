@@ -67,12 +67,18 @@ export default async function RootLayout({
         />
       </head>
       <body className="min-h-full w-full flex flex-col bg-surface text-on-surface overflow-x-hidden transition-colors duration-200">
+        <a
+          href="#main-content"
+          className="sr-only focus:not-sr-only focus:fixed focus:top-4 focus:left-4 focus:z-[9999] focus:px-6 focus:py-3 focus:bg-primary focus:text-white focus:rounded-xl focus:font-black focus:shadow-2xl focus:outline-none focus:ring-4 focus:ring-offset-2 focus:ring-primary"
+        >
+          Skip to main content
+        </a>
         <AccessibilityProvider>
           <VoiceAssistantProvider>
             {/* Bootstraps all Capacitor native plugins — no-op on web */}
             <CapacitorInit />
             <ConversationalVoiceOnboarding />
-            <div className="w-full min-h-screen flex flex-col">
+            <div id="main-content" tabIndex={-1} className="w-full min-h-screen flex flex-col outline-none">
               {children}
             </div>
             <TalkToAssistantButton variant="fab" />

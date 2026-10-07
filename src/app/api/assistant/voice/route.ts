@@ -151,6 +151,35 @@ Example: "There are three steps going up, followed by a glass door. Stainless st
       });
     }
 
+    if (lower.includes('report barrier') || lower.includes('report obstacle') || lower.includes('report hazard') || lower.includes('report a barrier')) {
+      return NextResponse.json({
+        success: true,
+        intent: 'NAVIGATE_UI',
+        targetUrl: '/community-confidence?action=report',
+        spokenResponse: 'Opening barrier reporting screen. You can report blocked ramps, broken pathways, or stairs.',
+        hapticCue: 'confirm',
+      });
+    }
+
+    if (lower.includes('avoid stairs') || lower.includes('no stairs') || lower.includes('step free') || lower.includes('step-free')) {
+      return NextResponse.json({
+        success: true,
+        intent: 'NAVIGATE_UI',
+        action: 'AVOID_STAIRS',
+        spokenResponse: 'Avoid stairs mode enabled. Recalculating step-free route with zero stairs and gentle ramps.',
+        hapticCue: 'confirm',
+      });
+    }
+
+    if (lower === 'start route' || lower === 'start navigation' || lower === 'start') {
+      return NextResponse.json({
+        success: true,
+        intent: 'START_NAVIGATION',
+        spokenResponse: 'Starting route navigation. Follow the turn-by-turn guidance and tactile beacons.',
+        hapticCue: 'confirm',
+      });
+    }
+
     if (lower.includes('parent') || lower.includes('guardian') || lower.includes('family')) {
       return NextResponse.json({
         success: true,
@@ -247,6 +276,7 @@ Example: "There are three steps going up, followed by a glass door. Stainless st
     if (
       lower === 'repeat' ||
       lower === 'repeat step' ||
+      lower === 'repeat instruction' ||
       lower === 'repeat direction' ||
       lower === 'again' ||
       lower === 'what was that' ||
@@ -298,7 +328,9 @@ Example: "There are three steps going up, followed by a glass door. Stainless st
     let landmarkSteps: NavigationStep[] = [];
 
     // Extract destination from user query
-    if (lower.includes('library') || lower.includes('central')) {
+    if (lower.includes('restroom') || lower.includes('toilet') || lower.includes('washroom')) {
+      destination = 'Accessible Restroom Concourse B (Step-Free)';
+    } else if (lower.includes('library') || lower.includes('central')) {
       destination = 'Central Library & Reading Hub';
     } else if (lower.includes('hospital') || lower.includes('cardiology') || lower.includes('doctor') || lower.includes('suite')) {
       destination = 'Cardiology Pavilion Suite 304';
