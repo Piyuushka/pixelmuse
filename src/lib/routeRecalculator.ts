@@ -65,6 +65,8 @@ export function normalizeToIndianBarrierReport(
     votes: mongoRep.upvotes,
     downvotes: mongoRep.downvotes,
     date: 'Just now',
+    reportedAt: mongoRep.created_at ? mongoRep.created_at.getTime() : Date.now(),
+    reportedBy: 'Community User',
     createdAt: mongoRep.created_at ? mongoRep.created_at.getTime() : Date.now(),
     expiresAt: mongoRep.expires_at ? mongoRep.expires_at.getTime() : Date.now() + 7200 * 1000,
     ttlSeconds: 7200,

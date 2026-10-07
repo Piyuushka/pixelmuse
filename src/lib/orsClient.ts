@@ -383,7 +383,6 @@ export async function searchLocation(query: string): Promise<GeocodeResult[]> {
 
   const normalized = query.toLowerCase().trim();
 
-<<<<<<< Updated upstream
   // 1. Exact preset matches
   const exactDemoMatches = DEMO_LOCATIONS.filter(l => l.name.toLowerCase() === normalized).map(l => ({
     name: l.name,
@@ -424,13 +423,6 @@ export async function searchLocation(query: string): Promise<GeocodeResult[]> {
   const looseDemoMatches = DEMO_LOCATIONS.filter(l => 
     l.name.toLowerCase() !== normalized &&
     (l.name.toLowerCase().includes(normalized) || (normalized.length > 4 && normalized.includes(l.name.toLowerCase())))
-=======
-  const demoMatches = DEMO_LOCATIONS.filter(l =>
-    l.name.toLowerCase().includes(normalized) || 
-    normalized.includes(l.name.toLowerCase()) ||
-    (l.description && l.description.toLowerCase().includes(normalized)) ||
-    (l.id && l.id.replace(/-/g, ' ').includes(normalized))
->>>>>>> Stashed changes
   ).map(l => ({
     name: l.name,
     label: `${l.name} — ${l.description}`,
@@ -439,25 +431,7 @@ export async function searchLocation(query: string): Promise<GeocodeResult[]> {
 
   const combined = [...exactDemoMatches];
 
-<<<<<<< Updated upstream
   for (const r of serverResults) {
-=======
-  const tasks = [];
-  if (process.env.NEXT_PUBLIC_GOOGLE_MAPS_API_KEY) {
-    tasks.push(geocodeGoogle(query));
-  }
-  tasks.push(geocodeNominatim(query));
-  
-  const resultsArray = await Promise.all(tasks);
-  
-  for (const res of resultsArray) {
-    remoteResults = remoteResults.concat(res);
-  }
-
-  const combined = [...demoMatches];
-  
-  for (const r of remoteResults) {
->>>>>>> Stashed changes
     if (!combined.some(c => c.name.toLowerCase() === r.name.toLowerCase() || c.label.toLowerCase() === r.label.toLowerCase())) {
       combined.push(r);
     }
@@ -471,3 +445,4 @@ export async function searchLocation(query: string): Promise<GeocodeResult[]> {
 
   return combined;
 }
+
