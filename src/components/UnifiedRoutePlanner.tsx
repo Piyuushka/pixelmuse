@@ -1418,20 +1418,7 @@ export default function UnifiedRoutePlanner({ initialMode = 'gps' }: UnifiedRout
             onViewChange={setVisualizerView}
           />
 
-          <div className="mt-8 flex flex-col items-center gap-4 bg-surface-container p-6 rounded-3xl border border-outline-variant/30">
-            <h3 className="text-lg font-black text-on-surface">Walking route (accessibility not verified)</h3>
-            <p className="text-sm text-on-surface-variant text-center max-w-lg">
-              Google walking routes do NOT guarantee step-free access. We rely on community reports to verify accessibility.
-            </p>
-            <button
-              type="button"
-              className="mt-2 bg-secondary hover:bg-secondary-container text-white px-6 py-3 rounded-2xl font-black text-sm shadow-md transition-all flex items-center gap-2"
-              onClick={() => alert('Barrier reporting interface would open here.')}
-            >
-              <AlertTriangle className="w-5 h-5" />
-              <span>Report a Barrier</span>
-            </button>
-          </div>
+
         </section>
 
       </div>

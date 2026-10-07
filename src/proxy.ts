@@ -78,7 +78,7 @@ function isUserOnly(pathname: string): boolean {
   return USER_ONLY_PATTERNS.some(p => pathname.startsWith(p));
 }
 
-export async function middleware(request: NextRequest) {
+export async function proxy(request: NextRequest) {
   const { pathname } = request.nextUrl;
 
   // Always allow public paths.
