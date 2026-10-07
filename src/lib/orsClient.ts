@@ -1,4 +1,6 @@
 import { RouteScenarioData, SchematicStep, AccessibilityPreferenceId, DEMO_LOCATIONS } from '@/data/routeSimulatorData';
+import { IndianBarrierReport } from './barrierEngine';
+import { calculateHaversineDistance } from './spatial';
 
 const ORS_API_KEY = process.env.NEXT_PUBLIC_ORS_API_KEY;
 const ORS_BASE_URL = 'https://api.openrouteservice.org/v2/directions';
@@ -7,6 +9,8 @@ export interface Coordinates {
   lat: number;
   lng: number;
 }
+
+export type DataSourceType = 'live' | 'estimated' | 'demo';
 
 interface ORSResponse {
   features: Array<{
@@ -31,11 +35,212 @@ interface ORSResponse {
         distance: number;
         duration: number;
       };
+      extras?: {
+        steepness?: {
+          values: Array<[number, number, number]>; // [from_idx, to_idx, steepness_class 1-5]
+          summary?: Array<{ value: number; distance: number; amount: number }>;
+        };
+        surface?: {
+          values: Array<[number, number, number]>;
+          summary?: Array<{ value: number; distance: number; amount: number }>;
+        };
+        waytype?: {
+          values: Array<[number, number, number]>;
+          summary?: Array<{ value: number; distance: number; amount: number }>;
+        };
+      };
     };
   }>;
 }
 
+/**
+ * Builds GeoJSON MultiPolygon avoidance areas for active barrier points with a radius buffer.
+ * Used by ORS `options.avoid_polygons`.
+ */
+export function buildAvoidPolygonsFromBarriers(
+  barriers: IndianBarrierReport[] = [],
+  radiusMeters: number = 30
+): { type: 'MultiPolygon'; coordinates: number[][][][] } | undefined {
+  const active = barriers.filter(b => !b.isExpired && b.status !== 'Expired' && b.status !== 'Resolved');
+  if (active.length === 0) return undefined;
+
+  const polygons = active.map(b => {
+    const lat = b.coordinates.lat;
+    const lng = b.coordinates.lng;
+    const latDelta = radiusMeters / 111000;
+    const lngDelta = radiusMeters / (111000 * Math.max(0.2, Math.cos((lat * Math.PI) / 180)));
+
+    return [
+      [
+        [Number((lng - lngDelta).toFixed(6)), Number((lat - latDelta).toFixed(6))],
+        [Number((lng + lngDelta).toFixed(6)), Number((lat - latDelta).toFixed(6))],
+        [Number((lng + lngDelta).toFixed(6)), Number((lat + latDelta).toFixed(6))],
+        [Number((lng - lngDelta).toFixed(6)), Number((lat + latDelta).toFixed(6))],
+        [Number((lng - lngDelta).toFixed(6)), Number((lat - latDelta).toFixed(6))],
+      ]
+    ];
+  });
+
+  return {
+    type: 'MultiPolygon',
+    coordinates: polygons,
+  };
+}
+
+/**
+ * Fetches elevation profiles along route coordinates via Google Elevation API.
+ * Calculates true rise/run slope percentages.
+ */
+export async function fetchGoogleElevationForPath(
+  coords: Coordinates[]
+): Promise<{ maxSlopePct: number; avgSlopePct: number; dataSource: 'live' } | null> {
+  const apiKey = process.env.GOOGLE_MAPS_SERVER_API_KEY || process.env.NEXT_PUBLIC_GOOGLE_MAPS_API_KEY;
+  if (!apiKey || coords.length < 2) return null;
+
+  try {
+    // Sample evenly up to 20 coordinates to stay well within query bounds
+    const step = Math.max(1, Math.floor(coords.length / 20));
+    const sampled = coords.filter((_, idx) => idx % step === 0 || idx === coords.length - 1);
+    const locString = sampled.map(c => `${c.lat.toFixed(5)},${c.lng.toFixed(5)}`).join('|');
+
+    const url = `https://maps.googleapis.com/maps/api/elevation/json?locations=${encodeURIComponent(locString)}&key=${apiKey}`;
+    const res = await fetch(url);
+    if (!res.ok) return null;
+
+    const data = await res.json();
+    if (data.status !== 'OK' || !Array.isArray(data.results) || data.results.length < 2) {
+      return null;
+    }
+
+    let maxSlope = 0;
+    let totalSlope = 0;
+    let segmentCount = 0;
+
+    for (let i = 0; i < data.results.length - 1; i++) {
+      const e1 = data.results[i].elevation;
+      const e2 = data.results[i + 1].elevation;
+      const dist = calculateHaversineDistance(
+        { lat: data.results[i].location.lat, lng: data.results[i].location.lng },
+        { lat: data.results[i + 1].location.lat, lng: data.results[i + 1].location.lng }
+      );
+
+      if (dist > 5) {
+        const slopePct = (Math.abs(e2 - e1) / dist) * 100;
+        maxSlope = Math.max(maxSlope, slopePct);
+        totalSlope += slopePct;
+        segmentCount++;
+      }
+    }
+
+    if (segmentCount === 0) return null;
+
+    return {
+      maxSlopePct: Number(maxSlope.toFixed(1)),
+      avgSlopePct: Number((totalSlope / segmentCount).toFixed(1)),
+      dataSource: 'live',
+    };
+  } catch (err) {
+    console.warn('Google Elevation API lookup failed:', err);
+    return null;
+  }
+}
+
+/**
+ * Fetches ORS Wheelchair route with extra_info (steepness, surface, waytype)
+ * and obstacle avoidance polygons.
+ */
+export async function fetchOrsWheelchairRouteWithExtras(
+  start: Coordinates,
+  end: Coordinates,
+  barriers: IndianBarrierReport[] = []
+): Promise<{
+  response: ORSResponse;
+  slopeData: { maxSlopePct: number; avgSlopePct: number };
+  surfaceData: { surfaceIssues: number };
+  dataSource: 'live';
+} | null> {
+  if (!ORS_API_KEY) return null;
+
+  try {
+    const avoidPolygons = buildAvoidPolygonsFromBarriers(barriers);
+    const bodyPayload: any = {
+      coordinates: [[start.lng, start.lat], [end.lng, end.lat]],
+      extra_info: ['steepness', 'surface', 'waytype'],
+    };
+
+    if (avoidPolygons) {
+      bodyPayload.options = { avoid_polygons: avoidPolygons };
+    }
+
+    const url = `${ORS_BASE_URL}/wheelchair/geojson`;
+    const response = await fetch(url, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'Authorization': ORS_API_KEY,
+      },
+      body: JSON.stringify(bodyPayload),
+    });
+
+    if (!response.ok) return null;
+    const data: ORSResponse = await response.json();
+    const feat = data.features?.[0];
+    if (!feat) return null;
+
+    // Parse Steepness extras:
+    // ORS steepness codes:
+    // -5 to -1: downhill (-1=1-3%, -2=4-6%, -3=7-10%, -4=11-15%, -5=>15%)
+    // 0: flat (0%)
+    // 1 to 5: uphill (1=1-3%, 2=4-6%, 3=7-10%, 4=11-15%, 5=>15%)
+    let maxSlopePct = 3.0;
+    let avgSlopePct = 1.5;
+
+    if (feat.properties.extras?.steepness?.values) {
+      const values = feat.properties.extras.steepness.values;
+      let highestCode = 0;
+      let sumSlope = 0;
+
+      for (const [, , code] of values) {
+        const absCode = Math.abs(code);
+        highestCode = Math.max(highestCode, absCode);
+        const mappedSlope = absCode === 0 ? 0 : absCode === 1 ? 2.5 : absCode === 2 ? 5.0 : absCode === 3 ? 8.5 : absCode === 4 ? 13.0 : 18.0;
+        sumSlope += mappedSlope;
+      }
+
+      if (values.length > 0) {
+        avgSlopePct = Number((sumSlope / values.length).toFixed(1));
+        maxSlopePct = highestCode === 0 ? 1.0 : highestCode === 1 ? 3.0 : highestCode === 2 ? 5.5 : highestCode === 3 ? 9.0 : highestCode === 4 ? 14.0 : 20.0;
+      }
+    }
+
+    // Parse Surface extras: surface issues count (cobblestone, unpaved, mud, gravel)
+    let surfaceIssues = 0;
+    if (feat.properties.extras?.surface?.values) {
+      for (const [, , val] of feat.properties.extras.surface.values) {
+        // ORS surface: 0=unknown, 1=paved, 2=unpaved, 3=asphalt, 4=concrete, 5=cobblestone, etc.
+        if (val === 2 || val === 5 || val === 6 || val === 7) {
+          surfaceIssues++;
+        }
+      }
+    }
+
+    return {
+      response: data,
+      slopeData: { maxSlopePct, avgSlopePct },
+      surfaceData: { surfaceIssues },
+      dataSource: 'live',
+    };
+  } catch (err) {
+    console.warn('ORS Wheelchair route with extras error:', err);
+    return null;
+  }
+}
+
 function mapORSInstructionToStep(instruction: string, type: number, index: number, isAccessible: boolean, coords: number[], distance: number): SchematicStep {
+  // ORS Types (Simplified):
+  // 0: Left, 1: Right, 2: Sharp left, 3: Sharp right, 4: Slight left, 5: Slight right, 
+  // 6: Straight, 7: Enter roundabout, 8: Exit roundabout, 9: U-turn, 10: Goal, 11: Depart, 12: Keep left, 13: Keep right
+  
   let stepType: SchematicStep['type'] = 'smooth_footpath';
   let title = instruction;
   let detail = '';
@@ -73,90 +278,44 @@ function mapORSInstructionToStep(instruction: string, type: number, index: numbe
   };
 }
 
-/**
- * Free public OSRM (Open Source Routing Machine) fallback that requires no API key.
- * Guarantees live route calculation for any start/end coordinates globally.
- */
-async function fetchOSRMRoute(start: Coordinates, end: Coordinates): Promise<ORSResponse | null> {
-  try {
-    const url = `https://router.project-osrm.org/route/v1/foot/${start.lng},${start.lat};${end.lng},${end.lat}?overview=full&geometries=geojson&steps=true`;
-    const response = await fetch(url);
-    if (!response.ok) return null;
-    const data = await response.json();
-    if (!data.routes || data.routes.length === 0) return null;
-
-    const route = data.routes[0];
-    const steps = (route.legs || []).flatMap((leg: any) => leg.steps || []);
-
-    return {
-      features: [
-        {
-          geometry: route.geometry,
-          properties: {
-            segments: [
-              {
-                distance: route.distance,
-                duration: route.duration,
-                steps: steps.map((s: any) => ({
-                  distance: s.distance,
-                  duration: s.duration,
-                  type: s.maneuver?.type === 'arrive' ? 10 : (s.maneuver?.type === 'depart' ? 11 : 6),
-                  instruction: s.maneuver?.instruction || s.name || 'Proceed along designated path',
-                  name: s.name || '',
-                  way_points: [0],
-                })),
-              },
-            ],
-            summary: {
-              distance: route.distance,
-              duration: route.duration,
-            },
-          },
-        },
-      ],
-    };
-  } catch (error) {
-    console.warn('OSRM live route fallback error:', error);
+async function fetchRoute(start: Coordinates, end: Coordinates, profile: 'foot-walking' | 'wheelchair'): Promise<ORSResponse | null> {
+  if (!ORS_API_KEY) {
     return null;
   }
-}
 
-async function fetchRoute(start: Coordinates, end: Coordinates, profile: 'foot-walking' | 'wheelchair'): Promise<ORSResponse | null> {
-  if (ORS_API_KEY && !ORS_API_KEY.startsWith('eyJ')) {
-    try {
-      const url = `${ORS_BASE_URL}/${profile}?api_key=${ORS_API_KEY}&start=${start.lng},${start.lat}&end=${end.lng},${end.lat}`;
-      const response = await fetch(url);
-      if (response.ok) {
-        return await response.json();
-      }
-      console.warn(`ORS API Route error (${response.statusText}), falling back to OSRM`);
-    } catch (error) {
-      console.warn('Failed to fetch ORS route, falling back to OSRM:', error);
+  try {
+    const url = `${ORS_BASE_URL}/${profile}?api_key=${ORS_API_KEY}&start=${start.lng},${start.lat}&end=${end.lng},${end.lat}`;
+    const response = await fetch(url);
+    if (!response.ok) {
+      return null;
     }
+    return await response.json();
+  } catch (error) {
+    console.warn('Failed to fetch ORS route:', error);
+    return null;
   }
-
-  // Automatic OSRM fallback if ORS key is invalid or fails
-  return await fetchOSRMRoute(start, end);
 }
 
 export async function getLiveRouteScenario(
   start: Coordinates,
   end: Coordinates,
-  prefId: AccessibilityPreferenceId = 'wheelchair'
-): Promise<(RouteScenarioData & { geojsonNormal?: any, geojsonAccessible?: any }) | null> {
-  
-  const [normalRes, accessibleRes] = await Promise.all([
-    fetchRoute(start, end, 'foot-walking'),
-    fetchRoute(start, end, 'wheelchair')
-  ]);
+  prefId: AccessibilityPreferenceId = 'wheelchair',
+  barriers: IndianBarrierReport[] = []
+): Promise<(RouteScenarioData & { geojsonNormal?: any; geojsonAccessible?: any; dataSource?: DataSourceType }) | null> {
+  // 1. First try wheelchair profile with extra_info and obstacle avoidance
+  const wheelchairExtras = await fetchOrsWheelchairRouteWithExtras(start, end, barriers);
+  const normalRes = await fetchRoute(start, end, 'foot-walking');
 
-  const activeRes = normalRes || accessibleRes;
-  if (!activeRes) {
-    return null;
+  if (!normalRes && !wheelchairExtras) {
+    return null; // Fallback to mock data if API fails or no key
   }
 
-  const normalFeature = normalRes ? normalRes.features[0] : activeRes.features[0];
-  const accFeature = accessibleRes ? accessibleRes.features[0] : activeRes.features[0];
+  const normalFeature = normalRes?.features[0];
+  const accFeature = wheelchairExtras?.response.features[0] || (await fetchRoute(start, end, 'wheelchair'))?.features[0];
+
+  if (!normalFeature || !accFeature) {
+    return null;
+  }
 
   const normalSummary = normalFeature.properties.summary;
   const accSummary = accFeature.properties.summary;
@@ -165,27 +324,28 @@ export async function getLiveRouteScenario(
   const accStepsRaw = accFeature.properties.segments.flatMap(s => s.steps);
 
   const normalSteps: SchematicStep[] = normalStepsRaw.map((step, i) => {
-    const coords = normalFeature.geometry.coordinates[step.way_points[0] || 0];
+    const coords = normalFeature.geometry.coordinates[step.way_points[0]];
     return mapORSInstructionToStep(step.instruction, step.type, i, false, coords, step.distance);
   });
   const accessibleSteps: SchematicStep[] = accStepsRaw.map((step, i) => {
-    const coords = accFeature.geometry.coordinates[step.way_points[0] || 0];
+    const coords = accFeature.geometry.coordinates[step.way_points[0]];
     return mapORSInstructionToStep(step.instruction, step.type, i, true, coords, step.distance);
   });
 
   return {
     normal: {
       distance: Number((normalSummary.distance / 1000).toFixed(2)),
-      time: Math.max(1, Math.round(normalSummary.duration / 60)),
+      time: Math.round(normalSummary.duration / 60),
     },
     accessible: {
       distance: Number((accSummary.distance / 1000).toFixed(2)),
-      time: Math.max(1, Math.round(accSummary.duration / 60)),
+      time: Math.round(accSummary.duration / 60),
     },
     normalSteps,
     accessibleSteps,
     geojsonNormal: normalFeature,
-    geojsonAccessible: accFeature
+    geojsonAccessible: accFeature,
+    dataSource: wheelchairExtras ? 'live' : 'estimated',
   };
 }
 

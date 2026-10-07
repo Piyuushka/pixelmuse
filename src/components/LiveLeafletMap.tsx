@@ -326,20 +326,34 @@ export default function LiveLeafletMap(props: LiveLeafletMapProps) {
           />
         )}
 
-        {/* Normal Route (Red / Rose line) */}
+        {/* Old / Normal Route (Dashed line when rerouted/comparing, rose accent) */}
         {showNormalPolyline && originalRoutePath && (
           <Polyline
             path={originalRoutePath}
             options={{
               strokeColor: '#f43f5e',
-              strokeOpacity: 0.9,
-              strokeWeight: 6,
+              strokeOpacity: props.isRerouted || props.showComparisonControls ? 0 : 0.85,
+              strokeWeight: 5,
+              icons: (props.isRerouted || props.showComparisonControls)
+                ? [
+                    {
+                      icon: {
+                        path: 'M 0,-1 0,1',
+                        strokeOpacity: 0.9,
+                        strokeColor: '#f43f5e',
+                        scale: 3.5,
+                      },
+                      offset: '0',
+                      repeat: '14px',
+                    },
+                  ]
+                : undefined,
               zIndex: props.activeView === 'normal' ? 50 : 20,
             }}
           />
         )}
 
-        {/* Accessible Route (Emerald Green line) */}
+        {/* New / Accessible Route (Solid Emerald Green line) */}
         {showAccessiblePolyline && routePath && (
           <Polyline
             path={routePath}
@@ -347,7 +361,7 @@ export default function LiveLeafletMap(props: LiveLeafletMapProps) {
               strokeColor: '#10b981',
               strokeOpacity: 0.95,
               strokeWeight: 6,
-              zIndex: 30,
+              zIndex: 35,
             }}
           />
         )}
